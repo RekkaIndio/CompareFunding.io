@@ -1,0 +1,173 @@
+Date : 2025-03-29 08:13:48
+Directory : /Users/jay/Downloads/fund-connector-main
+Total : 128 files,  28179 codes, 498 comments, 2052 blanks, all 30729 lines
+
+Languages
++--------------------+------------+------------+------------+------------+------------+
+| language           | files      | code       | comment    | blank      | total      |
++--------------------+------------+------------+------------+------------+------------+
+| TypeScript JSX     |        101 |     17,320 |        415 |      1,798 |     19,533 |
+| JSON               |          6 |      8,179 |          4 |         10 |      8,193 |
+| TypeScript         |         11 |      2,288 |         64 |        170 |      2,522 |
+| CSS                |          2 |        193 |          8 |         49 |        250 |
+| HTML               |          3 |        128 |          7 |          9 |        144 |
+| JavaScript         |          2 |         34 |          0 |          3 |         37 |
+| JSON with Comments |          1 |         19 |          0 |          1 |         20 |
+| Markdown           |          1 |         17 |          0 |         12 |         29 |
+| Properties         |          1 |          1 |          0 |          0 |          1 |
++--------------------+------------+------------+------------+------------+------------+
+
+Directories
++-----------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| path                                                                              | files      | code       | comment    | blank      | total      |
++-----------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| .                                                                                 |        128 |     28,179 |        498 |      2,052 |     30,729 |
+| . (Files)                                                                         |         14 |      8,432 |          6 |         32 |      8,470 |
+| public                                                                            |          2 |        111 |          6 |          7 |        124 |
+| src                                                                               |        112 |     19,636 |        486 |      2,013 |     22,135 |
+| src (Files)                                                                       |          6 |        925 |         61 |        149 |      1,135 |
+| src/components                                                                    |         70 |      6,281 |         51 |        731 |      7,063 |
+| src/components (Files)                                                            |         21 |      2,013 |         37 |        219 |      2,269 |
+| src/components/ui                                                                 |         49 |      4,268 |         14 |        512 |      4,794 |
+| src/contexts                                                                      |          2 |        175 |         16 |         35 |        226 |
+| src/hooks                                                                         |          2 |        174 |          2 |         36 |        212 |
+| src/integrations                                                                  |          2 |      1,161 |          3 |         13 |      1,177 |
+| src/integrations/supabase                                                         |          2 |      1,161 |          3 |         13 |      1,177 |
+| src/lib                                                                           |          3 |        159 |         11 |         30 |        200 |
+| src/pages                                                                         |         27 |     10,761 |        342 |      1,019 |     12,122 |
++-----------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+
+Files
++-----------------------------------------------------------------------------------+--------------------+------------+------------+------------+------------+
+| filename                                                                          | language           | code       | comment    | blank      | total      |
++-----------------------------------------------------------------------------------+--------------------+------------+------------+------------+------------+
+| /Users/jay/Downloads/fund-connector-main/.env                                     | Properties         |          1 |          0 |          0 |          1 |
+| /Users/jay/Downloads/fund-connector-main/README.md                                | Markdown           |         17 |          0 |         12 |         29 |
+| /Users/jay/Downloads/fund-connector-main/components.json                          | JSON               |         20 |          0 |          0 |         20 |
+| /Users/jay/Downloads/fund-connector-main/eslint.config.js                         | JavaScript         |         28 |          0 |          2 |         30 |
+| /Users/jay/Downloads/fund-connector-main/firebase.json                            | JSON               |         16 |          0 |          1 |         17 |
+| /Users/jay/Downloads/fund-connector-main/index.html                               | HTML               |         17 |          1 |          2 |         20 |
+| /Users/jay/Downloads/fund-connector-main/package-lock.json                        | JSON               |      8,012 |          0 |          1 |      8,013 |
+| /Users/jay/Downloads/fund-connector-main/package.json                             | JSON               |         88 |          0 |          1 |         89 |
+| /Users/jay/Downloads/fund-connector-main/postcss.config.js                        | JavaScript         |          6 |          0 |          1 |          7 |
+| /Users/jay/Downloads/fund-connector-main/public/404.html                          | HTML               |         32 |          0 |          2 |         34 |
+| /Users/jay/Downloads/fund-connector-main/public/index.html                        | HTML               |         79 |          6 |          5 |         90 |
+| /Users/jay/Downloads/fund-connector-main/src/App.css                              | CSS                |         37 |          0 |          6 |         43 |
+| /Users/jay/Downloads/fund-connector-main/src/App.tsx                              | TypeScript JSX     |         86 |          6 |          8 |        100 |
+| /Users/jay/Downloads/fund-connector-main/src/components/ApplicationCard.tsx       | TypeScript JSX     |        114 |          1 |         10 |        125 |
+| /Users/jay/Downloads/fund-connector-main/src/components/CTASection.tsx            | TypeScript JSX     |         50 |          1 |          8 |         59 |
+| /Users/jay/Downloads/fund-connector-main/src/components/FeatureCard.tsx           | TypeScript JSX     |         23 |          0 |          5 |         28 |
+| /Users/jay/Downloads/fund-connector-main/src/components/FeaturesSection.tsx       | TypeScript JSX     |         75 |          0 |          7 |         82 |
+| /Users/jay/Downloads/fund-connector-main/src/components/FeedbackReviews.tsx       | TypeScript JSX     |        189 |          7 |         19 |        215 |
+| /Users/jay/Downloads/fund-connector-main/src/components/Footer.tsx                | TypeScript JSX     |        175 |          0 |          9 |        184 |
+| /Users/jay/Downloads/fund-connector-main/src/components/HeroSection.tsx           | TypeScript JSX     |        140 |          2 |         17 |        159 |
+| /Users/jay/Downloads/fund-connector-main/src/components/HowItWorksSection.tsx     | TypeScript JSX     |        110 |          0 |         14 |        124 |
+| /Users/jay/Downloads/fund-connector-main/src/components/LenderReviewDialog.tsx    | TypeScript JSX     |        151 |          1 |         15 |        167 |
+| /Users/jay/Downloads/fund-connector-main/src/components/Logo.tsx                  | TypeScript JSX     |         66 |          0 |          6 |         72 |
+| /Users/jay/Downloads/fund-connector-main/src/components/LowCreditsDialog.tsx      | TypeScript JSX     |         68 |          0 |          5 |         73 |
+| /Users/jay/Downloads/fund-connector-main/src/components/Navbar.tsx                | TypeScript JSX     |        228 |         11 |         26 |        265 |
+| /Users/jay/Downloads/fund-connector-main/src/components/PageLayout.tsx            | TypeScript JSX     |         37 |          0 |          7 |         44 |
+| /Users/jay/Downloads/fund-connector-main/src/components/PaymentMethodDialog.tsx   | TypeScript JSX     |         99 |          1 |         10 |        110 |
+| /Users/jay/Downloads/fund-connector-main/src/components/PrivateRoute.tsx          | TypeScript JSX     |         10 |          0 |          6 |         16 |
+| /Users/jay/Downloads/fund-connector-main/src/components/PurchaseCreditsDialog.tsx | TypeScript JSX     |        136 |          4 |         12 |        152 |
+| /Users/jay/Downloads/fund-connector-main/src/components/StatsCard.tsx             | TypeScript JSX     |         44 |          0 |          7 |         51 |
+| /Users/jay/Downloads/fund-connector-main/src/components/StatusBadge.tsx           | TypeScript JSX     |         89 |          3 |          8 |        100 |
+| /Users/jay/Downloads/fund-connector-main/src/components/TestimonialCard.tsx       | TypeScript JSX     |         58 |          0 |          8 |         66 |
+| /Users/jay/Downloads/fund-connector-main/src/components/TestimonialsSection.tsx   | TypeScript JSX     |        119 |          1 |         11 |        131 |
+| /Users/jay/Downloads/fund-connector-main/src/components/ThemeStyles.tsx           | TypeScript JSX     |         32 |          5 |          9 |         46 |
+| /Users/jay/Downloads/fund-connector-main/src/components/ui/accordion.tsx          | TypeScript JSX     |         49 |          0 |          8 |         57 |
+| /Users/jay/Downloads/fund-connector-main/src/components/ui/alert-dialog.tsx       | TypeScript JSX     |        126 |          0 |         14 |        140 |
+| /Users/jay/Downloads/fund-connector-main/src/components/ui/alert.tsx              | TypeScript JSX     |         53 |          0 |          7 |         60 |
+| /Users/jay/Downloads/fund-connector-main/src/components/ui/aspect-ratio.tsx       | TypeScript JSX     |          3 |          0 |          3 |          6 |
+| /Users/jay/Downloads/fund-connector-main/src/components/ui/avatar.tsx             | TypeScript JSX     |         43 |          0 |          6 |         49 |
+| /Users/jay/Downloads/fund-connector-main/src/components/ui/badge.tsx              | TypeScript JSX     |         31 |          0 |          6 |         37 |
+| /Users/jay/Downloads/fund-connector-main/src/components/ui/breadcrumb.tsx         | TypeScript JSX     |        105 |          0 |         11 |        116 |
+| /Users/jay/Downloads/fund-connector-main/src/components/ui/button.tsx             | TypeScript JSX     |         49 |          0 |          5 |         54 |
+| /Users/jay/Downloads/fund-connector-main/src/components/ui/calendar.tsx           | TypeScript JSX     |         60 |          0 |          5 |         65 |
+| /Users/jay/Downloads/fund-connector-main/src/components/ui/card.tsx               | TypeScript JSX     |         71 |          0 |          9 |         80 |
+| /Users/jay/Downloads/fund-connector-main/src/components/ui/carousel.tsx           | TypeScript JSX     |        231 |          0 |         30 |        261 |
+| /Users/jay/Downloads/fund-connector-main/src/components/ui/chart.tsx              | TypeScript JSX     |        326 |          2 |         36 |        364 |
+| /Users/jay/Downloads/fund-connector-main/src/components/ui/checkbox.tsx           | TypeScript JSX     |         25 |          0 |          4 |         29 |
+| /Users/jay/Downloads/fund-connector-main/src/components/ui/collapsible.tsx        | TypeScript JSX     |          5 |          0 |          5 |         10 |
+| /Users/jay/Downloads/fund-connector-main/src/components/ui/command.tsx            | TypeScript JSX     |        136 |          0 |         18 |        154 |
+| /Users/jay/Downloads/fund-connector-main/src/components/ui/context-menu.tsx       | TypeScript JSX     |        181 |          0 |         18 |        199 |
+| /Users/jay/Downloads/fund-connector-main/src/components/ui/dialog.tsx             | TypeScript JSX     |        108 |          0 |         13 |        121 |
+| /Users/jay/Downloads/fund-connector-main/src/components/ui/drawer.tsx             | TypeScript JSX     |        104 |          0 |         13 |        117 |
+| /Users/jay/Downloads/fund-connector-main/src/components/ui/dropdown-menu.tsx      | TypeScript JSX     |        181 |          0 |         18 |        199 |
+| /Users/jay/Downloads/fund-connector-main/src/components/ui/form.tsx               | TypeScript JSX     |        152 |          0 |         25 |        177 |
+| /Users/jay/Downloads/fund-connector-main/src/components/ui/hover-card.tsx         | TypeScript JSX     |         22 |          0 |          6 |         28 |
+| /Users/jay/Downloads/fund-connector-main/src/components/ui/input-otp.tsx          | TypeScript JSX     |         62 |          0 |          8 |         70 |
+| /Users/jay/Downloads/fund-connector-main/src/components/ui/input.tsx              | TypeScript JSX     |         19 |          0 |          4 |         23 |
+| /Users/jay/Downloads/fund-connector-main/src/components/ui/label.tsx              | TypeScript JSX     |         20 |          0 |          5 |         25 |
+| /Users/jay/Downloads/fund-connector-main/src/components/ui/menubar.tsx            | TypeScript JSX     |        216 |          0 |         19 |        235 |
+| /Users/jay/Downloads/fund-connector-main/src/components/ui/navigation-menu.tsx    | TypeScript JSX     |        117 |          0 |         12 |        129 |
+| /Users/jay/Downloads/fund-connector-main/src/components/ui/pagination.tsx         | TypeScript JSX     |        107 |          0 |         11 |        118 |
+| /Users/jay/Downloads/fund-connector-main/src/components/ui/popover.tsx            | TypeScript JSX     |         24 |          0 |          6 |         30 |
+| /Users/jay/Downloads/fund-connector-main/src/components/ui/progress.tsx           | TypeScript JSX     |         23 |          0 |          4 |         27 |
+| /Users/jay/Downloads/fund-connector-main/src/components/ui/radio-group.tsx        | TypeScript JSX     |         38 |          0 |          5 |         43 |
+| /Users/jay/Downloads/fund-connector-main/src/components/ui/resizable.tsx          | TypeScript JSX     |         38 |          0 |          6 |         44 |
+| /Users/jay/Downloads/fund-connector-main/src/components/ui/scroll-area.tsx        | TypeScript JSX     |         42 |          0 |          5 |         47 |
+| /Users/jay/Downloads/fund-connector-main/src/components/ui/select.tsx             | TypeScript JSX     |        145 |          0 |         14 |        159 |
+| /Users/jay/Downloads/fund-connector-main/src/components/ui/separator.tsx          | TypeScript JSX     |         26 |          0 |          4 |         30 |
+| /Users/jay/Downloads/fund-connector-main/src/components/ui/sheet.tsx              | TypeScript JSX     |        116 |          0 |         16 |        132 |
+| /Users/jay/Downloads/fund-connector-main/src/components/ui/sidebar.tsx            | TypeScript JSX     |        696 |         12 |         54 |        762 |
+| /Users/jay/Downloads/fund-connector-main/src/components/ui/skeleton.tsx           | TypeScript JSX     |         13 |          0 |          3 |         16 |
+| /Users/jay/Downloads/fund-connector-main/src/components/ui/slider.tsx             | TypeScript JSX     |         23 |          0 |          4 |         27 |
+| /Users/jay/Downloads/fund-connector-main/src/components/ui/sonner.tsx             | TypeScript JSX     |         25 |          0 |          5 |         30 |
+| /Users/jay/Downloads/fund-connector-main/src/components/ui/switch.tsx             | TypeScript JSX     |         24 |          0 |          4 |         28 |
+| /Users/jay/Downloads/fund-connector-main/src/components/ui/table.tsx              | TypeScript JSX     |        107 |          0 |         11 |        118 |
+| /Users/jay/Downloads/fund-connector-main/src/components/ui/tabs.tsx               | TypeScript JSX     |         47 |          0 |          7 |         54 |
+| /Users/jay/Downloads/fund-connector-main/src/components/ui/textarea.tsx           | TypeScript JSX     |         20 |          0 |          5 |         25 |
+| /Users/jay/Downloads/fund-connector-main/src/components/ui/toast.tsx              | TypeScript JSX     |        115 |          0 |         13 |        128 |
+| /Users/jay/Downloads/fund-connector-main/src/components/ui/toaster.tsx            | TypeScript JSX     |         31 |          0 |          3 |         34 |
+| /Users/jay/Downloads/fund-connector-main/src/components/ui/toggle-group.tsx       | TypeScript JSX     |         51 |          0 |          9 |         60 |
+| /Users/jay/Downloads/fund-connector-main/src/components/ui/toggle.tsx             | TypeScript JSX     |         38 |          0 |          6 |         44 |
+| /Users/jay/Downloads/fund-connector-main/src/components/ui/tooltip.tsx            | TypeScript JSX     |         22 |          0 |          7 |         29 |
+| /Users/jay/Downloads/fund-connector-main/src/components/ui/use-toast.ts           | TypeScript         |          2 |          0 |          2 |          4 |
+| /Users/jay/Downloads/fund-connector-main/src/contexts/AuthContext.tsx             | TypeScript JSX     |        124 |         13 |         22 |        159 |
+| /Users/jay/Downloads/fund-connector-main/src/contexts/ThemeContext.tsx            | TypeScript JSX     |         51 |          3 |         13 |         67 |
+| /Users/jay/Downloads/fund-connector-main/src/firebase.ts                          | TypeScript         |        642 |         46 |         89 |        777 |
+| /Users/jay/Downloads/fund-connector-main/src/hooks/use-mobile.tsx                 | TypeScript JSX     |         15 |          0 |          5 |         20 |
+| /Users/jay/Downloads/fund-connector-main/src/hooks/use-toast.ts                   | TypeScript         |        159 |          2 |         31 |        192 |
+| /Users/jay/Downloads/fund-connector-main/src/index.css                            | CSS                |        156 |          8 |         43 |        207 |
+| /Users/jay/Downloads/fund-connector-main/src/integrations/supabase/client.ts      | TypeScript         |          5 |          3 |          5 |         13 |
+| /Users/jay/Downloads/fund-connector-main/src/integrations/supabase/types.ts       | TypeScript         |      1,156 |          0 |          8 |      1,164 |
+| /Users/jay/Downloads/fund-connector-main/src/lib/companiesHouse.ts                | TypeScript         |         30 |          0 |          4 |         34 |
+| /Users/jay/Downloads/fund-connector-main/src/lib/stripe.ts                        | TypeScript         |         35 |          1 |          4 |         40 |
+| /Users/jay/Downloads/fund-connector-main/src/lib/utils.ts                         | TypeScript         |         94 |         10 |         22 |        126 |
+| /Users/jay/Downloads/fund-connector-main/src/main.tsx                             | TypeScript JSX     |          4 |          0 |          2 |          6 |
+| /Users/jay/Downloads/fund-connector-main/src/pages/About.tsx                      | TypeScript JSX     |        170 |          1 |         12 |        183 |
+| /Users/jay/Downloads/fund-connector-main/src/pages/AccountingConnect.tsx          | TypeScript JSX     |        347 |         13 |         42 |        402 |
+| /Users/jay/Downloads/fund-connector-main/src/pages/ApplicationDetail.tsx          | TypeScript JSX     |        680 |         26 |         56 |        762 |
+| /Users/jay/Downloads/fund-connector-main/src/pages/ApplicationReview.tsx          | TypeScript JSX     |        277 |          4 |         34 |        315 |
+| /Users/jay/Downloads/fund-connector-main/src/pages/Applications.tsx               | TypeScript JSX     |        209 |         11 |         20 |        240 |
+| /Users/jay/Downloads/fund-connector-main/src/pages/BusinessDashboard.tsx          | TypeScript JSX     |        866 |         43 |        100 |      1,009 |
+| /Users/jay/Downloads/fund-connector-main/src/pages/BusinessDetail.tsx             | TypeScript JSX     |        802 |         28 |         60 |        890 |
+| /Users/jay/Downloads/fund-connector-main/src/pages/BusinessProfile.tsx            | TypeScript JSX     |        776 |         24 |         85 |        885 |
+| /Users/jay/Downloads/fund-connector-main/src/pages/Contact.tsx                    | TypeScript JSX     |        184 |          2 |         15 |        201 |
+| /Users/jay/Downloads/fund-connector-main/src/pages/CreateOffer.tsx                | TypeScript JSX     |        588 |         14 |         43 |        645 |
+| /Users/jay/Downloads/fund-connector-main/src/pages/ForBusinesses.tsx              | TypeScript JSX     |        208 |          1 |         15 |        224 |
+| /Users/jay/Downloads/fund-connector-main/src/pages/ForLenders.tsx                 | TypeScript JSX     |        246 |          1 |         19 |        266 |
+| /Users/jay/Downloads/fund-connector-main/src/pages/HowItWorks.tsx                 | TypeScript JSX     |        258 |          1 |         23 |        282 |
+| /Users/jay/Downloads/fund-connector-main/src/pages/Index.tsx                      | TypeScript JSX     |         22 |          1 |          5 |         28 |
+| /Users/jay/Downloads/fund-connector-main/src/pages/LenderBilling.tsx              | TypeScript JSX     |        153 |          3 |         14 |        170 |
+| /Users/jay/Downloads/fund-connector-main/src/pages/LenderBillingWrapper.tsx       | TypeScript JSX     |         11 |          0 |          2 |         13 |
+| /Users/jay/Downloads/fund-connector-main/src/pages/LenderDashboard.tsx            | TypeScript JSX     |      1,025 |         37 |         82 |      1,144 |
+| /Users/jay/Downloads/fund-connector-main/src/pages/LenderProfile.tsx              | TypeScript JSX     |        667 |         38 |         66 |        771 |
+| /Users/jay/Downloads/fund-connector-main/src/pages/Login.tsx                      | TypeScript JSX     |        143 |          6 |         18 |        167 |
+| /Users/jay/Downloads/fund-connector-main/src/pages/MatchedApplications.tsx        | TypeScript JSX     |        485 |         15 |         52 |        552 |
+| /Users/jay/Downloads/fund-connector-main/src/pages/NewApplication.tsx             | TypeScript JSX     |        455 |          4 |         40 |        499 |
+| /Users/jay/Downloads/fund-connector-main/src/pages/NotFound.tsx                   | TypeScript JSX     |         36 |          0 |          8 |         44 |
+| /Users/jay/Downloads/fund-connector-main/src/pages/Notifications.tsx              | TypeScript JSX     |        264 |         12 |         21 |        297 |
+| /Users/jay/Downloads/fund-connector-main/src/pages/OfferDetails.tsx               | TypeScript JSX     |        486 |         21 |         49 |        556 |
+| /Users/jay/Downloads/fund-connector-main/src/pages/OffersList.tsx                 | TypeScript JSX     |        408 |         17 |         40 |        465 |
+| /Users/jay/Downloads/fund-connector-main/src/pages/Settings.tsx                   | TypeScript JSX     |        552 |          3 |         45 |        600 |
+| /Users/jay/Downloads/fund-connector-main/src/pages/SignUp.tsx                     | TypeScript JSX     |        443 |         16 |         53 |        512 |
+| /Users/jay/Downloads/fund-connector-main/src/vite-env.d.ts                        | TypeScript         |          0 |          1 |          1 |          2 |
+| /Users/jay/Downloads/fund-connector-main/tailwind.config.ts                       | TypeScript         |        150 |          0 |          2 |        152 |
+| /Users/jay/Downloads/fund-connector-main/tsconfig.app.json                        | JSON               |         25 |          2 |          4 |         31 |
+| /Users/jay/Downloads/fund-connector-main/tsconfig.json                            | JSON with Comments |         19 |          0 |          1 |         20 |
+| /Users/jay/Downloads/fund-connector-main/tsconfig.node.json                       | JSON               |         18 |          2 |          3 |         23 |
+| /Users/jay/Downloads/fund-connector-main/vite.config.ts                           | TypeScript         |         15 |          1 |          2 |         18 |
+| Total                                                                             |                    |     28,179 |        498 |      2,052 |     30,729 |
++-----------------------------------------------------------------------------------+--------------------+------------+------------+------------+------------+

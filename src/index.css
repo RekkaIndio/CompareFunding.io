@@ -1,0 +1,206 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Original theme variables */
+    --background: 0 0% 100%;
+    --foreground: 215 25% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 215 25% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 25% 15%;
+
+    /* Theme color variables with fallbacks */
+    --fundhub-blue: var(--theme-primary, #3498db);
+    --fundhub-blue-rgb: var(--theme-primary-rgb, '52, 152, 219');
+    --fundhub-secondary: var(--theme-secondary, #2980b9);
+    --fundhub-secondary-rgb: var(--theme-secondary-rgb, '41, 128, 185');
+    --fundhub-accent: var(--theme-accent, #e74c3c);
+    --fundhub-accent-rgb: var(--theme-accent-rgb, '231, 76, 60');
+
+    --primary: 210 100% 50%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 50% 96%;
+    --secondary-foreground: 215 25% 15%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215 25% 40%;
+
+    --accent: 210 100% 96%;
+    --accent-foreground: 215 70% 15%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 210 100% 50%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 215 25% 15%;
+    --sidebar-primary: 210 100% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 50% 96%;
+    --sidebar-accent-foreground: 215 25% 15%;
+    --sidebar-border: 214.3 31.8% 91.4%;
+    --sidebar-ring: 210 100% 50%;
+  }
+
+  .dark {
+    --background: 215 35% 10%;
+    --foreground: 0 0% 98%;
+
+    --card: 215 30% 12%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 215 30% 12%;
+    --popover-foreground: 0 0% 98%;
+
+    --primary: 210 100% 55%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 215 25% 18%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 215 25% 18%;
+    --muted-foreground: 215 20% 70%;
+
+    --accent: 215 25% 18%;
+    --accent-foreground: 0 0% 98%;
+
+    --destructive: 0 62.8% 40.6%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 215 25% 20%;
+    --input: 215 25% 20%;
+    --ring: 210 100% 55%;
+
+    --sidebar-background: 215 35% 12%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 210 100% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 215 25% 18%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 215 25% 20%;
+    --sidebar-ring: 210 100% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html, body {
+    @apply antialiased scroll-smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground min-h-screen font-sans;
+  }
+}
+
+/* Custom component styles */
+@layer components {
+  .glass-effect {
+    @apply bg-white/80 backdrop-blur-lg shadow-glass;
+  }
+  
+  .card-hover-effect {
+    @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
+  }
+  
+  .nav-link {
+    @apply px-4 py-2 text-sm font-medium text-muted-foreground hover:text-primary transition-colors;
+  }
+  
+  .nav-link-active {
+    @apply px-4 py-2 text-sm font-medium text-primary;
+  }
+
+  .badge-status {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+  
+  .badge-status-pending {
+    @apply bg-fundhub-warning/20 text-fundhub-warning;
+  }
+  
+  .badge-status-approved {
+    @apply bg-fundhub-success/20 text-fundhub-success;
+  }
+  
+  .badge-status-rejected {
+    @apply bg-fundhub-danger/20 text-fundhub-danger;
+  }
+  
+  .subtle-ring-focus {
+    @apply focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary/40;
+  }
+}
+
+/* Elegant transitions */
+.page-transition-enter {
+  opacity: 0;
+  transform: translateY(10px);
+}
+.page-transition-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 500ms, transform 500ms;
+}
+.page-transition-exit {
+  opacity: 1;
+  transform: translateY(0);
+}
+.page-transition-exit-active {
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: opacity 500ms, transform 500ms;
+}
+
+/* Custom font */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/inter/v12/UcC73FwrK3iLTeHuS_fvQtMwCp50KnMa1ZL7.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215,
+    U+FEFF, U+FFFD;
+}
+
+.font-inter {
+  font-family: 'Inter', sans-serif;
+}
+
+/* Smooth scrolling for anchor links */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Disable blue highlight on mobile tap */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Custom utility classes for opacity variations */
+.bg-fundhub-blue\/90 {
+  background-color: rgba(var(--fundhub-blue-rgb), 0.9);
+}
+
+.bg-fundhub-secondary\/90 {
+  background-color: rgba(var(--fundhub-secondary-rgb), 0.9);
+}
+
+.bg-fundhub-accent\/90 {
+  background-color: rgba(var(--fundhub-accent-rgb), 0.9);
+}
