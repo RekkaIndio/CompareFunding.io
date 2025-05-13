@@ -113,11 +113,6 @@ const SignUp = () => {
       industry_sector: '',
       company_size: '',
       description: '',
-      organization_name: '',
-      job_title: '',
-      is_new_organization: true,
-      organization_id: '',
-      role: 'admin'
     },
     mode: 'onChange',
   });
@@ -306,13 +301,15 @@ const SignUp = () => {
   };
 
   return (
-    <PageLayout>
-      <div className="container flex items-center justify-center min-h-[calc(100vh-200px)] py-12">
-        <div className="w-full max-w-md space-y-6 bg-white rounded-lg shadow-lg p-8">
-          <div className="text-center space-y-2">
-            <h1 className="text-3xl font-bold">Create your account</h1>
+    <PageLayout showSidebar={true}>
+      <div className="container pt-6 py-12">
+        <h1 className="text-3xl font-bold mb-6">Create Your Account</h1>
+        
+        <div className="w-full max-w-3xl space-y-6 bg-white rounded-lg shadow-lg p-8">
+          <div className="space-y-2">
+            <h2 className="text-2xl font-semibold">Account Details</h2>
             <p className="text-muted-foreground">
-              Sign up to start using CompareFunding's services
+              Sign up to access funding options for your business
             </p>
           </div>
 
@@ -642,31 +639,29 @@ const SignUp = () => {
                 </label>
               </div>
 
-              <Button
-                type="submit"
-                className="w-full bg-fundhub-blue hover:bg-fundhub-blue/90"
-                disabled={isLoading}
-                onClick={() => {
-                  // Direct submit handler in case form submission isn't triggering properly
-                  if (!form.formState.isSubmitting) {
-                    console.log('Direct button click - triggering form submission');
-                    form.handleSubmit(onSubmit)();
-                  }
-                }}
-              >
-                {isLoading ? 'Creating account...' : useEmailLink ? 'Send sign-in link' : 'Create account'}
-              </Button>
+              <div className="flex justify-between items-center mt-8 pt-6 border-t">
+                <div className="text-sm text-muted-foreground">
+                  Already have an account? <Link to="/login" className="text-fundhub-orange hover:underline">Log in</Link>
+                </div>
+                <Button
+                  type="submit"
+                  className="bg-fundhub-orange hover:bg-fundhub-orange/90 px-8"
+                  disabled={isLoading}
+                  onClick={() => {
+                    // Direct submit handler in case form submission isn't triggering properly
+                    if (!form.formState.isSubmitting) {
+                      console.log('Direct button click - triggering form submission');
+                      form.handleSubmit(onSubmit)();
+                    }
+                  }}
+                >
+                  {isLoading ? 'Creating account...' : useEmailLink ? 'Send sign-in link' : 'Create account'}
+                </Button>
+              </div>
             </form>
           </Form>
 
-          <div className="text-center pt-4">
-            <p className="text-sm text-muted-foreground">
-              Already have an account?{' '}
-              <Link to="/login" className="text-fundhub-blue hover:underline font-medium">
-                Sign in
-              </Link>
-            </p>
-          </div>
+          {/* Removed duplicate login link */}
         </div>
       </div>
     </PageLayout>

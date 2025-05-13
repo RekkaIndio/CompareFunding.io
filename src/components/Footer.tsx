@@ -1,12 +1,17 @@
 import { Link } from 'react-router-dom';
 import Logo from '@/components/Logo';
 import { Twitter, Linkedin, Facebook, Instagram, Mail, Phone, MapPin } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
-const Footer = () => {
+interface FooterProps {
+  className?: string;
+}
+
+const Footer = ({ className }: FooterProps = {}) => {
   const year = new Date().getFullYear();
   
   return (
-    <footer className="bg-white border-t border-gray-100">
+    <footer className={cn("bg-white border-t border-gray-100", className)}>
       <div className="container mx-auto px-4 py-12">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
           <div className="md:col-span-4 flex flex-col">

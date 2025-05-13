@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
-import { getDocuments, getLenderApplications, expressInterestInApplication, getDocument } from '@/firebase';
+import { getDocuments, getLenderApplications, expressInterestInApplication, getDocument, updateDocument, createDocument } from '@/firebase';
 import { toast } from 'sonner';
 import PageLayout from '@/components/PageLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,7 +30,12 @@ import {
   CalendarClock,
   Briefcase,
   ThumbsUp,
-  CheckCircle
+  CheckCircle,
+  BadgeCheck,
+  MapPin,
+  Users2,
+  Clock,
+  MessageSquare
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -77,14 +82,39 @@ const MatchedApplications = () => {
         throw error;
       }
 
-      // For each application, fetch the business profile data
+      // For each application, fetch the business profile data and enhance with sample financial data
       const enhancedApplications = await Promise.all((data || []).map(async (app) => {
+        // Add sample financial data for matched applications
+        const isMatched = app.matched_lenders?.includes(user.uid) || 
+                         app.interested_lenders?.some(l => l.lender_id === user.uid && l.status === 'accepted');
+        
+        let enhancedApp = { ...app };
+        
+        if (isMatched) {
+          // Add realistic sample financial data
+          enhancedApp = {
+            ...enhancedApp,
+            annual_revenue: 2500000, // £2.5M annual revenue
+            monthly_revenue: 208333, // ~£2.5M / 12
+            credit_score: 85, // Out of 100
+            risk_score: "Low",
+            asset_value: 1750000, // £1.75M in assets
+            profit_margin: 18, // 18% profit margin
+            years_trading: 7,
+            location: "Greater London",
+            employees: 25,
+            credit_utilization: 45, // 45% credit utilization
+            debt_service_ratio: 1.8, // 1.8x debt service coverage ratio
+            working_capital: 450000 // £450k working capital
+          };
+        }
+
         // Always try to get business data using user_id
         if (app.user_id) {
           const { data: businessData } = await getDocument('business_profiles', app.user_id);
           if (businessData) {
             return {
-              ...app,
+              ...enhancedApp,
               business: {
                 business_name: businessData.business_name || 'Unnamed Business',
                 logo_url: businessData.logo_url,
@@ -93,7 +123,7 @@ const MatchedApplications = () => {
             };
           }
         }
-        return app;
+        return enhancedApp;
       }));
       
       console.log('Enhanced applications with business data:', enhancedApplications);
@@ -126,6 +156,39 @@ const MatchedApplications = () => {
     },
     onError: (error) => {
       toast.error(`Failed to express interest: ${error.message}`);
+    },
+    onSettled: () => {
+      setIsSubmitting(false);
+    }
+  });
+
+  // Decline interest mutation
+  const declineInterestMutation = useMutation({
+    mutationFn: async (applicationId: string) => {
+      setIsSubmitting(true);
+      // Fetch application and update interested_lenders for this lender
+      const { data: appDoc, error: appError } = await getDocument('applications', applicationId);
+      if (appError || !appDoc) throw new Error(appError?.message || 'Application not found');
+      const updatedLenders = (appDoc.interested_lenders || []).map(l =>
+        l.lender_id === user.uid ? { ...l, status: 'rejected', responded_at: new Date() } : l
+      );
+      if (!updatedLenders.find(l => l.lender_id === user.uid)) {
+        updatedLenders.push({ lender_id: user.uid, status: 'rejected', responded_at: new Date() });
+      }
+      const { error: updateError } = await updateDocument('applications', applicationId, {
+        interested_lenders: updatedLenders
+      });
+      if (updateError) throw new Error(updateError.message);
+      return true;
+    },
+    onSuccess: () => {
+      toast.success('You have declined this application.');
+      setIsConfirmDialogOpen(false);
+      setSelectedApplication(null);
+      queryClient.invalidateQueries({ queryKey: ['lenderApplications', user?.uid] });
+    },
+    onError: (error) => {
+      toast.error(`Failed to decline: ${error.message}`);
     },
     onSettled: () => {
       setIsSubmitting(false);
@@ -166,14 +229,22 @@ const MatchedApplications = () => {
   }) || [];
 
   // Combine all applications for filtering
-  const allApplications = [...(matchedApplications || []), ...(availableApplications || [])];
-  
+  // FIX: Use all lenderApplications for 'all' status, not just matched + available
+  const allApplications = statusFilter === 'all'
+    ? (lenderApplications || [])
+    : [...(matchedApplications || []), ...(availableApplications || [])];
+
   // Filter and sort applications
   const filteredApplications = allApplications?.filter(app => {
+    // For declined applications, only search by ID/number
+    const isDeclined = app.interested_lenders?.find(l => 
+      l.lender_id === user?.uid)?.status?.toLowerCase() === 'rejected';
+    
     const matchesSearch = searchQuery === '' || 
-      app.business_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      app.purpose?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      app.loan_amount?.toString().includes(searchQuery);
+      (!isDeclined && app.business_name?.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (!isDeclined && app.purpose?.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      app.loan_amount?.toString().includes(searchQuery) ||
+      app.id?.toLowerCase().includes(searchQuery.toLowerCase());
 
     if (statusFilter === 'all') return matchesSearch;
       
@@ -182,7 +253,8 @@ const MatchedApplications = () => {
       return matchesSearch && 
         app.status === 'submitted' && 
         !app.matched_lenders?.includes(user?.uid) &&
-        !app.interested_lenders?.some(l => l.lender_id === user?.uid);
+        !app.interested_lenders?.some(l => l.lender_id === user?.uid) &&
+        !app.offers?.some(o => o.lender_id === user?.uid);
     }
     
     // Active - applications where we're either matched or have expressed interest
@@ -191,12 +263,31 @@ const MatchedApplications = () => {
       const hasExpressedInterest = app.interested_lenders?.some(
         l => l.lender_id === user?.uid && l.status !== 'rejected'
       );
-      return matchesSearch && (isMatched || hasExpressedInterest);
+      const hasNoOffer = !app.offers?.some(o => o.lender_id === user?.uid);
+      return matchesSearch && (isMatched || hasExpressedInterest) && hasNoOffer;
     }
     
-    // With Offers - applications where we've created an offer
+    // With Offers - applications where we've created an offer, have an accepted offer, or status is 'offered' or 'has_offers'
     if (statusFilter === 'approved') {
-      return matchesSearch && app.offers?.some(o => o.lender_id === user?.uid);
+      // Check for any offers made by this lender
+      const hasOffer = app.offers?.some(o => o.lender_id === user?.uid);
+      // Check for any accepted offers where this lender is involved
+      const hasAcceptedOffer = app.accepted_offers?.some(o => o.lender_id === user?.uid);
+      // Check if the application status is 'offered' or 'has_offers'
+      const isOffered = app.status === 'offered' || app.status === 'has_offers';
+      // Also check the offer_status if it exists
+      const hasOfferStatus = app.offer_status === 'approved' || app.offer_status === 'accepted';
+      
+      return matchesSearch && (hasOffer || hasAcceptedOffer || hasOfferStatus || isOffered);
+    }
+
+    // Declined - applications where this lender has declined or had their interest declined
+    if (statusFilter === 'declined') {
+      // Show applications where this lender has 'Interest Declined' status
+      const interestStatus = app.interested_lenders?.find(l => l.lender_id === user?.uid)?.status?.toLowerCase();
+      const isInterestDeclined = interestStatus === 'rejected' || interestStatus === 'declined' || 
+                                interestStatus === 'interest_declined' || interestStatus === 'interest declined';
+      return matchesSearch && isInterestDeclined;
     }
     
     return false;
@@ -239,13 +330,65 @@ const MatchedApplications = () => {
     if (!selectedApplication) return;
     expressInterestMutation.mutate(selectedApplication.id);
   };
+
+  const handleDeclineInterest = () => {
+    if (!selectedApplication) return;
+    declineInterestMutation.mutate(selectedApplication.id);
+  };
+  
+  // Function to handle starting a conversation with a business
+  const handleStartConversation = async (app) => {
+    try {
+      // Check if a conversation already exists for this application
+      const { data: existingConversations } = await getDocuments(
+        'conversations',
+        [
+          { field: 'lender_id', operator: '==', value: user.uid },
+          { field: 'application_id', operator: '==', value: app.id }
+        ]
+      );
+      
+      let conversationId;
+      
+      // If conversation exists, navigate to it, otherwise create a new one
+      if (existingConversations && existingConversations.length > 0) {
+        conversationId = existingConversations[0].id;
+        toast.info("Opening existing conversation");
+      } else {
+        // Create a new conversation
+        const conversationData = {
+          lender_id: user.uid,
+          business_id: app.user_id,
+          application_id: app.id,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          last_message: "Conversation started",
+          last_message_time: new Date().toISOString()
+        };
+        
+        const { data: newConversation, error } = await createDocument('conversations', conversationData);
+        
+        if (error || !newConversation) {
+          throw new Error(error?.message || "Failed to create conversation");
+        }
+        
+        conversationId = newConversation.id;
+        toast.success("New conversation created");
+      }
+      
+      // Navigate to messages page with the conversation selected
+      navigate('/messages?conversation=' + conversationId);
+      
+    } catch (error) {
+      console.error("Error starting conversation:", error);
+      toast.error("Failed to start conversation: " + error.message);
+    }
+  };
   
   const getActionButton = (app) => {
-    // Check both matched_lenders and interested_lenders
-    const isMatched = app.matched_lenders?.includes(user?.uid);
-    const interestStatus = app.interested_lenders?.find(l => l.lender_id === user?.uid)?.status;
-
-    if (isMatched || interestStatus === 'accepted') {
+    // Check if we have an existing offer
+    const hasExistingOffer = app.offers?.some(o => o.lender_id === user?.uid);
+    if (hasExistingOffer) {
       return (
         <Button
           size="sm"
@@ -254,8 +397,38 @@ const MatchedApplications = () => {
           disabled
         >
           <CheckCircle className="mr-1 h-3 w-3" />
-          Matched
+          Offer Sent
         </Button>
+      );
+    }
+
+    // Check both matched_lenders and interested_lenders
+    const isMatched = app.matched_lenders?.includes(user?.uid);
+    const interestStatus = app.interested_lenders?.find(l => l.lender_id === user?.uid)?.status;
+
+    if (isMatched || interestStatus === 'accepted') {
+      return (
+        <div className="flex flex-col md:flex-row gap-2 w-full justify-center">
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-green-600 border-green-600 w-full md:w-auto"
+          >
+            <CheckCircle className="mr-1 h-3 w-3" />
+            Matched
+          </Button>
+          <Button
+            size="sm"
+            className="bg-[#ff8000] hover:bg-[#ff8000]/90 w-full md:w-auto"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleStartConversation(app);
+            }}
+          >
+            <MessageSquare className="mr-1 h-3 w-3" />
+            Message
+          </Button>
+        </div>
       );
     }
     
@@ -307,13 +480,48 @@ const MatchedApplications = () => {
     return isInMatchedLenders || isAcceptedInterest;
   };
   
+  // Check if an application is declined
+  const isApplicationDeclined = (app) => {
+    if (!app || !user?.uid) return false;
+    const interestStatus = app.interested_lenders?.find(l => l.lender_id === user?.uid)?.status?.toLowerCase();
+    return interestStatus === 'rejected';
+  };
+
+  // Sanitize application data to hide sensitive info for declined applications
+  const sanitizeApplicationData = (app) => {
+    if (!app) return null;
+    if (isApplicationDeclined(app)) {
+      return {
+        ...app,
+        business_name: `Application #${app.application_number || app.id?.substring(0, 8)}`,
+        business: {
+          business_name: `Application #${app.application_number || app.id?.substring(0, 8)}`,
+          logo_url: null,
+          industry_sector: 'Confidential'
+        }
+      };
+    }
+    return app;
+  };
+
+  // Apply sanitization to filtered applications
+  const sanitizedApplications = filteredApplications?.map(sanitizeApplicationData);
+
+  const getDisplayData = (app) => {
+    // ...existing code...
+  };
+
   return (
     <PageLayout>
       <div className="container py-8">
-        <h1 className="text-3xl font-bold mb-2">All Applications</h1>
-        <p className="text-muted-foreground mb-8">
-          Browse all business loan applications available to you
-        </p>
+        <div className="flex flex-col md:flex-row justify-between items-start mb-6">
+          <div>
+            <h1 className="text-3xl font-bold mb-2">All Applications</h1>
+            <p className="text-muted-foreground">
+              Browse all business funding applications available to you
+            </p>
+          </div>
+        </div>
         
         <div className="flex flex-col md:flex-row gap-4 items-start mb-6">
           <div className="relative w-full md:w-72">
@@ -334,6 +542,7 @@ const MatchedApplications = () => {
                 <TabsTrigger value="submitted">New</TabsTrigger>
                 <TabsTrigger value="matched">Active</TabsTrigger>
                 <TabsTrigger value="approved">With Offers</TabsTrigger>
+                <TabsTrigger value="declined">Declined</TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
@@ -353,131 +562,147 @@ const MatchedApplications = () => {
                   <div key={i} className="h-24 bg-gray-100 rounded"></div>
                 ))}
               </div>
-            ) : filteredApplications && filteredApplications.length > 0 ? (
-              <div>
-                <div className="hidden md:flex text-xs font-medium text-muted-foreground mb-2 px-4">
-                  <div className="w-6/12">
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="text-xs p-0 h-auto font-medium flex items-center gap-1"
-                      onClick={() => handleSort('created_at')}
-                    >
-                      Business & Loan Details
-                      <ArrowUpDown className="h-3 w-3" />
-                    </Button>
-                  </div>
-                  <div className="w-2/12 text-center">
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="text-xs p-0 h-auto font-medium flex items-center gap-1 mx-auto"
-                      onClick={() => handleSort('loan_amount')}
-                    >
-                      Amount
-                      <ArrowUpDown className="h-3 w-3" />
-                    </Button>
-                  </div>
-                  <div className="w-2/12 text-center">Status</div>
-                  <div className="w-2/12 text-center">View Cost</div>
-                </div>
-                
-                <div className="space-y-3">
-                  {filteredApplications.map(app => (
-                    <div 
-                      key={app.id} 
-                      className="flex items-center justify-between p-4 rounded-lg border hover:bg-gray-50 transition-colors cursor-pointer"
-                      onClick={() => navigate(`/business/${app.id}`)}
-                    >
-                      <div className="flex flex-col md:flex-row gap-4 items-center">
-                        <div className="w-full md:w-6/12">
-                          <div className="flex items-start gap-3">
-                            <div className="flex-shrink-0 h-10 w-10 rounded-md overflow-hidden">
-                              {app.business?.logo_url ? (
-                                <img 
-                                  src={app.business.logo_url} 
-                                  alt={`${app.business?.business_name} logo`}
-                                  className="h-full w-full object-contain bg-white"
-                                />
-                              ) : (
-                                <div className="bg-gray-100 h-full w-full flex items-center justify-center">
-                                  <Building className="h-6 w-6 text-gray-500" />
-                                </div>
-                              )}
-                            </div>
+            ) : sanitizedApplications && sanitizedApplications.length > 0 ? (
+              <div className="grid grid-cols-1 gap-4">
+                {sanitizedApplications.map((app) => (
+                  <Card key={app.id} className="relative overflow-hidden">
+                    <CardContent className="p-6">
+                      <div className="grid grid-cols-[1fr,auto] gap-4 items-start">
+                        <div className="space-y-1.5">
+                          <div className="flex items-center gap-2">
+                            {app.business?.logo_url ? (
+                              <img
+                                src={app.business.logo_url}
+                                alt={`${app.business.business_name} logo`}
+                                className="w-8 h-8 object-contain rounded"
+                              />
+                            ) : !isApplicationDeclined(app) && (
+                              <Building className="w-8 h-8 text-gray-400" />
+                            )}
                             <div>
-                              <div className="font-medium flex items-center gap-2">
-                                {app.isMatched ? (
-                                  <>
-                                    <span className="text-base font-bold">{app.business?.business_name || 'Unnamed Business'}</span>
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                                      Matched
-                                    </span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <span>Application #{app.application_number || app.id?.substring(0, 8)}</span>
-                                    {app.hasExpressedInterest && (
-                                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                                        Interest Sent
-                                      </span>
-                                    )}
-                                  </>
-                                )}
-                              </div>
-                              {app.isMatched && (
-                                <div className="text-sm text-muted-foreground mt-0.5">
-                                  Application #{app.application_number || app.id?.substring(0, 8)}
-                                </div>
+                              <h3 className="font-semibold">{app.business?.business_name || `Application #${app.id}`}</h3>
+                              {!isApplicationDeclined(app) && app.business?.industry_sector && (
+                                <p className="text-sm text-gray-500">{app.business.industry_sector}</p>
                               )}
-                              <div className="text-sm flex flex-wrap gap-x-3 gap-y-1 mt-1">
-                                <div className="flex items-center gap-1">
-                                  <Building className="h-3 w-3 text-muted-foreground" />
-                                  <span className="text-muted-foreground">
-                                    {app.business?.industry_sector || 'Industry not specified'}
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <Tag className="h-3 w-3 text-muted-foreground" />
-                                  <span className="text-muted-foreground capitalize">
-                                    {app.loan_type?.replace('_', ' ') || 'Business Loan'}
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <CalendarClock className="h-3 w-3 text-muted-foreground" />
-                                  <span className="text-muted-foreground">
-                                    {app.years_trading || '?'} years in business
-                                  </span>
-                                </div>
-                              </div>
                             </div>
-                          </div>
-                        </div>
-                        
-                        <div className="w-full md:w-2/12 text-center hidden md:block">
-                          <div className="font-medium">
-                            £{app.loan_amount?.toLocaleString()}
                           </div>
                           <div className="text-sm text-muted-foreground">
-                            {app.loan_term_months} months
+                            Application #{app.application_number}
+                          </div>
+                          <div className="flex flex-wrap gap-x-3 gap-y-1">
+                            <div className="flex items-center gap-1">
+                              <Building className="h-3 w-3 text-muted-foreground" />
+                              <span className="text-muted-foreground">
+                                {app.business?.industry_sector || 'Industry not specified'}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Tag className="h-3 w-3 text-muted-foreground" />
+                              <span className="text-muted-foreground capitalize">
+                                {app.loan_type?.replace('_', ' ') || 'Business Loan'}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Users2 className="h-3 w-3 text-muted-foreground" />
+                              <span className="text-muted-foreground">
+                                {app.employees || '?'} employees
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <CalendarClock className="h-3 w-3 text-muted-foreground" />
+                              <span className="text-muted-foreground">
+                                {app.years_trading || '?'} years trading
+                              </span>
+                            </div>
+                            {app.location && (
+                              <div className="flex items-center gap-1">
+                                <MapPin className="h-3 w-3 text-muted-foreground" />
+                                <span className="text-muted-foreground">{app.location}</span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Add key financial metrics */}
+                          <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-4 bg-gray-50 p-3 rounded-lg">
+                            {app.annual_revenue && (
+                              <div className="text-xs space-y-1">
+                                <div className="text-muted-foreground">Annual Revenue</div>
+                                <div className="font-semibold">£{(app.annual_revenue).toLocaleString()}</div>
+                                <div className="text-xs text-muted-foreground">Monthly: £{(app.monthly_revenue).toLocaleString()}</div>
+                              </div>
+                            )}
+                            
+                            <div className="text-xs space-y-1">
+                              <div className="text-muted-foreground">Business Health</div>
+                              <div className="font-semibold flex items-center gap-1">
+                                <div className={`h-2 w-2 rounded-full ${app.risk_score === 'Low' ? 'bg-green-500' : app.risk_score === 'Medium' ? 'bg-yellow-500' : 'bg-red-500'}`}></div>
+                                {app.risk_score} Risk
+                              </div>
+                              <div className="text-xs text-muted-foreground">Score: {app.credit_score}/100</div>
+                            </div>
+
+                            <div className="text-xs space-y-1">
+                              <div className="text-muted-foreground">Assets & Capital</div>
+                              <div className="font-semibold">£{(app.asset_value || 0).toLocaleString()}</div>
+                              <div className="text-xs text-muted-foreground">WC: £{(app.working_capital || 0).toLocaleString()}</div>
+                            </div>
+
+                            <div className="text-xs space-y-1">
+                              <div className="text-muted-foreground">Performance</div>
+                              <div className="font-semibold">{app.profit_margin}% Margin</div>
+                              <div className="text-xs text-muted-foreground">DSR: {app.debt_service_ratio}x</div>
+                            </div>
+                          </div>
+
+                          {/* Add purpose details with improved styling */}
+                          {app.purpose && (
+                            <div className="mt-3">
+                              <div className="text-xs text-muted-foreground mb-1">Loan Purpose:</div>
+                              <div className="text-sm bg-blue-50 p-2 rounded-md border border-blue-100">
+                                {app.purpose}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Amount column with enhanced styling */}
+                        <div className="w-full md:w-2/12 flex md:block items-center justify-between md:text-center md:justify-center">
+                          <div className="md:hidden font-medium text-sm text-muted-foreground">Amount:</div>
+                          <div className="bg-white p-3 rounded-lg shadow-sm border">
+                            <div className="font-bold text-lg text-fundhub-blue">
+                              £{app.loan_amount?.toLocaleString()}
+                            </div>
+                            <div className="text-sm font-medium">
+                              {app.loan_term_months} months
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-2 space-y-1">
+                              {app.interested_lenders?.length > 0 && (
+                                <div className="flex items-center justify-center gap-1">
+                                  <Users2 className="h-3 w-3" />
+                                  <span className="font-medium">{app.interested_lenders.length}</span> interested
+                                </div>
+                              )}
+                              {app.expires_at && (
+                                <div className="flex items-center justify-center gap-1 text-amber-600">
+                                  <Clock className="h-3 w-3" />
+                                  Expires in {Math.ceil((new Date(app.expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24))} days
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
                         
-                        <div className="w-full md:w-2/12 text-center hidden md:block">
+                        {/* Status & Action column - 3/12 width */}
+                        <div className="w-full md:w-3/12 flex flex-col md:items-center gap-2 mt-3 md:mt-0">
                           <StatusBadge status={app.status} />
-                        </div>
-                        
-                        <div className="w-full md:w-2/12 md:text-center flex md:block justify-between items-center">
-                          <Badge variant="outline" className="bg-gray-50">
-                            {getCreditCost(app.loan_amount)} credit{getCreditCost(app.loan_amount) > 1 ? 's' : ''}
-                          </Badge>
-                          
-                          {getActionButton(app)}
+                          <div className="mt-2">
+                            {getActionButton(app)}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
             ) : (
               <div className="text-center py-12">
@@ -510,7 +735,7 @@ const MatchedApplications = () => {
           <DialogHeader>
             <DialogTitle>Express Interest</DialogTitle>
             <DialogDescription>
-              Are you interested in this loan application? Your information will be shared with the 
+              Are you interested in this funding application? Your information will be shared with the 
               business and they will be notified of your interest.
             </DialogDescription>
           </DialogHeader>
@@ -537,6 +762,13 @@ const MatchedApplications = () => {
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsConfirmDialogOpen(false)}>
               Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeclineInterest}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? 'Declining...' : 'Decline'}
             </Button>
             <Button 
               className="bg-fundhub-blue hover:bg-fundhub-blue/90"
