@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import PageLayout from '../components/PageLayout';
 import axios from 'axios'; // Import axios
 
@@ -195,6 +196,47 @@ const CreditScorePage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const location = useLocation();
+  const [isFromBusinessForm, setIsFromBusinessForm] = useState(false);
+
+  // Effect to handle URL parameters or session storage data when component mounts
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const companyNameParam = params.get('companyName');
+    const companyNumberParam = params.get('companyNumber');
+    
+    // Check if we're coming from the business form
+    const fromBusinessForm = sessionStorage.getItem('from_business_form') === 'true';
+    setIsFromBusinessForm(fromBusinessForm);
+    
+    // Check for company information either from URL parameters or session storage
+    let companyName = companyNameParam;
+    
+    // If not in URL parameters, try to get from session storage
+    if (!companyName) {
+      companyName = sessionStorage.getItem('credit_search_company_name');
+    }
+    
+    // Clear the flags after we've checked them
+    if (fromBusinessForm) {
+      sessionStorage.removeItem('from_business_form');
+    }
+    
+    if (companyName) {
+      console.log('Found company name to search:', companyName);
+      setSearchQuery(companyName);
+      fetchCompanyData(companyName);
+      
+      // Clear session storage after successful retrieval to prevent
+      // auto-searching on subsequent visits
+      if (!companyNameParam && sessionStorage.getItem('credit_search_company_name')) {
+        setTimeout(() => {
+          sessionStorage.removeItem('credit_search_company_name');
+          sessionStorage.removeItem('credit_search_company_number');
+        }, 2000); // Small delay to ensure the data is used first
+      }
+    }
+  }, [location.search]);
 
   const fetchCompanyData = async (companyName: string) => {
     if (!companyName.trim()) {
@@ -218,8 +260,20 @@ const CreditScorePage: React.FC = () => {
 
     try {
       console.log(`Searching for company: ${companyName}`);
-      const data = await searchCompanyByNameDirect(companyName, 'GB'); 
+      const data = await searchCompanyByNameDirect(companyName, 'GB');
       setSearchResults(data);
+      
+      // If there's only one company in the search results and we have stored data,
+      // automatically select it to show the credit report
+      const typedData = data as { companies?: any[] };
+      const hasStoredCompanyInfo = isFromBusinessForm || 
+                                  new URLSearchParams(location.search).get('companyName') || 
+                                  sessionStorage.getItem('credit_search_company_name');
+      
+      if (typedData?.companies && typedData.companies.length === 1 && hasStoredCompanyInfo) {
+        console.log('Auto-selecting the only company in search results');
+        handleSelectCompany(typedData.companies[0]);
+      }
     } catch (err) {
       const errorWithMessage = err as { message?: string }; // Type assertion for error with message
       setError(errorWithMessage.message || 'An unknown error occurred');
@@ -278,6 +332,24 @@ const CreditScorePage: React.FC = () => {
     <PageLayout showSidebar={true}>
       <div className="container mx-auto p-4">
         <h1 className="text-2xl font-bold mb-4 text-gray-800">Credit Score & Company Search (Direct API Test)</h1>
+        
+        {/* Auto-search message */}
+        {(() => {
+          const urlCompanyName = new URLSearchParams(location.search).get('companyName');
+          const storedCompanyName = sessionStorage.getItem('credit_search_company_name');
+          const displayCompanyName = urlCompanyName || storedCompanyName;
+          
+          if (isFromBusinessForm && displayCompanyName) {
+            return (
+              <div className="mb-4 p-4 border border-green-500 bg-green-100 rounded-md">
+                <p className="text-green-700">
+                  <span className="font-semibold">Auto-search:</span> Performing search for company "{displayCompanyName}" from business details form.
+                </p>
+              </div>
+            );
+          }
+          return null;
+        })()}
         
         <div className="mb-4 p-4 border border-orange-500 bg-orange-100 rounded-md">
           <p className="text-orange-700 font-semibold">IMPORTANT TESTING INFORMATION:</p>

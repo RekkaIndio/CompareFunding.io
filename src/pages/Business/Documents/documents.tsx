@@ -4,7 +4,7 @@ import FileExtractor, { ExtractedFile } from "./FileExtractor";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import FinancialsTable from "@/pages/Business/Documents/FinancialsTable";
 import { Button } from "@/components/ui/button";
-import { 
+import {
   collection, addDoc, serverTimestamp, doc, getDoc, updateDoc,
   query, orderBy, getDocs, where, limit
 } from 'firebase/firestore';
@@ -40,14 +40,14 @@ const validateFile = (file: File): { valid: boolean; message?: string } => {
       message: `File too large. Maximum size is ${MAX_FILE_SIZE / (1024 * 1024)} MB.`
     };
   }
-  
+
   if (!ALLOWED_FILE_TYPES.includes(file.type)) {
     return {
       valid: false,
       message: `File type ${file.type} not supported. Please upload a PDF, Excel, Word document or image file.`
     };
   }
-  
+
   return { valid: true };
 };
 
@@ -123,23 +123,23 @@ const BusinessDocuments: React.FC = () => {
   const ensureBusinessProfile = async (userId: string) => {
     try {
       console.log("Checking business profile for user:", userId);
-      
+
       const userDocRef = doc(db, "users", userId);
       const userDoc = await getDoc(userDocRef);
-      
+
       if (!userDoc.exists()) {
         console.error("User document not found");
         throw new Error("User profile not found. Please try logging out and back in.");
       }
-      
+
       const userData = userDoc.data();
       console.log("User data:", userData);
-      
+
       let businessId = userData?.businessId;
-      
+
       if (!businessId) {
         console.log("No business ID found, creating a new business record");
-        
+
         // Create a new business record
         const businessesCollection = collection(db, "businesses");
         const newBusinessRef = await addDoc(businessesCollection, {
@@ -151,24 +151,24 @@ const BusinessDocuments: React.FC = () => {
           active: true,
           verified: false
         });
-        
+
         businessId = newBusinessRef.id;
-        
+
         // Update the user record with the new business ID
         await updateDoc(userDocRef, {
           businessId: businessId,
           role: 'business' // Set the user role to 'business'
         });
-        
+
         console.log("Created new business with ID:", businessId);
-        
+
         toast({
           title: "Business profile created",
           description: "A new business profile has been created for you automatically.",
           variant: "default"
         });
       }
-      
+
       return businessId;
     } catch (error) {
       console.error("Error ensuring business profile:", error);
@@ -180,7 +180,7 @@ const BusinessDocuments: React.FC = () => {
   const getSavedDataSummary = (financialData: any, documentType: string): string => {
     try {
       let summaryParts = [];
-      
+
       // Handle different document types
       if (documentType.toLowerCase().includes('profit') || documentType.toLowerCase().includes('loss')) {
         // Profit and Loss specific summary
@@ -188,29 +188,29 @@ const BusinessDocuments: React.FC = () => {
           const revenue = financialData.turnover || financialData.revenue?.total || 0;
           summaryParts.push(`Revenue: £${Number(revenue).toLocaleString()}`);
         }
-        
+
         if (financialData.profits?.netProfit || financialData.netProfit) {
           const profit = financialData.profits?.netProfit || financialData.netProfit || 0;
           summaryParts.push(`Net Profit: £${Number(profit).toLocaleString()}`);
         }
-      } 
+      }
       else if (documentType.toLowerCase().includes('balance')) {
         // Balance Sheet specific summary
         if (financialData.assets?.totalAssets || financialData.totalAssets) {
           const assets = financialData.assets?.totalAssets || financialData.totalAssets || 0;
           summaryParts.push(`Total Assets: £${Number(assets).toLocaleString()}`);
         }
-        
+
         if (financialData.liabilities?.totalLiabilities || financialData.totalLiabilities) {
           const liabilities = financialData.liabilities?.totalLiabilities || financialData.totalLiabilities || 0;
           summaryParts.push(`Total Liabilities: £${Number(liabilities).toLocaleString()}`);
         }
       }
-      
+
       if (summaryParts.length > 0) {
         return `Saved metrics include ${summaryParts.join(', ')}.`;
       }
-      
+
       return '';
     } catch (e) {
       console.error("Error generating data summary:", e);
@@ -241,41 +241,41 @@ const BusinessDocuments: React.FC = () => {
 
     setSaving((prev) => ({ ...prev, [key]: true }));
     setSaveStatus((prev) => ({ ...prev, [key]: "Preparing data..." }));
-    
+
     try {
       // Ensure the user has a valid business profile
       const businessId = await ensureBusinessProfile(user.uid);
-      
+
       // Initialize storage reference
       const storage = getStorage();
       let documentUrl = null;
-      
+
       // Upload file to Firebase Storage if it exists
       if (files[key]) {
         setSaveStatus((prev) => ({ ...prev, [key]: "Uploading document..." }));
-        
+
         const file = files[key] as File;
         const fileExtension = file.name.split('.').pop() || '';
         const fileName = `${documentType.replace(/\s/g, '_')}_${Date.now()}.${fileExtension}`;
         const storageRef = ref(storage, `businesses/${businessId}/documents/${fileName}`);
-        
+
         // Upload the file to Firebase Storage
         await uploadBytes(storageRef, file);
-        
+
         // Get the download URL
         documentUrl = await getDownloadURL(storageRef);
         console.log("Document uploaded successfully:", documentUrl);
       }
-      
+
       setSaveStatus((prev) => ({ ...prev, [key]: "Saving financial data..." }));
-      
+
       // Save to Firestore
       const financialsCollection = collection(db, "businesses", businessId, "financials");
-      
+
       // Ensure we have valid data to save
       const financialData = result.json || {};
       const summaryText = typeof result.summary === 'string' ? result.summary : 'No summary available';
-      
+
       // Log what we're saving for debugging
       console.log("Saving financial data:", {
         documentType,
@@ -284,7 +284,7 @@ const BusinessDocuments: React.FC = () => {
         summaryLength: summaryText.length,
         hasFileUrl: !!documentUrl
       });
-      
+
       const docRef = await addDoc(financialsCollection, {
         documentType,
         documentName: files[key]?.name || `${documentType} Document`,
@@ -297,19 +297,19 @@ const BusinessDocuments: React.FC = () => {
         createdBy: user.uid,
         documentFormat: files[key]?.type || 'unknown'
       });
-      
+
       // Update the savedDocuments state
       setSavedDocs(prev => ({
         ...prev,
         [key]: {
-          url: documentUrl || '', 
+          url: documentUrl || '',
           name: files[key]?.name || `${documentType} Document`
         }
       }));
-      
+
       const savedDataSummary = getSavedDataSummary(financialData, documentType);
       setSaveStatus((prev) => ({ ...prev, [key]: "Saved successfully!" }));
-      
+
       toast({
         title: "Financial data saved",
         description: `The ${documentType} data has been saved to your business profile. ${savedDataSummary}`,
@@ -318,13 +318,13 @@ const BusinessDocuments: React.FC = () => {
     } catch (error) {
       console.error("Error saving financial data:", error);
       setSaveStatus((prev) => ({ ...prev, [key]: "Error saving data" }));
-      
+
       // Provide more detailed error messages for common issues
       let errorMessage = "An unknown error occurred";
-      
+
       if (error instanceof Error) {
         errorMessage = error.message;
-        
+
         // Handle specific error cases
         if (errorMessage.includes("permission_denied")) {
           errorMessage = "You don't have permission to save data. Please check your account settings.";
@@ -336,7 +336,7 @@ const BusinessDocuments: React.FC = () => {
           errorMessage = "Session expired. Please log in again and try saving.";
         }
       }
-      
+
       toast({
         title: "Error saving data",
         description: errorMessage,
@@ -356,12 +356,12 @@ const BusinessDocuments: React.FC = () => {
 
       try {
         setLoadingSaved(true);
-        
+
         // Get the user's business ID
         const userDocRef = doc(db, "users", currentUser.uid);
         const userDoc = await getDoc(userDocRef);
         const businessId = userDoc.data()?.businessId;
-        
+
         if (!businessId) {
           console.log("No business ID found for user");
           return;
@@ -370,19 +370,19 @@ const BusinessDocuments: React.FC = () => {
         // Query the financials collection for this business
         const financialsCollection = collection(db, "businesses", businessId, "financials");
         const financialsQuery = query(
-          financialsCollection, 
+          financialsCollection,
           orderBy("createdAt", "desc")
         );
 
         const querySnapshot = await getDocs(financialsQuery);
         const savedFinancials: { [key: string]: { url: string; name: string } } = {};
         const savedResults: { [key: string]: OpenAIExtractResult } = {};
-        
+
         querySnapshot.forEach((doc) => {
           const data = doc.data();
           // Map document types to our keys
           let docKey = "";
-          
+
           if (data.documentType.toLowerCase().includes("profit") || data.documentType.toLowerCase().includes("loss")) {
             docKey = "pl";
           } else if (data.documentType.toLowerCase().includes("balance")) {
@@ -397,7 +397,7 @@ const BusinessDocuments: React.FC = () => {
             // Use the document type as key if no match
             docKey = data.documentType.toLowerCase().replace(/\s+/g, '_');
           }
-          
+
           // Save document URL and name
           if (data.fileUrl) {
             savedFinancials[docKey] = {
@@ -405,7 +405,7 @@ const BusinessDocuments: React.FC = () => {
               name: data.documentName || "Financial Document"
             };
           }
-          
+
           // Save financial data and summary
           if (data.data) {
             savedResults[docKey] = {
@@ -414,10 +414,10 @@ const BusinessDocuments: React.FC = () => {
             };
           }
         });
-        
+
         // Update state with saved documents and results
         setSavedDocs(savedFinancials);
-        
+
         // Only set AI results for documents that aren't already being processed
         Object.entries(savedResults).forEach(([key, result]) => {
           if (!aiLoading[key] && !aiResults[key]) {
@@ -427,7 +427,7 @@ const BusinessDocuments: React.FC = () => {
             }));
           }
         });
-        
+
         console.log("Loaded saved documents:", Object.keys(savedFinancials));
       } catch (error) {
         console.error("Error fetching saved documents:", error);
@@ -455,8 +455,8 @@ const BusinessDocuments: React.FC = () => {
             <span className="font-medium">{documentType}</span> document saved: {savedDocs[docKey].name}
           </span>
         </div>
-        <a 
-          href={savedDocs[docKey].url} 
+        <a
+          href={savedDocs[docKey].url}
           target="_blank"
           rel="noopener noreferrer"
           className="text-blue-600 hover:text-blue-800 hover:underline flex items-center"
@@ -525,7 +525,7 @@ const BusinessDocuments: React.FC = () => {
           {DOCUMENT_STEPS.map((step) => (
             <div key={step.key} className="bg-white rounded-lg shadow p-6 flex-1 min-w-[180px] max-w-[220px] flex flex-col mx-auto">
               <h2 className="text-lg font-semibold mb-2 text-center">{step.label}</h2>
-              <p className="text-sm text-slate-500 mb-2 text-center">Upload your {step.label} document here.</p>
+              <p className="text-sm text-slate-500 mb-2 text-center">Upload your {step.label} document.</p>
               <FileExtractor
                 accept="application/pdf,.csv,.xlsx,.xls,.doc,.docx,image/*"
                 onExtracted={handleExtracted(step.key)}
@@ -595,11 +595,11 @@ const BusinessDocuments: React.FC = () => {
                       {(() => {
                         // Extract the actual summary text from the complex string
                         const summaryContent = aiResults[step.key]?.summary;
-                        
+
                         if (typeof summaryContent !== 'string') {
                           return "No summary available";
                         }
-                        
+
                         // If it contains markdown JSON with a nested summary field, extract that
                         if (summaryContent.includes('```json')) {
                           try {
@@ -608,14 +608,14 @@ const BusinessDocuments: React.FC = () => {
                             if (match && match[1]) {
                               // We found the actual summary text!
                               return match[1].replace(/\\n/g, ' ')
-                                           .replace(/\\"/g, '"')
-                                           .trim();
+                                .replace(/\\"/g, '"')
+                                .trim();
                             }
                           } catch (e) {
                             console.error("Failed to extract nested summary:", e);
                           }
                         }
-                        
+
                         // If we couldn't extract a nested summary, just return the original
                         return summaryContent;
                       })()}
@@ -625,7 +625,7 @@ const BusinessDocuments: React.FC = () => {
 
                 {/* Display saved document info if available */}
                 <SavedDocumentInfo docKey={step.key} documentType={step.label} />
-                
+
                 {/* Use the FinancialsTable component to display only the JSON data, explicitly not passing summary */}
                 {aiResults[step.key]?.json && (
                   <div className="text-left bg-white rounded-lg shadow p-5 mt-6 border border-gray-100">
@@ -636,8 +636,8 @@ const BusinessDocuments: React.FC = () => {
                         </svg>
                         <h4 className="text-lg font-semibold text-gray-800">Financial Metrics</h4>
                       </div>
-                      
-                      <Button 
+
+                      <Button
                         onClick={() => saveFinancialData(step.key, step.label)}
                         disabled={saving[step.key]}
                         className="bg-green-600 hover:bg-green-700 text-white"
@@ -670,7 +670,7 @@ const BusinessDocuments: React.FC = () => {
                         </span>
                       </div>
                     )}
-                    
+
                     {savedDocs[step.key] && (
                       <div className="flex items-center justify-between bg-green-50 rounded-md p-3 mb-4 text-sm">
                         <div className="flex items-center">
@@ -683,7 +683,7 @@ const BusinessDocuments: React.FC = () => {
                         </div>
                         <Button
                           onClick={() => window.open(savedDocs[step.key].url, '_blank')}
-                          variant="outline" 
+                          variant="outline"
                           size="sm"
                           className="text-green-700 border-green-300 hover:bg-green-50"
                         >
@@ -694,16 +694,16 @@ const BusinessDocuments: React.FC = () => {
                         </Button>
                       </div>
                     )}
-                    
+
                     {/* Use the FinancialsTable component to display only the JSON data, explicitly not passing summary */}
-                    <FinancialsTable 
+                    <FinancialsTable
                       data={(() => {
                         // Create a cleaned copy of the data without any summary fields
                         let cleanData = aiResults[step.key]?.json;
-                        
+
                         // Safety check
                         if (!cleanData) return {};
-                        
+
                         // If cleanData is a string, try to parse it
                         if (typeof cleanData === 'string') {
                           try {
@@ -713,24 +713,24 @@ const BusinessDocuments: React.FC = () => {
                             return {};
                           }
                         }
-                        
+
                         // Deep clone the object to avoid modifying the original
                         cleanData = JSON.parse(JSON.stringify(cleanData));
-                        
+
                         // Recursive function to remove summary fields at all levels
                         const removeSummaryFields = (obj: any): any => {
                           if (typeof obj !== 'object' || obj === null) return obj;
-                          
+
                           if (Array.isArray(obj)) {
                             return obj.map(item => removeSummaryFields(item));
                           } else {
-                            const result = {...obj};
-                            
+                            const result = { ...obj };
+
                             // Remove summary fields with various possible names
                             ['summary', 'Summary', 'financialSummary', 'businessSummary', 'companySummary'].forEach(key => {
                               if (key in result) delete result[key];
                             });
-                            
+
                             // Check for keys containing "summary"
                             Object.keys(result).forEach(key => {
                               if (key.toLowerCase().includes('summary')) {
@@ -739,13 +739,13 @@ const BusinessDocuments: React.FC = () => {
                                 result[key] = removeSummaryFields(result[key]);
                               }
                             });
-                            
+
                             return result;
                           }
                         };
-                        
+
                         return removeSummaryFields(cleanData);
-                      })()} 
+                      })()}
                       title={`${step.label} Financial Data`}
                     />
                   </div>

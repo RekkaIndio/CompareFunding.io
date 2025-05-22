@@ -103,7 +103,7 @@ const BusinessDocuments: React.FC = () => {
           {DOCUMENT_STEPS.map((step) => (
             <div key={step.key} className="bg-white rounded-lg shadow p-6 flex-1 min-w-[180px] max-w-[220px] flex flex-col mx-auto">
               <h2 className="text-lg font-semibold mb-2 text-center">{step.label}</h2>
-              <p className="text-sm text-slate-500 mb-2 text-center">Upload your {step.label} document here.</p>
+              <p className="text-sm text-slate-500 mb-2 text-center">Upload your {step.label} document.</p>
               <input
                 type="file"
                 accept="application/pdf,.csv,.xlsx,.xls,.doc,.docx,image/*"
