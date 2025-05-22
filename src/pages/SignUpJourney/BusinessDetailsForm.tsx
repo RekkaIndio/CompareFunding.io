@@ -167,6 +167,15 @@ const BusinessDetailsForm = () => {
         console.log('Business profile created successfully.');
       }
 
+      // Save a flag in sessionStorage to indicate we're coming from the business form
+      // This will be used when the user later visits the credit score page
+      sessionStorage.setItem('from_business_form', 'true');
+      
+      // Store the company information in sessionStorage for later use in credit score page
+      sessionStorage.setItem('credit_search_company_name', formData.companyName);
+      sessionStorage.setItem('credit_search_company_number', formData.companyNumber);
+
+      // Continue with the sign-up journey by navigating to the eligibility page
       navigate('/signup-journey/eligibility', {
         state: {
           ...userInfo,
