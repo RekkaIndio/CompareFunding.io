@@ -19,6 +19,7 @@ import PageLayout from '@/components/PageLayout';
 import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { createDocument, sendSignInEmail } from '@/firebase';
+import { Github, Linkedin } from 'lucide-react'; // Assuming these icons are suitable placeholders
 
 const industryOptions = [
   { label: 'Technology', value: 'technology' },
@@ -117,10 +118,8 @@ const SignUp = () => {
     mode: 'onChange',
   });
 
-  // Watch accountType to conditionally render business fields
   const accountType = form.watch('accountType');
 
-  // Debug function to check form validity
   const checkFormValidity = () => {
     const formState = form.getValues();
     console.log('Current form values:', formState);
@@ -301,369 +300,75 @@ const SignUp = () => {
   };
 
   return (
-    <PageLayout showSidebar={true}>
-      <div className="container pt-6 py-12">
-        <h1 className="text-3xl font-bold mb-6">Create Your Account</h1>
-        
-        <div className="w-full max-w-3xl space-y-6 bg-white rounded-lg shadow-lg p-8">
-          <div className="space-y-2">
-            <h2 className="text-2xl font-semibold">Account Details</h2>
-            <p className="text-muted-foreground">
-              Sign up to access funding options for your business
-            </p>
-          </div>
-
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="firstName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>First Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="John" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="lastName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Last Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Doe" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input placeholder="name@example.com" type="email" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {!useEmailLink && (
-                <FormField
-                  control={form.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Password</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Create a password" type="password" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
-
-              <FormField
-                control={form.control}
-                name="accountType"
-                render={({ field }) => (
-                  <FormItem className="space-y-2">
-                    <FormLabel>Account Type</FormLabel>
-                    <div className="grid grid-cols-2 gap-4">
-                      <Button
-                        type="button"
-                        variant={field.value === 'business' ? 'default' : 'outline'}
-                        className={field.value === 'business' ? 'bg-fundhub-blue hover:bg-fundhub-blue/90' : ''}
-                        onClick={() => form.setValue('accountType', 'business')}
-                      >
-                        Business
-                      </Button>
-                      <Button
-                        type="button"
-                        variant={field.value === 'lender' ? 'default' : 'outline'}
-                        className={field.value === 'lender' ? 'bg-fundhub-blue hover:bg-fundhub-blue/90' : ''}
-                        onClick={() => form.setValue('accountType', 'lender')}
-                      >
-                        Lender
-                      </Button>
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Business details fields - only show if account type is business */}
-              {accountType === 'business' && (
-                <div className="space-y-4 pt-4 border-t">
-                  <h2 className="font-medium">Business Details</h2>
-                  
-                  <FormField
-                    control={form.control}
-                    name="business_name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Business Name</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Enter your business name" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="industry_sector"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Industry Sector</FormLabel>
-                          <Select 
-                            onValueChange={field.onChange} 
-                            value={field.value}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select an industry" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {industryOptions.map((option) => (
-                                <SelectItem key={option.value} value={option.value}>
-                                  {option.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="company_size"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Company Size</FormLabel>
-                          <Select 
-                            onValueChange={field.onChange} 
-                            value={field.value}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select company size" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {companySizeOptions.map((option) => (
-                                <SelectItem key={option.value} value={option.value}>
-                                  {option.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+    <PageLayout showSidebar={false}>
+      <div className="flex min-h-[calc(100vh-10rem)] items-center justify-center bg-white px-4 py-8 sm:px-6 lg:px-8">
+        <div className="w-full max-w-5xl rounded-lg bg-white p-6">
+          <div className="flex flex-col items-center w-full">
+            {/* Heading Section */}
+            <div className="text-center mb-8">
+              <h1 className="text-3xl font-bold tracking-tight text-fundhub-orange mb-2">
+                Welcome to Compare Funding
+              </h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Select your account type to get started.
+              </p>
+            </div>
+            {/* Cards Section */}
+            <div className="flex flex-col md:flex-row gap-8 w-full justify-center items-center">
+              {/* Business Card */}
+              <div className="card-shadow p-8 flex flex-col items-center w-full md:w-[360px] h-[520px] max-w-[400px]">
+                <h3 className="text-xl font-bold mb-2" style={{ color: '#ff8000' }}>Business</h3>
+                <div className="flex flex-col flex-1 w-full justify-center items-center">
+                  <p className="mb-8 text-gray-700 text-center">Sign up as a business to access funding options and manage your applications.</p>
+                  <div className="flex items-center justify-center w-full">
+                    <Button
+                      className="bg-[#ff8000] text-white w-[180px] mx-auto"
+                      onClick={() => {
+                        navigate('/signup-journey/email-password');
+                      }}
+                    >
+                      Sign Up
+                    </Button>
                   </div>
-
-                  <FormField
-                    control={form.control}
-                    name="description"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Business Description</FormLabel>
-                        <FormControl>
-                          <Textarea 
-                            placeholder="Briefly describe your business activities and services" 
-                            className="resize-none"
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              )}
-
-              {/* Lender details fields - only show if account type is lender */}
-              {accountType === 'lender' && (
-                <div className="space-y-4 pt-4 border-t">
-                  <h2 className="font-medium">Lender Organization Details</h2>
-                  
-                  <div className="grid grid-cols-1 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="is_new_organization"
-                      render={({ field }) => (
-                        <FormItem className="space-y-3">
-                          <FormLabel>Organization Type</FormLabel>
-                          <div className="grid grid-cols-2 gap-4">
-                            <Button
-                              type="button"
-                              variant={field.value ? 'default' : 'outline'}
-                              className={field.value ? 'bg-fundhub-blue hover:bg-fundhub-blue/90' : ''}
-                              onClick={() => {
-                                form.setValue('is_new_organization', true);
-                                form.setValue('organization_id', '');
-                                form.setValue('role', 'admin');
-                              }}
-                            >
-                              New Organization
-                            </Button>
-                            <Button
-                              type="button"
-                              variant={!field.value ? 'default' : 'outline'}
-                              className={!field.value ? 'bg-fundhub-blue hover:bg-fundhub-blue/90' : ''}
-                              onClick={() => {
-                                form.setValue('is_new_organization', false);
-                                form.setValue('role', 'user');
-                              }}
-                            >
-                              Join Existing
-                            </Button>
-                          </div>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    {form.watch('is_new_organization') ? (
-                      <>
-                        <FormField
-                          control={form.control}
-                          name="organization_name"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Organization Name</FormLabel>
-                              <FormControl>
-                                <Input placeholder="Enter your lending organization name" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </>
-                    ) : (
-                      <FormField
-                        control={form.control}
-                        name="organization_id"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Organization ID</FormLabel>
-                            <FormControl>
-                              <Input 
-                                placeholder="Enter the organization ID you were invited to" 
-                                {...field} 
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    )}
-
-                    <FormField
-                      control={form.control}
-                      name="job_title"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Job Title</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Your position within the organization" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="role"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Role in Organization</FormLabel>
-                          <Select 
-                            onValueChange={field.onChange} 
-                            value={field.value}
-                            disabled={form.watch('is_new_organization')}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select your role" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="admin">Administrator</SelectItem>
-                              <SelectItem value="user">Standard User</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          {form.watch('is_new_organization') && (
-                            <div className="text-xs text-muted-foreground mt-1">
-                              As the creator, you will automatically be an administrator
-                            </div>
-                          )}
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div className="flex items-center pt-2">
-                <input
-                  type="checkbox"
-                  id="useEmailLink"
-                  checked={useEmailLink}
-                  onChange={(e) => setUseEmailLink(e.target.checked)}
-                  className="h-4 w-4 rounded border-gray-300 text-fundhub-blue focus:ring-fundhub-blue"
-                />
-                <label htmlFor="useEmailLink" className="ml-2 block text-sm text-gray-600">
-                  Sign up with email link (passwordless)
-                </label>
-              </div>
-
-              <div className="flex justify-between items-center mt-8 pt-6 border-t">
-                <div className="text-sm text-muted-foreground">
-                  Already have an account? <Link to="/login" className="text-fundhub-orange hover:underline">Log in</Link>
                 </div>
                 <Button
-                  type="submit"
-                  className="bg-fundhub-orange hover:bg-fundhub-orange/90 px-8"
-                  disabled={isLoading}
+                  className="bg-fundhub-orange text-white w-full mt-auto"
                   onClick={() => {
-                    // Direct submit handler in case form submission isn't triggering properly
-                    if (!form.formState.isSubmitting) {
-                      console.log('Direct button click - triggering form submission');
-                      form.handleSubmit(onSubmit)();
-                    }
+                    navigate('/signup-journey/email-password');
                   }}
+                  style={{ display: 'none' }}
                 >
-                  {isLoading ? 'Creating account...' : useEmailLink ? 'Send sign-in link' : 'Create account'}
+                  Start Business Sign Up
                 </Button>
               </div>
-            </form>
-          </Form>
-
-          {/* Removed duplicate login link */}
+              {/* Lender Card */}
+              <div className="card-shadow p-8 flex flex-col items-center w-full md:w-[360px] h-[520px] max-w-[400px]">
+                <h3 className="text-xl font-bold mb-2" style={{ color: '#ff8000' }}>Lender</h3>
+                <p className="mb-6 text-gray-700 text-center">Are you a lender? Book a call to get started and we’ll onboard you manually.</p>
+                {/* Calendly Embed */}
+                <div className="w-full flex-1 flex items-center justify-center">
+                  <iframe
+                    src="https://calendly.com/jamie-comparefunding/30min"
+                    title="Book a call with Compare Funding"
+                    width="100%"
+                    height="340"
+                    frameBorder="0"
+                    style={{ minWidth: '220px', height: '340px', border: 'none', borderRadius: '12px' }}
+                    allowFullScreen
+                  ></iframe>
+                </div>
+              </div>
+            </div>
         </div>
-      </div>
+        {/* Login Section */}
+        <p className="mt-10 text-center text-sm text-muted-foreground">
+          Already have an account?{' '}
+          <Link to="/login" className="font-medium text-primary hover:underline">
+            Log in
+          </Link>
+        </p>
+          </div>
+        </div>
     </PageLayout>
   );
 };

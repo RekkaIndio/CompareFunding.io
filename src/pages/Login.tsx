@@ -93,11 +93,11 @@ const Login = () => {
   return (
     <PageLayout>
       <div className="container flex items-center justify-center min-h-[calc(100vh-200px)] py-12">
-        <div className="w-full max-w-md space-y-6 bg-white rounded-lg shadow-lg p-8">
+        <div className="w-full max-w-md space-y-6 bg-white rounded-lg card-shadow p-8 border border-[#ff8000]">
           <div className="text-center space-y-2">
-            <h1 className="text-3xl font-bold">Welcome back</h1>
-            <p className="text-muted-foreground">
-              Sign in to your CompareFunding account
+            <h1 className="text-3xl font-bold text-fundhub-orange">Welcome back</h1>
+            <p className="text-[#2a3441]">
+              Sign in to your Compare Funding account
             </p>
           </div>
 
@@ -110,7 +110,7 @@ const Login = () => {
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input placeholder="name@example.com" type="email" {...field} />
+                      <Input placeholder="name@example.com" type="email" {...field} className="bg-white focus:outline-none focus:ring-0 focus:border-2 focus:border-[#ff8000]" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -126,13 +126,13 @@ const Login = () => {
                       <FormLabel>Password</FormLabel>
                       <Link 
                         to="/forgot-password" 
-                        className="text-xs text-fundhub-blue hover:underline"
+                        className="text-xs text-[#ff8000] hover:underline"
                       >
                         Forgot password?
                       </Link>
                     </div>
                     <FormControl>
-                      <Input placeholder="Enter your password" type="password" {...field} />
+                      <Input placeholder="Enter your password" type="password" {...field} className="bg-white focus:outline-none focus:ring-0 focus:border-2 focus:border-[#ff8000]" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -141,7 +141,7 @@ const Login = () => {
 
               <Button
                 type="submit"
-                className="w-full bg-fundhub-blue hover:bg-fundhub-blue/90"
+                className="w-full bg-[#ff8000] hover:bg-[#ff8000]/90 text-white font-semibold"
                 disabled={isLoading}
               >
                 {isLoading ? 'Signing in...' : 'Sign in'}
@@ -150,9 +150,9 @@ const Login = () => {
           </Form>
 
           <div className="text-center pt-4">
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-[#2a3441]">
               Don't have an account?{' '}
-              <Link to="/signup" className="text-fundhub-blue hover:underline font-medium">
+              <Link to="/signup" className="text-[#ff8000] hover:underline font-medium">
                 Sign up
               </Link>
             </p>

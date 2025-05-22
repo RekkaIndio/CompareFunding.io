@@ -129,7 +129,7 @@ const Applications = () => {
   });
 
   return (
-    <PageLayout>
+    <PageLayout showSidebar={true}>
       <div className="container px-4 py-8 mx-auto">
         <div className="flex justify-between items-center mb-8">
           <div>
@@ -183,7 +183,7 @@ const Applications = () => {
             {activeApplications.length > 0 && (
               <div className="mb-10">
                 <h2 className="text-xl font-semibold mb-4">Active Applications</h2>
-                <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                <div className="flex flex-col gap-4">
                   {activeApplications.map((application) => (
                     <ApplicationCard
                       key={application.id}
@@ -205,7 +205,7 @@ const Applications = () => {
             {completedApplications.length > 0 && (
               <div>
                 <h2 className="text-xl font-semibold mb-4">Past Applications</h2>
-                <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                <div className="flex flex-col gap-4">
                   {completedApplications.map((application) => (
                     <ApplicationCard
                       key={application.id}

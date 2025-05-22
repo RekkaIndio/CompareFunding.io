@@ -163,25 +163,28 @@ const BusinessProfile = () => {
         }
         
         if (data) {
-          // Convert address from JSON to form fields if needed
-          const addressData = data.address as any || {};
+          // Extract address fields from the address object
+          const addressData = data.address || {};
           
           setProfileExists(true);
           setProfile(data);
           
-          // Update form values
+          // Update form values with the extracted address fields, logo URL, and website summary
           form.reset({
             business_name: data.business_name || '',
             industry_sector: data.industry_sector || '',
             company_size: data.company_size || '',
             company_number: data.company_number || '',
-            description: data.description || '',
+            description: data.website_summary || '', // Use website summary as the business description
             website: data.website || '',
-            address_line1: addressData.line1 || '',
-            city: data.city || '',
-            postal_code: data.postal_code || '',
-            country: data.country || 'United Kingdom',
-            incorporation_date: data.incorporation_date ? new Date(data.incorporation_date).toISOString().split('T')[0] : '',
+            address_line1: addressData.street || '',
+            city: addressData.city || '',
+            postal_code: addressData.postal_code || '',
+            country: addressData.country || 'United Kingdom',
+            incorporation_date: data.incorporation_date
+              ? new Date(data.incorporation_date).toISOString().split('T')[0]
+              : '',
+            logo_url: data.logo_url || '',
           });
         }
       } catch (err) {
@@ -359,7 +362,8 @@ const BusinessProfile = () => {
     
     try {
       // Extract colors from the logo
-      const colors = await extractColors(logoUrl);
+      // No longer extracting colors from logo
+      const colors = [];
       
       // Update the profile with both logo and colors
       const { error } = await updateDocument('business_profiles', user.uid, {
@@ -406,9 +410,80 @@ const BusinessProfile = () => {
     callback(false); // Simplified check for demo
   };
 
+  // Add logo fetching and saving logic
+  useEffect(() => {
+    const fetchBusinessProfile = async () => {
+      if (!user) return;
+
+      setIsLoading(true);
+
+      try {
+        const { data, error } = await getDocument('business_profiles', user.uid);
+
+        if (error) {
+          setIsLoading(false);
+          return;
+        }
+
+        if (data) {
+          // Extract address fields from the address object
+          const addressData = data.address || {};
+
+          setProfileExists(true);
+          setProfile(data);
+
+          // Update form values with the extracted address fields, logo URL, and website summary
+          form.reset({
+            business_name: data.business_name || '',
+            industry_sector: data.industry_sector || '',
+            company_size: data.company_size || '',
+            company_number: data.company_number || '',
+            description: data.website_summary || '', // Use website summary as the business description
+            website: data.website || '',
+            address_line1: addressData.street || '',
+            city: addressData.city || '',
+            postal_code: addressData.postal_code || '',
+            country: addressData.country || 'United Kingdom',
+            incorporation_date: data.incorporation_date
+              ? new Date(data.incorporation_date).toISOString().split('T')[0]
+              : '',
+            logo_url: data.logo_url || '',
+          });
+        }
+      } catch (err) {
+        console.error('Error fetching profile:', err);
+        toast.error('Failed to load business profile');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchBusinessProfile();
+  }, [user, form]);
+
+  const fetchAndSaveLogo = async (website: string) => {
+    if (!website) return;
+
+    try {
+      await fetchWebsiteLogo(website);
+      // The logo URL is set inside fetchWebsiteLogo and saved via saveLogo.
+    } catch (error) {
+      console.error('Error fetching or saving logo:', error);
+      toast.error('Failed to fetch or save logo');
+    }
+  };
+
+  // Call fetchAndSaveLogo when the website field changes
+  useEffect(() => {
+    const website = form.getValues('website');
+    if (website) {
+      fetchAndSaveLogo(website);
+    }
+  }, [form.watch('website')]);
+
   if (isLoading) {
     return (
-      <PageLayout>
+      <PageLayout showSidebar={true}>
         <div className="container py-12 flex items-center justify-center min-h-[calc(100vh-200px)]">
           <div className="flex flex-col items-center gap-2">
             <Loader2 className="h-8 w-8 animate-spin text-fundhub-blue" />
@@ -420,7 +495,7 @@ const BusinessProfile = () => {
   }
 
   return (
-    <PageLayout>
+    <PageLayout showSidebar={true}>
       <div className="container py-8">
         <div className="max-w-4xl mx-auto">
           <h1 className="text-3xl font-bold mb-2">Business Profile</h1>
@@ -857,7 +932,7 @@ const BusinessProfile = () => {
                       Cancel
                     </Button>
                     <Button 
-                      type="submit" 
+                      type="submit"
                       className="bg-fundhub-blue hover:bg-fundhub-blue/90"
                       disabled={isSubmitting}
                     >

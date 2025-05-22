@@ -14,7 +14,7 @@ type UserWithRole = FirebaseUser & {
 type AuthContextType = {
   user: UserWithRole | null;
   isLoading: boolean;
-  signUp: (email: string, password: string, userData?: any) => Promise<{ error: any | null; data: any | null; }>;
+  signUp: (email: string, password: string, userData?: any, autoLogin?: boolean) => Promise<{ error: any | null; data: any | null; }>;
   signIn: (email: string, password: string) => Promise<{ error: any | null; data: any | null; }>;
   signOut: () => Promise<void>;
 };
@@ -66,7 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string, userData?: any) => {
+  const signUp = async (email: string, password: string, userData?: any, autoLogin: boolean = true) => {
     try {
       // Create user with Firebase Authentication
       const userCredential = await createUser(email, password);
@@ -88,6 +88,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           role: userData.role || 'business',
           createdAt: new Date().toISOString(),
         });
+      }
+
+      // Skip setting the user if autoLogin is false
+      if (autoLogin) {
+        setUser({ ...user, role: userData?.role });
       }
       
       return { data: userCredential, error: null };

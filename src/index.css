@@ -5,21 +5,21 @@
 @layer base {
   :root {
     /* Original theme variables */
-    --background: 0 0% 100%;
-    --foreground: 215 25% 15%;
+    --background: 215 28% 17%;  /* #212936 */
+    --foreground: 0 0% 100%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 215 25% 15%;
+    --card: 215 28% 17%;  /* #212936 */
+    --card-foreground: 0 0% 100%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 215 25% 15%;
+    --popover: 215 28% 17%;  /* #212936 */
+    --popover-foreground: 0 0% 100%;
 
     /* Theme color variables with fallbacks */
-    --fundhub-blue: var(--theme-primary, #3498db);
-    --fundhub-blue-rgb: var(--theme-primary-rgb, '52, 152, 219');
-    --fundhub-secondary: var(--theme-secondary, #2980b9);
-    --fundhub-secondary-rgb: var(--theme-secondary-rgb, '41, 128, 185');
-    --fundhub-accent: var(--theme-accent, #e74c3c);
+    --fundhub-orange: #ff8000;
+    --fundhub-blue-rgb: var(--theme-primary-rgb, '255, 128, 0');
+    --fundhub-secondary: var(--theme-secondary, #212936);
+    --fundhub-secondary-rgb: var(--theme-secondary-rgb, '33, 41, 54');
+    --fundhub-accent: var(--theme-accent, #ff8000);
     --fundhub-accent-rgb: var(--theme-accent-rgb, '231, 76, 60');
 
     --primary: 210 100% 50%;
@@ -43,27 +43,29 @@
 
     --radius: 0.75rem;
 
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 215 25% 15%;
-    --sidebar-primary: 210 100% 50%;
+    --sidebar-background: 215 28% 17%;  /* #212936 */
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 28 100% 50%;  /* #ff8000 */
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 50% 96%;
+    --sidebar-accent: 215 30% 25%;
     --sidebar-accent-foreground: 215 25% 15%;
     --sidebar-border: 214.3 31.8% 91.4%;
     --sidebar-ring: 210 100% 50%;
+    --sidebar-width: 16rem;
+    --sidebar-width-collapsed: 5rem;
   }
 
   .dark {
-    --background: 215 35% 10%;
+    --background: 215 28% 17%;  /* #212936 */
     --foreground: 0 0% 98%;
 
-    --card: 215 30% 12%;
+    --card: 215 28% 17%;
     --card-foreground: 0 0% 98%;
 
-    --popover: 215 30% 12%;
+    --popover: 215 28% 17%;
     --popover-foreground: 0 0% 98%;
 
-    --primary: 210 100% 55%;
+    --primary: 28 100% 50%;  /* #ff8000 */
     --primary-foreground: 0 0% 100%;
 
     --secondary: 215 25% 18%;
@@ -90,12 +92,32 @@
     --sidebar-accent-foreground: 0 0% 98%;
     --sidebar-border: 215 25% 20%;
     --sidebar-ring: 210 100% 55%;
-  }
 }
 
 @layer base {
   * {
     @apply border-border;
+  }
+  
+  /* Custom animations for sidebar transitions */
+  .animate-slide-down {
+    animation: slideDown 0.2s ease-out forwards;
+  }
+
+  @keyframes slideDown {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  /* Main content transition to account for sidebar expansion/collapse */
+  main {
+    transition: margin-left 0.3s ease-in-out;
   }
 
   html, body {
@@ -103,19 +125,38 @@
   }
 
   body {
-    @apply bg-background text-foreground min-h-screen font-sans;
+    @apply bg-white min-h-screen font-sans;
+    color: #2a3441;
   }
 }
 
 /* Custom component styles */
-@layer components {
   .glass-effect {
-    @apply bg-white/80 backdrop-blur-lg shadow-glass;
+    background-color: rgb(255,255,255,0.8);
+    backdrop-filter: blur(16px);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.08);
   }
-  
-  .card-hover-effect {
-    @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
-  }
+
+
+.card-shadow {
+  box-shadow: 0 4px 24px 0 rgba(42,52,65,0.10), 0 1.5px 6px 0 rgba(42,52,65,0.08);
+  border-radius: 1rem;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+
+.card-shadow:hover {
+  box-shadow: 0 8px 32px 0 rgba(42,52,65,0.16), 0 3px 12px 0 rgba(42,52,65,0.12);
+  transform: translateY(-2px) scale(1.02);
+}
+
+.dashboard-card {
+  background-color: #2a3441;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+}
   
   .nav-link {
     @apply px-4 py-2 text-sm font-medium text-muted-foreground hover:text-primary transition-colors;
@@ -143,6 +184,21 @@
   
   .subtle-ring-focus {
     @apply focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary/40;
+  }
+}
+
+/* Utility classes */
+@layer utilities {
+  .bg-fundhub-blue\/90 {
+    background-color: rgba(var(--fundhub-blue-rgb), 0.9);
+  }
+
+  .bg-fundhub-secondary\/90 {
+    background-color: rgba(var(--fundhub-secondary-rgb), 0.9);
+  }
+
+  .bg-fundhub-accent\/90 {
+    background-color: rgba(var(--fundhub-accent-rgb), 0.9);
   }
 }
 
@@ -190,6 +246,11 @@ html {
 /* Disable blue highlight on mobile tap */
 * {
   -webkit-tap-highlight-color: transparent;
+}
+
+/* Navbar shadow */
+.shadow-nav {
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
 }
 
 /* Custom utility classes for opacity variations */

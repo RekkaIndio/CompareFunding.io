@@ -287,11 +287,15 @@ const OffersList = () => {
                       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                         <div>
                           <p className="text-sm text-muted-foreground">Loan Amount</p>
-                          <p className="font-semibold text-lg">£{offer.offer_amount.toLocaleString()}</p>
+                          <p className="font-semibold text-lg">
+                            £{typeof offer.offer_amount === 'number' ? offer.offer_amount.toLocaleString() : 'N/A'}
+                          </p>
                         </div>
                         <div>
                           <p className="text-sm text-muted-foreground">Interest Rate</p>
-                          <p className="font-semibold text-lg">{offer.interest_rate}%</p>
+                          <p className="font-semibold text-lg">
+                            {typeof offer.interest_rate === 'number' ? offer.interest_rate : 'N/A'}%
+                          </p>
                         </div>
                         <div>
                           <p className="text-sm text-muted-foreground">Term</p>
@@ -300,7 +304,7 @@ const OffersList = () => {
                         <div>
                           <p className="text-sm text-muted-foreground">Total Cost</p>
                           <p className="font-semibold text-lg">
-                            £{Math.round(offer.offer_amount * (1 + (offer.interest_rate / 100))).toLocaleString()}
+                            £{typeof offer.offer_amount === 'number' && typeof offer.interest_rate === 'number' ? Math.round(offer.offer_amount * (1 + (offer.interest_rate / 100))).toLocaleString() : 'N/A'}
                           </p>
                         </div>
                       </div>

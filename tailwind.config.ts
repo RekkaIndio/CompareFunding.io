@@ -26,45 +26,45 @@ export default {
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
 				ring: 'hsl(var(--ring))',
-				background: 'hsl(var(--background))',
+				background: '#212936',
 				foreground: 'hsl(var(--foreground))',
 				primary: {
-					DEFAULT: 'hsl(var(--primary))',
-					foreground: 'hsl(var(--primary-foreground))'
+					DEFAULT: '#ff8000',
+					foreground: '#ffffff'
 				},
 				secondary: {
-					DEFAULT: 'hsl(var(--secondary))',
-					foreground: 'hsl(var(--secondary-foreground))'
+					DEFAULT: '#2a3441',
+					foreground: '#ffffff'
 				},
 				destructive: {
 					DEFAULT: 'hsl(var(--destructive))',
 					foreground: 'hsl(var(--destructive-foreground))'
 				},
 				muted: {
-					DEFAULT: 'hsl(var(--muted))',
-					foreground: 'hsl(var(--muted-foreground))'
+					DEFAULT: '#2a3441',
+					foreground: '#94a3b8'
 				},
 				accent: {
-					DEFAULT: 'hsl(var(--accent))',
-					foreground: 'hsl(var(--accent-foreground))'
+					DEFAULT: '#2a3441',
+					foreground: '#ffffff'
 				},
 				popover: {
-					DEFAULT: 'hsl(var(--popover))',
-					foreground: 'hsl(var(--popover-foreground))'
+					DEFAULT: '#212936',
+					foreground: '#ffffff'
 				},
 				card: {
-					DEFAULT: 'hsl(var(--card))',
-					foreground: 'hsl(var(--card-foreground))'
+					DEFAULT: '#212936',
+					foreground: '#ffffff'
 				},
 				sidebar: {
-					DEFAULT: 'hsl(var(--sidebar-background))',
-					foreground: 'hsl(var(--sidebar-foreground))',
-					primary: 'hsl(var(--sidebar-primary))',
-					'primary-foreground': 'hsl(var(--sidebar-primary-foreground))',
-					accent: 'hsl(var(--sidebar-accent))',
-					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
-					border: 'hsl(var(--sidebar-border))',
-					ring: 'hsl(var(--sidebar-ring))'
+					DEFAULT: '#212936',
+					foreground: '#ffffff',
+					primary: '#ff8000',
+					'primary-foreground': '#ffffff',
+					accent: '#2a3441',
+					'accent-foreground': '#ffffff',
+					border: '#2a3441',
+					ring: '#ff8000'
 				},
 				fundhub: {
 					blue: 'rgb(var(--fundhub-blue-rgb) / <alpha-value>)',
@@ -138,9 +138,10 @@ export default {
 				'spacing': 'margin, padding',
 			},
 			boxShadow: {
-				'glass': '0 4px 30px rgba(0, 0, 0, 0.1)',
-				'card': '0 4px 20px rgba(0, 0, 0, 0.08)',
-				'nav': '0 2px 10px rgba(0, 0, 0, 0.05)',
+				'glass': '0 4px 30px rgba(0, 0, 0, 0.2)',
+				'card': '0 4px 20px rgba(0, 0, 0, 0.15)',
+				'nav': '0 2px 10px rgba(0, 0, 0, 0.1)',
+				'elevated': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
 			},
 			backdropBlur: {
 				xs: '2px',

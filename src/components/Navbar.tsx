@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import Logo from '@/components/Logo';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Menu, X, ChevronDown, User, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNavbar } from '@/contexts/NavbarContext'; // Add this line
+import cflogowhiteUrl from '@/assets/cflogowhite.png';
+import comparefundingUrl from '@/assets/comparefunding.png';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,7 +23,8 @@ const Navbar = () => {
   const location = useLocation();
   const isMobile = useIsMobile();
   const { user, signOut } = useAuth();
-  
+  const { isNavbarVisible } = useNavbar(); // Add this line
+
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 10);
@@ -87,16 +90,32 @@ const Navbar = () => {
   };
   
   const navLinks = getNavLinks();
-  
+
+  if (!isNavbarVisible) { // Add this block
+    return null;
+  }
+
   return (
     <header 
       className={cn(
-        "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
-        isScrolled ? "py-3 bg-white/80 backdrop-blur-md shadow-nav" : "py-5 bg-transparent"
+        "fixed top-0 left-0 right-0 z-50 transition-all duration-300 h-16",
+        isScrolled ? "py-3 bg-[#212936]/95 backdrop-blur-md shadow-nav text-white" : "py-5 bg-[#212936] text-white"
       )}
     >
-      <div className="container mx-auto px-4 flex justify-between items-center">
-        <Logo type="full" size={isScrolled ? "sm" : "md"} showTagline={!isScrolled && !isMobile} />
+      <div className="w-full flex justify-between items-center px-4 h-full"> {/* Added height and background */}
+        {/* Logo Section */}
+        <Link to="/" className="flex items-center space-x-2 group"> {/* Removed mr-auto here */}
+          <img
+            src={cflogowhiteUrl}
+            alt="Compare Funding Logo"
+            className={cn("transition-all duration-300", isScrolled ? "h-8" : "h-10")}
+          />
+          <img
+            src={comparefundingUrl}
+            alt="Compare Funding Text"
+            className={cn("transition-all duration-300", isScrolled ? "h-20" : "h-20")}
+          />
+        </Link>
         
         {/* Desktop Menu */}
         <nav className="hidden md:flex items-center space-x-1">
@@ -105,7 +124,7 @@ const Navbar = () => {
               key={link.path}
               to={link.path}
               className={cn(
-                "nav-link transition-all duration-300",
+                "nav-link transition-all duration-300 text-white",
                 isActive(link.path) ? "nav-link-active" : "",
                 isScrolled ? "py-1.5" : "py-2"
               )}
@@ -116,7 +135,7 @@ const Navbar = () => {
         </nav>
         
         {/* Desktop CTA Buttons or User Menu */}
-        <div className="hidden md:flex items-center space-x-3">
+        <div className="hidden md:flex items-center space-x-3 text-white">
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -173,7 +192,7 @@ const Navbar = () => {
               <Button variant="outline" size={isScrolled ? "sm" : "default"} asChild>
                 <Link to="/login">Log In</Link>
               </Button>
-              <Button size={isScrolled ? "sm" : "default"} className="bg-fundhub-blue hover:bg-fundhub-blue/90" asChild>
+              <Button size={isScrolled ? "sm" : "default"} className="bg-primary hover:bg-primary/90" asChild>
                 <Link to="/signup">Sign Up</Link>
               </Button>
             </>
@@ -196,7 +215,7 @@ const Navbar = () => {
       
       {/* Mobile Menu */}
       {isMobileMenuOpen && (
-        <div className="md:hidden absolute top-full left-0 right-0 bg-white shadow-lg animate-slide-down">
+        <div className="md:hidden absolute top-full left-0 right-0 bg-[#212936] shadow-lg animate-slide-down">
           <div className="container mx-auto px-4 py-4 flex flex-col">
             <nav className="flex flex-col space-y-3 mb-4">
               {navLinks.map((link) => (
@@ -204,10 +223,10 @@ const Navbar = () => {
                   key={link.path}
                   to={link.path}
                   className={cn(
-                    "px-4 py-2 rounded-md",
+                    "px-4 py-2 rounded-md text-white",
                     isActive(link.path) 
-                      ? "bg-fundhub-light-blue text-fundhub-blue font-medium" 
-                      : "text-fundhub-navy hover:bg-gray-50"
+                      ? "bg-fundhub-orange text-white font-medium" 
+                      : "hover:bg-gray-700"
                   )}
                 >
                   {link.name}
@@ -219,13 +238,13 @@ const Navbar = () => {
               <div className="flex flex-col gap-2">
                 {user.role === 'business' ? (
                   <>
-                    <Link to="/business/profile" className="px-4 py-2 rounded-md text-fundhub-navy hover:bg-gray-50">
+                    <Link to="/business/profile" className="px-4 py-2 rounded-md text-white hover:bg-gray-700">
                       Profile
                     </Link>
                   </>
                 ) : (
                   <>
-                    <Link to="/lender/profile" className="px-4 py-2 rounded-md text-fundhub-navy hover:bg-gray-50">
+                    <Link to="/lender/profile" className="px-4 py-2 rounded-md text-white hover:bg-gray-700">
                       Profile
                     </Link>
                   </>
@@ -233,7 +252,7 @@ const Navbar = () => {
                 
                 <Button 
                   variant="outline" 
-                  className="justify-start text-red-500" 
+                  className="justify-start text-red-500 text-white border-white hover:bg-gray-700" 
                   onClick={handleSignOut}
                 >
                   <LogOut className="mr-2 h-4 w-4" />
@@ -242,10 +261,10 @@ const Navbar = () => {
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-3 mt-2">
-                <Button variant="outline" className="w-full" asChild>
+                <Button variant="outline" className="w-full text-white border-white hover:bg-gray-700" asChild>
                   <Link to="/login">Log In</Link>
                 </Button>
-                <Button className="w-full bg-fundhub-blue hover:bg-fundhub-blue/90" asChild>
+                <Button className="w-full bg-fundhub-orange hover:bg-fundhub-orange/90 text-white" asChild>
                   <Link to="/signup">Sign Up</Link>
                 </Button>
               </div>

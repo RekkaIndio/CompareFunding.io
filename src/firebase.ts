@@ -31,7 +31,8 @@ import {
   Query,
   DocumentData,
   DocumentReference,
-  DocumentSnapshot
+  DocumentSnapshot,
+  limit // Added limit import
 } from "firebase/firestore";
 
 // Add BusinessProfile interface at the top with other interfaces
@@ -171,30 +172,47 @@ const handleIndexError = (error: any) => {
   };
 };
 
+// Define a more comprehensive operator type
+type FirebaseQueryOperator = 
+  | "==" | "!=" | ">" | ">=" | "<" | "<=" 
+  | "in" | "not-in" | "array-contains" | "array-contains-any";
+
+// Export the type
+export type { FirebaseQueryOperator };
+
 const getDocuments = async (
   collectionName: string, 
-  conditions?: { field: string; operator: "==" | "!=" | ">" | ">=" | "<" | "<="; value: any }[],
-  sortOptions?: { field: string; direction: "asc" | "desc" }[]
+  conditions?: { field: string; operator: FirebaseQueryOperator; value: any }[],
+  sortOptions?: { field: string; direction: "asc" | "desc" }[],
+  limitCount?: number // Added limitCount parameter
 ) => {
   try {
-    console.log(`Fetching documents from ${collectionName} with conditions:`, conditions);
+    console.log(`Fetching documents from ${collectionName} with conditions:`, conditions, "sortOptions:", sortOptions, "limit:", limitCount);
     
     let q: Query<DocumentData> = collection(firestore, collectionName);
+    const queryConstraintsArray: any[] = [];
     
     if (conditions && conditions.length > 0) {
-      const queryConstraints = conditions.map(condition => {
+      conditions.forEach(condition => {
         console.log('Adding condition:', condition);
-        return where(condition.field, condition.operator, condition.value);
+        queryConstraintsArray.push(where(condition.field, condition.operator as any, condition.value)); // Use 'as any' for operator due to Firebase SDK typing nuances with custom type
       });
-      q = query(q, ...queryConstraints);
     }
     
     if (sortOptions && sortOptions.length > 0) {
-      const orderByConstraints = sortOptions.map(option => {
+      sortOptions.forEach(option => {
         console.log('Adding sort option:', option);
-        return orderBy(option.field, option.direction);
+        queryConstraintsArray.push(orderBy(option.field, option.direction));
       });
-      q = query(q, ...orderByConstraints);
+    }
+
+    if (limitCount !== undefined && limitCount > 0) {
+      console.log('Adding limit:', limitCount);
+      queryConstraintsArray.push(limit(limitCount));
+    }
+    
+    if (queryConstraintsArray.length > 0) {
+      q = query(q, ...queryConstraintsArray);
     }
     
     console.log('Executing Firestore query...');
@@ -757,5 +775,7 @@ export {
   createFirstMessage,
   createTestMessageBetweenUsers,
   forceCreateMessage,
-  sendInvoiceEmail
+  sendInvoiceEmail,
+  serverTimestamp,
+  // FirebaseQueryOperator // Remove from here if it was previously, ensure it's exported with \'export type\'
 };
