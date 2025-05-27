@@ -6,6 +6,8 @@ import { useNavbar } from '@/contexts/NavbarContext';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import cflogowhiteUrl from '@/assets/cflogowhite.png';
+import SignUpSidebar from '@/components/SignUpSidebar';
+import '../../styles/animations.css'; // Import animations
 
 const FundingMatches = () => {
   const { showNavbar, hideNavbar } = useNavbar();
@@ -155,45 +157,17 @@ const FundingMatches = () => {
 
             {/* Sidebar Column */}
             <div className="lg:col-span-4 flex flex-col h-full p-0 m-0">
-              <div
-                className="flex flex-col items-center bg-[#2a3441] h-[100vh] fixed right-0 top-0 bottom-0 w-full lg:w-[33.333333%] z-10 p-0 m-0"
-              >
-                <div className="flex flex-col items-center justify-center w-full h-full" style={{ flex: 1 }}>
-                  <img src={cflogowhiteUrl} alt="Compare Funding Logo" className="h-20 mb-12" style={{ maxWidth: '220px' }} />
-                  <div className="flex flex-col justify-center w-full" style={{ flex: 1 }}>
-                    <Card className="bg-white p-6 shadow-md border border-gray-100 mb-6">
-                      <h3 className="text-xl font-bold text-[#2a3441] mb-4">Business funding options. Simplified.</h3>
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-2">
-                          <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center">
-                            <Check className="h-4 w-4 text-primary" />
-                          </div>
-                          <p className="text-[#2a3441]">1 application unlimited options</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center">
-                            <Check className="h-4 w-4 text-primary" />
-                          </div>
-                          <p className="text-[#2a3441]">Fast track your access to funds</p>
-                        </div>
-                      </div>
-                    </Card>
-                    <Card className="bg-white p-6 border border-primary">
-                      <div className="text-center">
-                        <h3 className="text-xl font-bold mb-3 text-[#2a3441]">Trust Pilot</h3>
-                        <div className="flex justify-center mb-2">
-                          {[...Array(5)].map((_, i) => (
-                            <svg key={i} className="w-5 h-5 text-primary fill-current" viewBox="0 0 24 24">
-                              <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
-                            </svg>
-                          ))}
-                        </div>
-                        <p className="font-semibold text-[#2a3441]">4.8/5 rating</p>
-                      </div>
-                    </Card>
-                  </div>
-                </div>
-              </div>
+              <SignUpSidebar
+                title="Your Potential Matches"
+                description="Based on your funding needs, we've found lenders who may be interested in working with your business."
+                highlight="These are preliminary matches. Adding more business details will refine your options."
+                step={2}
+                tips={[
+                  "Click on each category to see more details about the funding options.",
+                  "Lenders are pre-screened to ensure they're reputable and trustworthy.",
+                  "The more information you provide, the more accurate your matches will be."
+                ]}
+              />
             </div>
           </div>
         </div>

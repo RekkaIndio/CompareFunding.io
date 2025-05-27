@@ -20,12 +20,12 @@ import Login from "./pages/Login";
 import SignUp from "./pages/SignUp";
 import FundingMatches from "./pages/FundingMatches";
 // import BusinessDetailsForm from "./pages/BusinessDetailsForm";
-import BusinessProfile from "./pages/BusinessProfile";
+import BusinessProfile from "./pages/Business/business-profile";
 import BusinessDashboard from "./pages/BusinessDashboard";
 import BusinessDocuments from "./pages/Business/Documents/documents";
 // import { AccountingConnect } from "./pages/AccountingConnect";
-import NewApplication from "./pages/NewApplication";
-// import ApplicationReview from "./pages/ApplicationReview";
+import NewApplication from "./pages/Applications/NewApplication";
+import ApplicationReview from "./pages/ApplicationReview";
 import OffersList from "./pages/OffersList";
 import OfferDetails from "./pages/OfferDetails";
 import LenderProfile from "./pages/Lender/LenderProfile";
@@ -95,7 +95,7 @@ const App = () => (
                    <Route path="/business/learn" element={<LearnPage />} />
                   {/* <Route path="/business/accounting/connect" element={<AccountingConnect />} /> */}
                   <Route path="/applications/new" element={<NewApplication />} />
-                  {/* <Route path="/applications/:id/review" element={<ApplicationReview />} /> */}
+                  <Route path="/applications/:id/review" element={<ApplicationReview />} />
                   <Route path="/offers" element={<OffersList />} />
                   <Route path="/offers/:id" element={<OfferDetails />} />
                   

@@ -6,11 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import cflogowhiteUrl from '@/assets/cflogowhite.png';
-import { Check } from 'lucide-react';
+import SignUpSidebar from '@/components/SignUpSidebar';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import '../../styles/animations.css'; // Import animations
 
 const EmailPasswordPage = () => {
   const navigate = useNavigate();
@@ -123,46 +123,19 @@ const EmailPasswordPage = () => {
               </div>
             </div>
 
+            {/* Sidebar Column - Tailored for Email & Password step */}
             <div className="lg:col-span-4 flex flex-col h-full p-0 m-0">
-              <div
-                className="flex flex-col items-center bg-[#2a3441] h-[100vh] fixed right-0 top-0 bottom-0 w-full lg:w-[33.333333%] z-10 p-0 m-0"
-              >
-                <div className="flex flex-col items-center justify-center w-full h-full" style={{ flex: 1 }}>
-                  <img src={cflogowhiteUrl} alt="Compare Funding Logo" className="h-20 mb-12" style={{ maxWidth: '220px' }} />
-                  <div className="flex flex-col justify-center w-full" style={{ flex: 1 }}>
-                    <Card className="bg-white p-6 shadow-md border border-gray-100 mb-6">
-                      <h3 className="text-xl font-bold text-[#2a3441] mb-4">Business funding options. Simplified.</h3>
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-2">
-                          <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center">
-                            <Check className="h-4 w-4 text-primary" />
-                          </div>
-                          <p className="text-[#2a3441]">1 application unlimited options</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center">
-                            <Check className="h-4 w-4 text-primary" />
-                          </div>
-                          <p className="text-[#2a3441]">Fast track your access to funds</p>
-                        </div>
-                      </div>
-                    </Card>
-                    <Card className="bg-white p-6 border border-primary">
-                      <div className="text-center">
-                        <h3 className="text-xl font-bold mb-3 text-[#2a3441]">Trust Pilot</h3>
-                        <div className="flex justify-center mb-2">
-                          {[...Array(5)].map((_, i) => (
-                            <svg key={i} className="w-5 h-5 text-primary fill-current" viewBox="0 0 24 24">
-                              <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
-                            </svg>
-                          ))}
-                        </div>
-                        <p className="font-semibold text-[#2a3441]">4.8/5 rating</p>
-                      </div>
-                    </Card>
-                  </div>
-                </div>
-              </div>
+              <SignUpSidebar
+                title="Welcome to Compare Funding"
+                description="Creating an account is your first step to finding the perfect funding solution for your business."
+                highlight="We'll guide you through a simple 5-step process to match you with lenders."
+                step={0}
+                tips={[
+                  "Your email will be used to send important funding updates.",
+                  "We take your security seriously - your password is encrypted.",
+                  "Once registered, you'll have a personalised dashboard to track all your applications."
+                ]}
+              />
             </div>
           </div>
         </div>

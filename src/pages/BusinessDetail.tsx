@@ -28,7 +28,8 @@ import {
   Phone,
   Shield,
   CheckCircle,
-  ThumbsUp
+  ThumbsUp,
+  Star
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -205,7 +206,7 @@ const BusinessDetail = () => {
   // Add function to get display name based on match status
   const getDisplayName = () => {
     if (!applicationData?.application) return 'Application Not Found';
-    return `Application #${applicationData.application.application_number || id?.substring(0, 8)}`;
+    return applicationData?.business?.business_name || `Application #${applicationData.application.application_number || id?.substring(0, 8)}`;
   };
 
   // Update document title based on match status
@@ -222,7 +223,7 @@ const BusinessDetail = () => {
         <div className="container py-8">
           <Button
             variant="ghost"
-            className="mb-6"
+            className="mb-6 flex items-center hover:bg-[#212936]/10 text-[#212936]"
             onClick={() => navigate('/matched-applications')}
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -298,554 +299,563 @@ const BusinessDetail = () => {
 
     const isInMatchedLenders = applicationData.application.matched_lenders?.includes(user?.uid);
 
-    if (isInMatchedLenders || interestStatus === 'accepted') {
+    if (interestStatus === 'accepted' || isInMatchedLenders) {
       return (
-        <div className="flex gap-2">
-          <Button variant="outline" className="text-green-600 border-green-600">
-            <CheckCircle className="mr-2 h-4 w-4" />
-            Matched
-          </Button>
-          <Button 
-            className="bg-fundhub-blue hover:bg-fundhub-blue/90"
-            onClick={() => navigate(`/create-offer/${id}`)}
-          >
-            Create Offer
-          </Button>
-        </div>
+        <Button className="bg-[#212936] hover:bg-[#212936]/90 text-white shadow-lg">
+          <FileText className="mr-2 h-4 w-4" />
+          Make Offer
+        </Button>
       );
     }
-
+    
     if (interestStatus === 'pending') {
       return (
-        <Button variant="outline" className="text-green-600 border-green-600" disabled>
+        <Button variant="outline" disabled className="border-blue-200 bg-blue-50 text-blue-700">
           <ThumbsUp className="mr-2 h-4 w-4" />
-          Interest Sent
+          Interest Expressed
         </Button>
       );
     }
 
-    if (interestStatus === 'rejected') {
+    if (interestStatus === 'declined') {
       return (
-        <Button variant="outline" className="text-red-600 border-red-600" disabled>
+        <Button variant="outline" disabled className="border-red-200 bg-red-50 text-red-700">
+          <AlertTriangle className="mr-2 h-4 w-4" />
           Interest Declined
         </Button>
       );
     }
 
     return (
-      <Button className="bg-fundhub-blue hover:bg-fundhub-blue/90" onClick={handleExpressInterest}>
+      <Button onClick={handleExpressInterest} className="bg-[#ff8000] hover:bg-[#ff8000]/90 text-white shadow-lg">
+        <ThumbsUp className="mr-2 h-4 w-4" />
         Express Interest
       </Button>
     );
   };
 
+  // Return the business detail view
   return (
     <PageLayout>
-      <div className="container py-8">
-        <Button
-          variant="ghost"
-          className="mb-6"
-          onClick={() => navigate('/matched-applications')}
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Applications
-        </Button>
+      <div className="bg-gradient-to-br from-slate-50 to-blue-50 min-h-screen">
+        <div className="container py-8">
+          {/* Back Button */}
+          <Button
+            variant="ghost"
+            className="mb-6 flex items-center hover:bg-[#212936]/10 text-[#212936]"
+            onClick={() => navigate('/matched-applications')}
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Applications
+          </Button>
 
-        <div className="grid grid-cols-3 gap-6">
-          <div className="col-span-2 space-y-6">
-            <Card>
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start gap-4">
-                    {isLenderMatched() && applicationData?.business?.logo_url && (
-                      <div className="flex-shrink-0 h-12 w-12 rounded-md overflow-hidden">
-                        <img 
-                          src={applicationData.business.logo_url} 
-                          alt={`${applicationData.business.business_name} logo`}
-                          className="h-full w-full object-contain"
-                        />
-                      </div>
-                    )}
-                    <div>
-                      <CardTitle className="text-2xl flex items-center gap-2">
-                        <Building2 className="h-6 w-6 text-fundhub-blue" />
-                        {getDisplayName()}
-                      </CardTitle>
-                      {isLenderMatched() && (
-                        <CardDescription className="mt-2">
-                          <div className="flex items-center gap-4">
-                            <Badge variant="outline" className="capitalize">
-                              {applicationData?.business?.industry_sector}
-                            </Badge>
-                            <span className="text-sm text-muted-foreground">
-                              {applicationData?.business?.company_size} employees
-                            </span>
-                          </div>
-                        </CardDescription>
-                      )}
-                    </div>
-                  </div>
-                  {getActionButton()}
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {isLenderMatched() ? (
-                  // Show full business details when matched
-                  <>
-                    <div>
-                      <h3 className="font-medium mb-2">About</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {applicationData?.business?.description || 'No business description provided.'}
-                      </p>
-                    </div>
-
-                    <Separator />
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <div className="text-sm text-muted-foreground mb-1">Business Name</div>
-                        <div className="font-medium flex items-center">
-                          <Building className="h-4 w-4 mr-2 text-muted-foreground" />
-                          {applicationData?.business?.business_name}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-sm text-muted-foreground mb-1">Website</div>
-                        <div className="font-medium flex items-center">
-                          <Globe className="h-4 w-4 mr-2 text-muted-foreground" />
-                          {applicationData?.business?.website || 'Not provided'}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-sm text-muted-foreground mb-1">Location</div>
-                        <div className="font-medium flex items-center">
-                          <MapPin className="h-4 w-4 mr-2 text-muted-foreground" />
-                          {applicationData?.business?.city}, {applicationData?.business?.country}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-sm text-muted-foreground mb-1">Founded</div>
-                        <div className="font-medium flex items-center">
-                          <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
-                          {applicationData?.business?.incorporation_date && 
-                            new Date(applicationData.business.incorporation_date).getFullYear()}
-                        </div>
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  // Show essential business information without identifying details
-                  <>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <div className="text-sm text-muted-foreground mb-1">Industry</div>
-                        <div className="font-medium flex items-center">
-                          <Building className="h-4 w-4 mr-2 text-muted-foreground" />
-                          {applicationData?.business?.industry_sector || 'Not specified'}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-sm text-muted-foreground mb-1">Company Size</div>
-                        <div className="font-medium flex items-center">
-                          <Users className="h-4 w-4 mr-2 text-muted-foreground" />
-                          {applicationData?.business?.company_size || 'Not specified'} employees
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-sm text-muted-foreground mb-1">Location</div>
-                        <div className="font-medium flex items-center">
-                          <MapPin className="h-4 w-4 mr-2 text-muted-foreground" />
-                          {applicationData?.business?.city}, {applicationData?.business?.country}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-sm text-muted-foreground mb-1">Years in Business</div>
-                        <div className="font-medium flex items-center">
-                          <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
-                          {applicationData?.business?.incorporation_date ? 
-                            `${new Date().getFullYear() - new Date(applicationData.business.incorporation_date).getFullYear()} years` :
-                            'Not specified'}
-                        </div>
-                      </div>
-                    </div>
-
-                    <Separator />
-
-                    <div>
-                      <h3 className="font-medium mb-2">Business Overview</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {applicationData?.business?.description || 'No business description provided.'}
-                      </p>
-                      <div className="mt-4 p-4 bg-fundhub-light-blue/10 rounded-lg">
-                        <div className="text-sm font-medium text-fundhub-blue mb-2">Note:</div>
-                        <div className="text-sm text-muted-foreground">
-                          Business name and contact details will be available after expressing interest and being matched.
-                        </div>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Financial Overview Card */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BadgePoundSterling className="h-5 w-5 text-fundhub-blue" />
-                  Financial Overview
-                </CardTitle>
-                <CardDescription>
-                  Financial statements and key metrics
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-8">
-                {/* Profit & Loss Section */}
-                <div>
-                  <h3 className="font-medium text-lg mb-4">Profit and Loss</h3>
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b">
-                          <th className="text-left font-medium p-2">Item</th>
-                          <th className="text-right font-medium p-2">2024</th>
-                          <th className="text-right font-medium p-2">2023</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y">
-                        <tr>
-                          <td className="p-2">Turnover</td>
-                          <td className="text-right p-2">
-                            {getFinancialMetric(applicationData?.application?.financial_data?.profitAndLoss['2024']?.turnover || 0)}
-                          </td>
-                          <td className="text-right p-2">
-                            {getFinancialMetric(applicationData?.application?.financial_data?.profitAndLoss['2023']?.turnover || 0)}
-                          </td>
-                        </tr>
-                        <tr>
-                          <td className="p-2">Cost of Sales</td>
-                          <td className="text-right p-2">
-                            {getFinancialMetric(applicationData?.application?.financial_data?.profitAndLoss['2024']?.costOfSales || 0)}
-                          </td>
-                          <td className="text-right p-2">
-                            {getFinancialMetric(applicationData?.application?.financial_data?.profitAndLoss['2023']?.costOfSales || 0)}
-                          </td>
-                        </tr>
-                        <tr className="font-medium">
-                          <td className="p-2">Gross profit</td>
-                          <td className="text-right p-2">
-                            {getFinancialMetric(applicationData?.application?.financial_data?.profitAndLoss['2024']?.grossProfit || 0)}
-                          </td>
-                          <td className="text-right p-2">
-                            {getFinancialMetric(applicationData?.application?.financial_data?.profitAndLoss['2023']?.grossProfit || 0)}
-                          </td>
-                        </tr>
-                        <tr>
-                          <td className="p-2">GP%</td>
-                          <td className="text-right p-2">
-                            {applicationData?.application?.financial_data?.profitAndLoss['2024']?.grossProfitMargin?.toFixed(2)}%
-                          </td>
-                          <td className="text-right p-2">
-                            {applicationData?.application?.financial_data?.profitAndLoss['2023']?.grossProfitMargin?.toFixed(2)}%
-                          </td>
-                        </tr>
-                        <tr>
-                          <td className="p-2">Less: Administrative expenses</td>
-                          <td className="text-right p-2">
-                            {getFinancialMetric(applicationData?.application?.financial_data?.profitAndLoss['2024']?.administrativeExpenses || 0)}
-                          </td>
-                          <td className="text-right p-2">
-                            {getFinancialMetric(applicationData?.application?.financial_data?.profitAndLoss['2023']?.administrativeExpenses || 0)}
-                          </td>
-                        </tr>
-                        <tr className="font-medium">
-                          <td className="p-2">Operating Profit / loss</td>
-                          <td className="text-right p-2">
-                            {getFinancialMetric(applicationData?.application?.financial_data?.profitAndLoss['2024']?.operatingProfit || 0)}
-                          </td>
-                          <td className="text-right p-2">
-                            {getFinancialMetric(applicationData?.application?.financial_data?.profitAndLoss['2023']?.operatingProfit || 0)}
-                          </td>
-                        </tr>
-                        <tr>
-                          <td className="p-2">Tax</td>
-                          <td className="text-right p-2">
-                            {getFinancialMetric(applicationData?.application?.financial_data?.profitAndLoss['2024']?.tax || 0)}
-                          </td>
-                          <td className="text-right p-2">
-                            {getFinancialMetric(applicationData?.application?.financial_data?.profitAndLoss['2023']?.tax || 0)}
-                          </td>
-                        </tr>
-                        <tr className="font-medium">
-                          <td className="p-2">Net profit / loss</td>
-                          <td className="text-right p-2">
-                            {getFinancialMetric(applicationData?.application?.financial_data?.profitAndLoss['2024']?.netProfit || 0)}
-                          </td>
-                          <td className="text-right p-2">
-                            {getFinancialMetric(applicationData?.application?.financial_data?.profitAndLoss['2023']?.netProfit || 0)}
-                          </td>
-                        </tr>
-                        <tr>
-                          <td className="p-2">Dividends paid</td>
-                          <td className="text-right p-2">
-                            {getFinancialMetric(applicationData?.application?.financial_data?.profitAndLoss['2024']?.dividendsPaid || 0)}
-                          </td>
-                          <td className="text-right p-2">
-                            {getFinancialMetric(applicationData?.application?.financial_data?.profitAndLoss['2023']?.dividendsPaid || 0)}
-                          </td>
-                        </tr>
-                        <tr className="font-medium">
-                          <td className="p-2">Profit after tax</td>
-                          <td className="text-right p-2">
-                            {getFinancialMetric(applicationData?.application?.financial_data?.profitAndLoss['2024']?.profitAfterTax || 0)}
-                          </td>
-                          <td className="text-right p-2">
-                            {getFinancialMetric(applicationData?.application?.financial_data?.profitAndLoss['2023']?.profitAfterTax || 0)}
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                <Separator />
-
-                {/* Balance Sheet Section */}
-                <div>
-                  <h3 className="font-medium text-lg mb-4">Balance Sheet</h3>
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b">
-                          <th className="text-left font-medium p-2">Item</th>
-                          <th className="text-right font-medium p-2">2024</th>
-                          <th className="text-right font-medium p-2">2023</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y">
-                        <tr>
-                          <td className="p-2">Intangible Fixed Assets</td>
-                          <td className="text-right p-2">
-                            {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2024']?.intangibleFixedAssets || 0)}
-                          </td>
-                          <td className="text-right p-2">
-                            {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2023']?.intangibleFixedAssets || 0)}
-                          </td>
-                        </tr>
-                        <tr>
-                          <td className="p-2">Tangible Fixed Assets</td>
-                          <td className="text-right p-2">
-                            {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2024']?.tangibleFixedAssets || 0)}
-                          </td>
-                          <td className="text-right p-2">
-                            {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2023']?.tangibleFixedAssets || 0)}
-                          </td>
-                        </tr>
-                        <tr>
-                          <td className="p-2">Current Assets</td>
-                          <td className="text-right p-2">
-                            {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2024']?.currentAssets || 0)}
-                          </td>
-                          <td className="text-right p-2">
-                            {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2023']?.currentAssets || 0)}
-                          </td>
-                        </tr>
-                        <tr>
-                          <td className="p-2">Current Liabilities</td>
-                          <td className="text-right p-2">
-                            {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2024']?.currentLiabilities || 0)}
-                          </td>
-                          <td className="text-right p-2">
-                            {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2023']?.currentLiabilities || 0)}
-                          </td>
-                        </tr>
-                        <tr className="font-medium">
-                          <td className="p-2">Net Current Assets</td>
-                          <td className="text-right p-2">
-                            {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2024']?.netCurrentAssets || 0)}
-                          </td>
-                          <td className="text-right p-2">
-                            {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2023']?.netCurrentAssets || 0)}
-                          </td>
-                        </tr>
-                        <tr className="font-medium">
-                          <td className="p-2">Total Assets Less Current Liabilities</td>
-                          <td className="text-right p-2">
-                            {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2024']?.totalAssetsLessCurrentLiabilities || 0)}
-                          </td>
-                          <td className="text-right p-2">
-                            {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2023']?.totalAssetsLessCurrentLiabilities || 0)}
-                          </td>
-                        </tr>
-                        <tr>
-                          <td className="p-2">Non Current Liabilities</td>
-                          <td className="text-right p-2">
-                            {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2024']?.nonCurrentLiabilities || 0)}
-                          </td>
-                          <td className="text-right p-2">
-                            {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2023']?.nonCurrentLiabilities || 0)}
-                          </td>
-                        </tr>
-                        <tr className="font-medium">
-                          <td className="p-2">Net Assets</td>
-                          <td className="text-right p-2">
-                            {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2024']?.netAssets || 0)}
-                          </td>
-                          <td className="text-right p-2">
-                            {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2023']?.netAssets || 0)}
-                          </td>
-                        </tr>
-                        <tr>
-                          <td className="p-2 font-medium" colSpan={3}>Equity Shareholders Funds</td>
-                        </tr>
-                        <tr>
-                          <td className="p-2 pl-6">Share Capital</td>
-                          <td className="text-right p-2">
-                            {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2024']?.equityShareholdersFunds.shareCapital || 0)}
-                          </td>
-                          <td className="text-right p-2">
-                            {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2023']?.equityShareholdersFunds.shareCapital || 0)}
-                          </td>
-                        </tr>
-                        <tr>
-                          <td className="p-2 pl-6">Profit and Loss Account</td>
-                          <td className="text-right p-2">
-                            {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2024']?.equityShareholdersFunds.profitAndLossAccount || 0)}
-                          </td>
-                          <td className="text-right p-2">
-                            {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2023']?.equityShareholdersFunds.profitAndLossAccount || 0)}
-                          </td>
-                        </tr>
-                        <tr className="font-medium">
-                          <td className="p-2 pl-6">Total Shareholders Funds</td>
-                          <td className="text-right p-2">
-                            {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2024']?.equityShareholdersFunds.totalShareholdersFunds || 0)}
-                          </td>
-                          <td className="text-right p-2">
-                            {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2023']?.equityShareholdersFunds.totalShareholdersFunds || 0)}
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                <Separator />
-
-                {/* Key Financial Metrics */}
-                <div>
-                  <h3 className="font-medium mb-4">Key Financial Metrics</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <div className="text-sm text-muted-foreground mb-1">Gross Profit Margin (2024)</div>
-                      <div className="font-medium">25.00%</div>
-                    </div>
-                    <div>
-                      <div className="text-sm text-muted-foreground mb-1">Operating Margin (2024)</div>
-                      <div className="font-medium">8.33%</div>
-                    </div>
-                    <div>
-                      <div className="text-sm text-muted-foreground mb-1">Current Ratio (2024)</div>
-                      <div className="font-medium">1.50x</div>
-                    </div>
-                    <div>
-                      <div className="text-sm text-muted-foreground mb-1">Net Profit Margin (2024)</div>
-                      <div className="font-medium">6.25%</div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+          {/* Header Section */}
+          <div className="bg-[#212936] text-white rounded-xl p-6 sm:p-8 mb-8 shadow-xl border-b-2 border-[#ff8000] flex flex-col md:flex-row justify-between items-start md:items-center">
+            <div>
+              <h1 className="text-3xl sm:text-4xl font-bold mb-2 tracking-tight text-white">{getDisplayName()}</h1>
+              <p className="text-gray-200 text-base sm:text-lg">
+                {applicationData?.business?.industry_sector || 'Business Details'} | Application #{application?.application_number || id?.substring(0, 8)}
+              </p>
+            </div>
+            <div className="mt-4 md:mt-0">
+              {getActionButton()}
+            </div>
           </div>
 
-          {/* Right Column - Credit & Funding Request */}
-          <div className="col-span-1 space-y-6">
-            {/* Credit Profile Card */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Shield className="h-5 w-5 text-fundhub-blue" />
-                  Credit Profile
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-4">
-                  <div className={`text-4xl font-bold mb-2 ${getCreditScoreColor(applicationData?.application?.credit_score || 0)}`}>
-                    {applicationData?.application?.credit_score || 'N/A'}
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Business Credit Score
-                  </div>
-                </div>
-                <Separator className="my-4" />
-                <div className="space-y-4">
-                  <div>
-                    <div className="text-sm text-muted-foreground mb-1">Credit Risk Score</div>
-                    <div className="font-medium">
-                      {applicationData?.application?.risk_score || 'Not Available'}
+          {/* Main Content Area */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Left Column */}
+            <div className="lg:col-span-2 space-y-8">
+              {/* Business Overview Card */}
+              <Card className="bg-white/90 backdrop-blur-sm border border-slate-200/50 shadow-xl hover:shadow-2xl transition-all duration-300">
+                <CardHeader className="bg-[#212936] text-white rounded-t-xl border-b-2 border-[#ff8000]">
+                  <div className="flex justify-between items-center">
+                    <CardTitle className="text-white">Business Overview</CardTitle>
+                    <div className="flex items-center">
+                      {applicationData.business?.rating && (
+                        <div className="flex items-center bg-[#ff8000]/20 text-[#ff8000] px-3 py-1 rounded-full text-sm font-medium mr-2">
+                          <Star className="h-4 w-4 mr-1" />
+                          <span>{applicationData.business.rating}/5</span>
+                        </div>
+                      )}
+                      {getActionButton()}
                     </div>
                   </div>
-                  <div>
-                    <div className="text-sm text-muted-foreground mb-1">Credit Limit</div>
-                    <div className="text-2xl font-bold">
-                      {getFinancialMetric(applicationData?.application?.credit_limit || 0)}
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {isLenderMatched() ? (
+                    // Show full business details when matched
+                    <>
+                      <div>
+                        <h3 className="font-medium mb-2">About</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {applicationData?.business?.description || 'No business description provided.'}
+                        </p>
+                      </div>
 
-            {/* Funding Request Card */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Funding Request</CardTitle>
-                <CardDescription>
-                  Current application details
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <div className="text-sm text-muted-foreground mb-1">Amount Requested</div>
-                  <div className="text-2xl font-bold">
-                    {getFinancialMetric(application.loan_amount)}
+                      <Separator />
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <div className="text-sm text-muted-foreground mb-1">Business Name</div>
+                          <div className="font-medium flex items-center">
+                            <Building className="h-4 w-4 mr-2 text-muted-foreground" />
+                            {applicationData?.business?.business_name}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-sm text-muted-foreground mb-1">Website</div>
+                          <div className="font-medium flex items-center">
+                            <Globe className="h-4 w-4 mr-2 text-muted-foreground" />
+                            {applicationData?.business?.website || 'Not provided'}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-sm text-muted-foreground mb-1">Location</div>
+                          <div className="font-medium flex items-center">
+                            <MapPin className="h-4 w-4 mr-2 text-muted-foreground" />
+                            {applicationData?.business?.city}, {applicationData?.business?.country}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-sm text-muted-foreground mb-1">Founded</div>
+                          <div className="font-medium flex items-center">
+                            <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
+                            {applicationData?.business?.incorporation_date && 
+                              new Date(applicationData.business.incorporation_date).getFullYear()}
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    // Show limited info for non-matched lenders
+                    <Alert className="bg-[#212936]/5 border border-[#212936]/20">
+                      <Shield className="h-4 w-4 text-[#ff8000]" />
+                      <AlertTitle className="text-[#212936]">Limited Information Available</AlertTitle>
+                      <AlertDescription>
+                        Express interest in this application to view the complete business profile including financial data and comprehensive business information.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {/* Always show application details */}
+                  <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 shadow-inner">
+                    <h3 className="font-medium mb-3 flex items-center text-[#212936]">
+                      <BadgePoundSterling className="h-4 w-4 mr-2 text-[#ff8000]" />
+                      Funding Request
+                    </h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <div className="text-sm text-muted-foreground mb-1">Amount Requested</div>
+                        <div className="text-xl font-bold text-[#212936]">
+                          {getFinancialMetric(application.loan_amount)}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-sm text-muted-foreground mb-1">Term Length</div>
+                        <div className="text-xl font-bold text-[#212936]">
+                          {application.loan_term_months} months
+                        </div>
+                      </div>
+                    </div>
+
+                    <Separator className="my-4" />
+
+                    <div className="grid grid-cols-2 gap-y-2 text-sm">
+                      <div className="text-muted-foreground">Purpose:</div>
+                      <div className="font-medium capitalize">{application.purpose_category}</div>
+
+                      <div className="text-muted-foreground">Security Offered:</div>
+                      <div className="font-medium">{application.is_secured ? 'Yes' : 'No'}</div>
+
+                      <div className="text-muted-foreground">Personal Guarantee:</div>
+                      <div className="font-medium">{application.has_personal_guarantee ? 'Yes' : 'No'}</div>
+
+                      <div className="text-muted-foreground">Applied On:</div>
+                      <div className="font-medium">
+                        {application.created_at && new Date(application.created_at).toLocaleDateString()}
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <Separator />
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Term Length</span>
-                    <span className="font-medium">{application.loan_term_months} months</span>
+                </CardContent>
+              </Card>
+
+              {/* Financial Data Card - Only show for matched lenders */}
+              {isLenderMatched() && (
+                <Card className="bg-white/90 backdrop-blur-sm border border-slate-200/50 shadow-xl hover:shadow-2xl transition-all duration-300">
+                  <CardHeader className="bg-[#212936] text-white rounded-t-xl border-b-2 border-[#ff8000]">
+                    <CardTitle className="text-white">Financial Performance</CardTitle>
+                    <CardDescription className="text-gray-200">
+                      Recent financial data and key metrics
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    {/* P&L Summary */}
+                    <div className="p-6">
+                      <h3 className="font-semibold mb-4 text-[#212936] flex items-center">
+                        <BarChart4 className="h-4 w-4 mr-2 text-[#ff8000]" /> 
+                        Profit & Loss Summary
+                      </h3>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="bg-slate-50">
+                              <th className="text-left p-2">Item</th>
+                              <th className="text-right p-2">FY 2024</th>
+                              <th className="text-right p-2">FY 2023</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            <tr>
+                              <td className="p-2 font-medium">Revenue</td>
+                              <td className="text-right p-2">
+                                {getFinancialMetric(applicationData?.application?.financial_data?.profitAndLoss['2024']?.revenue || 0)}
+                              </td>
+                              <td className="text-right p-2">
+                                {getFinancialMetric(applicationData?.application?.financial_data?.profitAndLoss['2023']?.revenue || 0)}
+                              </td>
+                            </tr>
+                            <tr>
+                              <td className="p-2 font-medium">Cost of Sales</td>
+                              <td className="text-right p-2">
+                                {getFinancialMetric(applicationData?.application?.financial_data?.profitAndLoss['2024']?.costOfSales || 0)}
+                              </td>
+                              <td className="text-right p-2">
+                                {getFinancialMetric(applicationData?.application?.financial_data?.profitAndLoss['2023']?.costOfSales || 0)}
+                              </td>
+                            </tr>
+                            <tr className="font-medium">
+                              <td className="p-2">Gross Profit</td>
+                              <td className="text-right p-2">
+                                {getFinancialMetric(applicationData?.application?.financial_data?.profitAndLoss['2024']?.grossProfit || 0)}
+                              </td>
+                              <td className="text-right p-2">
+                                {getFinancialMetric(applicationData?.application?.financial_data?.profitAndLoss['2023']?.grossProfit || 0)}
+                              </td>
+                            </tr>
+                            <tr>
+                              <td className="p-2">Operating Expenses</td>
+                              <td className="text-right p-2">
+                                {getFinancialMetric(applicationData?.application?.financial_data?.profitAndLoss['2024']?.operatingExpenses || 0)}
+                              </td>
+                              <td className="text-right p-2">
+                                {getFinancialMetric(applicationData?.application?.financial_data?.profitAndLoss['2023']?.operatingExpenses || 0)}
+                              </td>
+                            </tr>
+                            <tr className="font-medium">
+                              <td className="p-2">Operating Profit</td>
+                              <td className="text-right p-2">
+                                {getFinancialMetric(applicationData?.application?.financial_data?.profitAndLoss['2024']?.operatingProfit || 0)}
+                              </td>
+                              <td className="text-right p-2">
+                                {getFinancialMetric(applicationData?.application?.financial_data?.profitAndLoss['2023']?.operatingProfit || 0)}
+                              </td>
+                            </tr>
+                            <tr>
+                              <td className="p-2">Net Profit</td>
+                              <td className="text-right p-2 font-bold">
+                                {getFinancialMetric(applicationData?.application?.financial_data?.profitAndLoss['2024']?.netProfit || 0)}
+                              </td>
+                              <td className="text-right p-2 font-bold">
+                                {getFinancialMetric(applicationData?.application?.financial_data?.profitAndLoss['2023']?.netProfit || 0)}
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    <Separator />
+
+                    {/* Balance Sheet Summary */}
+                    <div className="p-6">
+                      <h3 className="font-semibold mb-4 text-[#212936] flex items-center">
+                        <FileText className="h-4 w-4 mr-2 text-[#ff8000]" />
+                        Balance Sheet Summary
+                      </h3>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="bg-slate-50">
+                              <th className="text-left p-2">Item</th>
+                              <th className="text-right p-2">FY 2024</th>
+                              <th className="text-right p-2">FY 2023</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            <tr>
+                              <td className="p-2 font-medium" colSpan={3}>Assets</td>
+                            </tr>
+                            <tr>
+                              <td className="p-2 pl-6">Current Assets</td>
+                              <td className="text-right p-2">
+                                {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2024']?.currentAssets || 0)}
+                              </td>
+                              <td className="text-right p-2">
+                                {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2023']?.currentAssets || 0)}
+                              </td>
+                            </tr>
+                            <tr>
+                              <td className="p-2 pl-6">Non-Current Assets</td>
+                              <td className="text-right p-2">
+                                {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2024']?.nonCurrentAssets || 0)}
+                              </td>
+                              <td className="text-right p-2">
+                                {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2023']?.nonCurrentAssets || 0)}
+                              </td>
+                            </tr>
+                            <tr className="font-medium">
+                              <td className="p-2 pl-6">Total Assets</td>
+                              <td className="text-right p-2">
+                                {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2024']?.totalAssets || 0)}
+                              </td>
+                              <td className="text-right p-2">
+                                {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2023']?.totalAssets || 0)}
+                              </td>
+                            </tr>
+                            <tr>
+                              <td className="p-2 font-medium" colSpan={3}>Liabilities</td>
+                            </tr>
+                            <tr>
+                              <td className="p-2 pl-6">Current Liabilities</td>
+                              <td className="text-right p-2">
+                                {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2024']?.currentLiabilities || 0)}
+                              </td>
+                              <td className="text-right p-2">
+                                {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2023']?.currentLiabilities || 0)}
+                              </td>
+                            </tr>
+                            <tr>
+                              <td className="p-2 pl-6">Non-Current Liabilities</td>
+                              <td className="text-right p-2">
+                                {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2024']?.nonCurrentLiabilities || 0)}
+                              </td>
+                              <td className="text-right p-2">
+                                {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2023']?.nonCurrentLiabilities || 0)}
+                              </td>
+                            </tr>
+                            <tr className="font-medium">
+                              <td className="p-2">Net Assets</td>
+                              <td className="text-right p-2">
+                                {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2024']?.netAssets || 0)}
+                              </td>
+                              <td className="text-right p-2">
+                                {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2023']?.netAssets || 0)}
+                              </td>
+                            </tr>
+                            <tr>
+                              <td className="p-2 font-medium" colSpan={3}>Equity Shareholders Funds</td>
+                            </tr>
+                            <tr>
+                              <td className="p-2 pl-6">Share Capital</td>
+                              <td className="text-right p-2">
+                                {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2024']?.equityShareholdersFunds.shareCapital || 0)}
+                              </td>
+                              <td className="text-right p-2">
+                                {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2023']?.equityShareholdersFunds.shareCapital || 0)}
+                              </td>
+                            </tr>
+                            <tr>
+                              <td className="p-2 pl-6">Profit and Loss Account</td>
+                              <td className="text-right p-2">
+                                {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2024']?.equityShareholdersFunds.profitAndLossAccount || 0)}
+                              </td>
+                              <td className="text-right p-2">
+                                {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2023']?.equityShareholdersFunds.profitAndLossAccount || 0)}
+                              </td>
+                            </tr>
+                            <tr className="font-medium">
+                              <td className="p-2 pl-6">Total Shareholders Funds</td>
+                              <td className="text-right p-2">
+                                {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2024']?.equityShareholdersFunds.totalShareholdersFunds || 0)}
+                              </td>
+                              <td className="text-right p-2">
+                                {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2023']?.equityShareholdersFunds.totalShareholdersFunds || 0)}
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    <Separator />
+
+                    {/* Key Financial Metrics */}
+                    <div className="p-6">
+                      <h3 className="font-semibold mb-4 text-[#212936] flex items-center">
+                        <TrendingUp className="h-4 w-4 mr-2 text-[#ff8000]" />
+                        Key Financial Metrics
+                      </h3>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                        <div>
+                          <div className="text-sm text-muted-foreground mb-1">Gross Profit Margin</div>
+                          <div className="text-2xl font-bold text-[#212936]">
+                            {applicationData?.application?.financial_metrics?.grossProfitMargin || 0}%
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-sm text-muted-foreground mb-1">Net Profit Margin</div>
+                          <div className="text-2xl font-bold text-[#212936]">
+                            {applicationData?.application?.financial_metrics?.netProfitMargin || 0}%
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-sm text-muted-foreground mb-1">Debt to Equity Ratio</div>
+                          <div className="text-2xl font-bold text-[#212936]">
+                            {applicationData?.application?.financial_metrics?.debtToEquityRatio || 0}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-sm text-muted-foreground mb-1">Current Ratio</div>
+                          <div className="text-2xl font-bold text-[#212936]">
+                            {applicationData?.application?.financial_metrics?.currentRatio || 0}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-sm text-muted-foreground mb-1">Quick Ratio</div>
+                          <div className="text-2xl font-bold text-[#212936]">
+                            {applicationData?.application?.financial_metrics?.quickRatio || 0}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-sm text-muted-foreground mb-1">Credit Limit</div>
+                          <div className="text-2xl font-bold text-[#212936]">
+                            {getFinancialMetric(applicationData?.application?.credit_limit || 0)}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+
+            {/* Right Column */}
+            <div className="space-y-8">
+              {/* Credit Score Card */}
+              <Card className="bg-white/90 backdrop-blur-sm border border-slate-200/50 shadow-xl hover:shadow-2xl transition-all duration-300">
+                <CardHeader className="bg-[#212936] text-white rounded-t-xl border-b-2 border-[#ff8000]">
+                  <CardTitle className="text-white">Credit Score</CardTitle>
+                  <CardDescription className="text-gray-200">
+                    Business creditworthiness assessment
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-6 pb-4 px-6">
+                  {applicationData.creditScore?.score ? (
+                    <div className="flex flex-col items-center">
+                      <div className="relative mb-2">
+                        <svg className="w-40 h-40">
+                          <circle
+                            className="text-gray-100"
+                            strokeWidth="8"
+                            stroke="currentColor"
+                            fill="transparent"
+                            r="62"
+                            cx="80"
+                            cy="80"
+                          />
+                          <circle
+                            className={
+                              applicationData.creditScore.score >= 800 ? 'text-green-500' :
+                              applicationData.creditScore.score >= 670 ? 'text-blue-500' :
+                              applicationData.creditScore.score >= 580 ? 'text-yellow-500' : 'text-red-500'
+                            }
+                            strokeWidth="8"
+                            strokeDasharray={`${(applicationData.creditScore.score / 1000) * 390} 390`}
+                            strokeLinecap="round"
+                            stroke="currentColor"
+                            fill="transparent"
+                            r="62"
+                            cx="80"
+                            cy="80"
+                            transform="rotate(-90 80 80)"
+                          />
+                        </svg>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="text-center">
+                            <div className="text-4xl font-bold">{applicationData.creditScore.score}</div>
+                            <div className="text-sm text-slate-500">out of 1000</div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className={`text-lg font-semibold ${getCreditScoreColor(applicationData.creditScore.score)}`}>
+                        {applicationData.creditScore.score >= 800 ? 'Excellent' :
+                         applicationData.creditScore.score >= 670 ? 'Good' :
+                         applicationData.creditScore.score >= 580 ? 'Fair' : 'Poor'}
+                      </div>
+                      <p className="text-sm text-slate-500 text-center mt-2">
+                        Last updated: {applicationData.creditScore.last_updated ?
+                          new Date(applicationData.creditScore.last_updated).toLocaleDateString() :
+                          'Not available'}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <Shield className="mx-auto h-12 w-12 text-slate-300 mb-3" />
+                      <h3 className="text-lg font-medium text-slate-700 mb-1">Credit Score Not Available</h3>
+                      <p className="text-sm text-slate-500 max-w-xs mx-auto">
+                        {isLenderMatched() ? 
+                          "This business hasn't connected their credit data yet." :
+                          "Express interest to view the business's credit score information."}
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Funding Request Card */}
+              <Card className="bg-white/90 backdrop-blur-sm border border-slate-200/50 shadow-xl hover:shadow-2xl transition-all duration-300">
+                <CardHeader className="bg-[#212936] text-white rounded-t-xl border-b-2 border-[#ff8000]">
+                  <CardTitle className="text-white">Funding Request</CardTitle>
+                  <CardDescription className="text-gray-200">
+                    Current application details
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4 pt-6">
+                  <div>
+                    <div className="text-sm text-muted-foreground mb-1">Amount Requested</div>
+                    <div className="text-2xl font-bold text-[#212936]">
+                      {getFinancialMetric(application.loan_amount)}
+                    </div>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Purpose</span>
-                    <span className="font-medium capitalize">{application.purpose_category}</span>
+                  <Separator />
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Term Length</span>
+                      <span className="font-medium text-[#212936]">{application.loan_term_months} months</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Purpose</span>
+                      <span className="font-medium text-[#212936] capitalize">{application.purpose_category}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Security Offered</span>
+                      <span className="font-medium text-[#212936]">{application.is_secured ? 'Yes' : 'No'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Personal Guarantee</span>
+                      <span className="font-medium text-[#212936]">{application.has_personal_guarantee ? 'Yes' : 'No'}</span>
+                    </div>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Security Offered</span>
-                    <span className="font-medium">{application.is_secured ? 'Yes' : 'No'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Personal Guarantee</span>
-                    <span className="font-medium">{application.has_personal_guarantee ? 'Yes' : 'No'}</span>
-                  </div>
-                </div>
-              </CardContent>
-              <CardFooter className="flex-col items-stretch gap-2">
-                {getActionButton()}
-                <Button variant="outline" className="w-full">
-                  Download Application
-                </Button>
-              </CardFooter>
-            </Card>
+                </CardContent>
+                <CardFooter className="flex-col items-stretch gap-2 bg-slate-50 rounded-b-xl p-4">
+                  {getActionButton()}
+                  <Button variant="outline" className="w-full border-slate-200 hover:bg-slate-100 shadow-sm">
+                    <FileText className="mr-2 h-4 w-4" />
+                    Download Application
+                  </Button>
+                </CardFooter>
+              </Card>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Confirmation Dialog */}
       <Dialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
-        <DialogContent>
+        <DialogContent className="bg-white/95 backdrop-blur-sm border border-slate-200 shadow-2xl">
           <DialogHeader>
-            <DialogTitle>Express Interest</DialogTitle>
+            <DialogTitle className="text-[#212936] text-xl">Express Interest</DialogTitle>
             <DialogDescription>
               Are you interested in this loan application? Your information will be shared with the 
               business and they will be notified of your interest.
@@ -853,28 +863,32 @@ const BusinessDetail = () => {
           </DialogHeader>
           
           <div className="py-4">
-            <div className="font-medium mb-2">Application Details:</div>
-            <div className="grid grid-cols-2 gap-2 text-sm">
+            <div className="font-medium mb-2 text-[#212936]">Application Details:</div>
+            <div className="grid grid-cols-2 gap-2 text-sm bg-slate-50 p-4 rounded-lg border border-slate-100">
               <div className="text-muted-foreground">Application:</div>
-              <div>#{applicationData?.application?.application_number || id?.substring(0, 8)}</div>
+              <div className="font-medium">#{applicationData?.application?.application_number || id?.substring(0, 8)}</div>
               
               <div className="text-muted-foreground">Amount:</div>
-              <div>£{applicationData?.application?.loan_amount?.toLocaleString()}</div>
+              <div className="font-medium">£{applicationData?.application?.loan_amount?.toLocaleString()}</div>
               
               <div className="text-muted-foreground">Term:</div>
-              <div>{applicationData?.application?.loan_term_months} months</div>
+              <div className="font-medium">{applicationData?.application?.loan_term_months} months</div>
               
               <div className="text-muted-foreground">Purpose:</div>
-              <div>{applicationData?.application?.purpose || 'Not specified'}</div>
+              <div className="font-medium capitalize">{applicationData?.application?.purpose || 'Not specified'}</div>
             </div>
           </div>
           
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsConfirmDialogOpen(false)}>
+            <Button 
+              variant="outline" 
+              onClick={() => setIsConfirmDialogOpen(false)}
+              className="border-slate-200 hover:bg-slate-100"
+            >
               Cancel
             </Button>
             <Button 
-              className="bg-fundhub-blue hover:bg-fundhub-blue/90"
+              className="bg-[#ff8000] hover:bg-[#ff8000]/90 text-white"
               onClick={confirmExpressInterest}
               disabled={isSubmitting}
             >

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { BookOpen, Briefcase, MessageSquare, LineChart, BarChart, User, Users, HelpCircle, Link as LinkIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '../lib/utils';
-import Logo from './Logo';
+import ProfileLogo from './ProfileLogo';
 
 interface SidebarProps {
   className?: string;
@@ -113,8 +113,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ className, role = 'business' }
       onMouseLeave={handleMouseLeave}
     >
       <div className={cn("flex items-center justify-between", isCollapsed ? "p-1" : "p-4")}>
-        <div className={cn("transition-all duration-300 overflow-hidden", isCollapsed ? "w-0" : "w-32")}>
-          <Logo className="h-10" />
+        <div className={cn("transition-all duration-300 overflow-hidden", isCollapsed ? "w-8" : "w-full")}>
+          <ProfileLogo role={role} isCollapsed={isCollapsed} />
         </div>
         {/* Button no longer has onClick, icon reflects hover state */}
         <div className={cn("rounded-lg", isCollapsed ? "p-1" : "p-2")} aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}>

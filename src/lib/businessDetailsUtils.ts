@@ -1,31 +1,68 @@
-import { authenticateWithCreditSafe, searchCompanyByNameDirect, getCreditReportDirect } from '@/pages/CreditScore';
+import { authenticateWithCreditSafe, searchCompanyByNameDirect, getCreditReportDirect } from '@/components/CreditScore/api';
 import axios from 'axios';
+
+// Define an interface for company structure that includes all possible properties
+interface CompanySearchResult {
+  name?: string;
+  connectId?: string;
+  id?: string;
+  address?: {
+    simpleValue?: string;
+  };
+  registrationNumber?: string;
+  status?: string;
+  dateOfLatestAccounts?: string;
+  identification?: {
+    connectId?: string;
+    id?: string;
+  };
+}
 
 // Fetch credit data for a company
 export const fetchCreditData = async (companyName: string, countryCode: string = 'GB') => {
   try {
     const token = await authenticateWithCreditSafe();
-    const searchResults: { companies?: Array<{ connectId?: string; id?: string }> } = await searchCompanyByNameDirect(companyName, countryCode);
+    const searchResults: { companies?: Array<CompanySearchResult> } = await searchCompanyByNameDirect(companyName, countryCode);
 
     console.log('Company search results:', searchResults);
 
     if (searchResults.companies && searchResults.companies.length > 0) {
       const company = searchResults.companies[0];
-      const connectId = company.connectId || company.id; // Use `id` as a fallback
+      // Now TypeScript knows that 'identification' might exist on company
+      const connectId = company.connectId || company.id || 
+        (company.identification && (company.identification.connectId || company.identification.id));
+        
       console.log('Extracted connectId:', connectId);
 
       if (!connectId) {
-        throw new Error('connectId is missing in the company search results. Full results: ' + JSON.stringify(searchResults));
+        console.warn('connectId is missing in the company search results:', JSON.stringify(searchResults));
+        return { 
+          error: 'Missing connectId',
+          company: company // Return the company info we have
+        };
       }
 
       const creditReport = await getCreditReportDirect(connectId);
+      
+      // Set flag in session storage to indicate we need to save the credit report when user visits CreditScore page
+      sessionStorage.setItem('from_business_form', 'true');
+      sessionStorage.setItem('credit_search_company_name', companyName);
+      
       return creditReport;
     } else {
-      throw new Error('No companies found matching the provided name.');
+      console.warn('No companies found matching the provided name:', companyName);
+      return {
+        error: 'No companies found',
+        searchQuery: companyName
+      };
     }
   } catch (error) {
     console.error('Error fetching credit data:', error);
-    throw error;
+    // Return partial error information instead of throwing
+    return {
+      error: error instanceof Error ? error.message : 'Unknown error fetching credit data',
+      timestamp: new Date().toISOString()
+    };
   }
 };
 

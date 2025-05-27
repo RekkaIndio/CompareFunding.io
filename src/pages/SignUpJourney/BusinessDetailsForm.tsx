@@ -9,12 +9,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card } from '@/components/ui/card';
+import SignUpSidebar from '@/components/SignUpSidebar';
 import cflogowhiteUrl from '@/assets/cflogowhite.png';
 import { Check } from 'lucide-react';
 import { fetchCreditData, summarizeWebsite, fetchWebsiteLogo } from '@/lib/businessDetailsUtils';
 import { saveFundingApplication, updateDocument, getDocument, createDocument } from '@/services/firebase'; // Import getDocument and createDocument
 import { useAuth } from '@/contexts/AuthContext'; // Import authentication context
 import OpenAI from "openai";
+import '../../styles/animations.css'; // Import animations
 
 // Industry options
 const industryOptions = [
@@ -75,6 +77,23 @@ const BusinessDetailsForm = () => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
+  // Function to view credit report in a new tab
+  const viewCreditReport = () => {
+    // Only proceed if we have a company name
+    if (!formData.companyName) {
+      alert("Please enter a company name first");
+      return;
+    }
+    
+    // Make sure we have the flags set for the credit report page to know the context
+    sessionStorage.setItem('from_business_form', 'true');
+    sessionStorage.setItem('credit_search_company_name', formData.companyName);
+    sessionStorage.setItem('credit_search_company_number', formData.companyNumber || '');
+    
+    // Open credit score page in a new tab
+    window.open('/credit-score?companyName=' + encodeURIComponent(formData.companyName), '_blank');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -87,12 +106,42 @@ const BusinessDetailsForm = () => {
       }
 
       // Fetch credit data
-      const creditData = await fetchCreditData(formData.companyName) as { connectId?: string; address?: string; [key: string]: any };
+      const creditData = await fetchCreditData(formData.companyName) as { 
+        error?: string; 
+        connectId?: string; 
+        address?: string; 
+        report?: any;
+        [key: string]: any 
+      };
 
       console.log('Credit data fetched:', creditData);
 
       // Log the full creditData to verify its structure
       console.log('Full creditData:', creditData);
+
+      // Initialize credit info with default values
+      let creditInfo = {
+        credit_score: null,
+        risk: null,
+        status: null,
+        international_value: null,
+        credit_limit: null,
+        negative_information: null,
+        error: creditData.error || null
+      };
+
+      // If we successfully got credit data without errors, extract the information
+      if (!creditData.error && creditData.report) {
+        creditInfo = {
+          credit_score: creditData.report?.creditScore?.currentCreditRating?.providerValue?.value || null,
+          risk: creditData.report?.creditScore?.currentCreditRating?.commonDescription || null,
+          status: creditData.report?.companyIdentification?.basicInformation?.companyStatus?.description || null,
+          international_value: creditData.report?.creditScore?.currentCreditRating?.internationalScore?.value || null,
+          credit_limit: creditData.report?.creditScore?.currentCreditRating?.creditLimit?.value || null,
+          negative_information: creditData.report?.additionalInformation?.negativeInformation || null,
+          error: null
+        };
+      }
 
       // Summarize website content using OpenAI
       let websiteSummary = '';
@@ -120,16 +169,8 @@ const BusinessDetailsForm = () => {
       // Extract mainAddress from the correct path in creditData
       const mainAddress = creditData?.report?.contactInformation?.mainAddress || {};
       console.log('Extracted mainAddress:', mainAddress);
-
-      // Extract credit information from creditData
-      const creditInfo = {
-        credit_score: creditData?.report?.creditScore?.currentCreditRating?.providerValue?.value || null,
-        risk: creditData?.report?.creditScore?.currentCreditRating?.commonDescription || null,
-        status: creditData?.report?.companyIdentification?.basicInformation?.companyStatus?.description || null,
-        international_value: creditData?.report?.creditScore?.currentCreditRating?.internationalScore?.value || null,
-        credit_limit: creditData?.report?.creditScore?.currentCreditRating?.creditLimit?.value || null,
-        negative_information: creditData?.report?.additionalInformation?.negativeInformation || null,
-      };
+      
+      // creditInfo is already defined above, no need to redefine it
 
       // Include credit information in the business profile data
       const businessProfileData = {
@@ -180,6 +221,7 @@ const BusinessDetailsForm = () => {
         state: {
           ...userInfo,
           businessDetails: formData,
+          fromBusinessDetails: true // Flag to indicate navigation from BusinessDetailsForm
         },
       });
     } catch (error) {
@@ -203,7 +245,12 @@ const BusinessDetailsForm = () => {
     if (stepIdx === 0) navigate('/signup-journey/email-password', { state: userInfo });
     if (stepIdx === 1) navigate('/signup-journey/apply', { state: userInfo });
     if (stepIdx === 2) navigate('/signup-journey/funding-matches', { state: userInfo });
-    if (stepIdx === 4) navigate('/signup-journey/eligibility', { state: userInfo });
+    if (stepIdx === 4) navigate('/signup-journey/eligibility', { 
+      state: {
+        ...userInfo,
+        fromBusinessDetails: true // Flag to indicate navigation from BusinessDetailsForm
+      }
+    });
   };
 
   return (
@@ -348,8 +395,15 @@ const BusinessDetailsForm = () => {
                       />
                     </div>
 
-                    {/* Submit */}
-                    <div className="flex justify-center">
+                    {/* Submit and View Credit Report Buttons */}
+                    <div className="flex justify-between items-center">
+                      <Button
+                        type="button"
+                        onClick={viewCreditReport}
+                        className="bg-white border border-[#ff8000] text-[#ff8000] hover:bg-[#fff8f0] px-6 py-3 text-lg rounded-full font-medium shadow transition-transform hover:scale-[1.02]"
+                      >
+                        View Credit Report
+                      </Button>
                       <Button
                         type="submit"
                         className="bg-[#ff8000] hover:bg-[#e67300] text-white px-10 py-4 text-lg rounded-full font-medium shadow transition-transform hover:scale-[1.02]"
@@ -362,47 +416,18 @@ const BusinessDetailsForm = () => {
               </div>
             </div>
 
-            {/* Sidebar Column */}
+            {/* Sidebar Column - Modular and tailored for this step */}
             <div className="lg:col-span-4 flex flex-col h-full p-0 m-0">
-              <div
-                className="flex flex-col items-center bg-[#2a3441] h-[100vh] fixed right-0 top-0 bottom-0 w-full lg:w-[33.333333%] z-10 p-0 m-0"
-              >
-                <div className="flex flex-col items-center justify-center w-full h-full" style={{ flex: 1 }}>
-                  <img src={cflogowhiteUrl} alt="Compare Funding Logo" className="h-20 mb-12" style={{ maxWidth: '220px' }} />
-                  <div className="flex flex-col justify-center w-full" style={{ flex: 1 }}>
-                    <Card className="bg-white p-6 shadow-md border border-gray-100 mb-6">
-                      <h3 className="text-xl font-bold text-[#2a3441] mb-4">Business funding options. Simplified.</h3>
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-2">
-                          <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center">
-                            <Check className="h-4 w-4 text-primary" />
-                          </div>
-                          <p className="text-[#2a3441]">1 application unlimited options</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center">
-                            <Check className="h-4 w-4 text-primary" />
-                          </div>
-                          <p className="text-[#2a3441]">Fast track your access to funds</p>
-                        </div>
-                      </div>
-                    </Card>
-                    <Card className="bg-white p-6 border border-primary">
-                      <div className="text-center">
-                        <h3 className="text-xl font-bold mb-3 text-[#2a3441]">Trust Pilot</h3>
-                        <div className="flex justify-center mb-2">
-                          {[...Array(5)].map((_, i) => (
-                            <svg key={i} className="w-5 h-5 text-primary fill-current" viewBox="0 0 24 24">
-                              <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
-                            </svg>
-                          ))}
-                        </div>
-                        <p className="font-semibold text-[#2a3441]">4.8/5 rating</p>
-                      </div>
-                    </Card>
-                  </div>
-                </div>
-              </div>
+              <SignUpSidebar
+                title="Why Business Details?"
+                description="We ask for your business details to match you with the most relevant funding options. Accurate information helps us find the best offers tailored to your business profile."
+                highlight="Your details are secure and only shared with trusted lenders."
+                tips={[
+                  'Filling out all fields increases your chances of better matches.',
+                  'We use this information to pre-fill future applications and save you time.',
+                  'You can update your business profile at any time.'
+                ]}
+              />
             </div>
           </div>
         </div>
