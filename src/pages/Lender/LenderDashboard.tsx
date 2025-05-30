@@ -5,6 +5,7 @@ import { getDocument, getDocuments, createDocument, getLenderApplications } from
 import { toast } from 'sonner';
 import PageLayout from '@/components/PageLayout';
 import { useAuth } from '@/contexts/AuthContext';
+import { BarChart, CreditCard, Users, DollarSign, ArrowUp, ArrowDown, Loader2, MessageCircle } from 'lucide-react';
 
 const LenderDashboard = () => {
   const { user } = useAuth();
@@ -341,8 +342,334 @@ const LenderDashboard = () => {
   return (
     <PageLayout showSidebar={true}>
       <div className="container py-8">
-        <div className="flex items-center gap-4 mb-6">
+        <div className="flex items-center justify-between gap-4 mb-6">
+          <h1 className="text-2xl font-bold">Lender Dashboard</h1>
+          <div className="flex items-center gap-2">
+            {stats.logo_url && (
+              <img 
+                src={stats.logo_url} 
+                alt={`${stats.company_name || 'Lender'} logo`} 
+                className="h-8 w-8 rounded object-contain"
+              />
+            )}
+            <span className="font-medium">{stats.company_name || 'Welcome'}</span>
+          </div>
         </div>
+
+        {/* Dashboard Overview */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+          {/* Stats Cards */}
+          <div className="bg-white rounded-lg shadow p-5 border border-gray-200">
+            <div className="text-sm text-gray-500 mb-1">Available Credits</div>
+            <div className="text-2xl font-bold">{billingData?.credits_balance || 0}</div>
+            <div className="mt-2 text-xs text-gray-400">
+              Used: {billingData?.credits_used || 0} credits
+            </div>
+          </div>
+          
+          <div className="bg-white rounded-lg shadow p-5 border border-gray-200">
+            <div className="text-sm text-gray-500 mb-1">Applications</div>
+            <div className="text-2xl font-bold">{stats.totalApplicationsAvailable}</div>
+            <div className="mt-2 text-xs text-gray-400">
+              {stats.prospects} new prospects
+            </div>
+          </div>
+          
+          <div className="bg-white rounded-lg shadow p-5 border border-gray-200">
+            <div className="text-sm text-gray-500 mb-1">Offers Extended</div>
+            <div className="text-2xl font-bold">{stats.offersExtended}</div>
+            <div className="mt-2 text-xs text-gray-400">
+              {stats.offersAccepted} accepted
+            </div>
+          </div>
+          
+          <div className="bg-white rounded-lg shadow p-5 border border-gray-200">
+            <div className="text-sm text-gray-500 mb-1">Conversion Rate</div>
+            <div className="text-2xl font-bold">{stats.conversionRate}%</div>
+            <div className="mt-2 text-xs text-gray-400">
+              Total funded: £{stats.totalLoanAmount.toLocaleString()}
+            </div>
+          </div>
+        </div>
+        
+        {/* Tabs Navigation */}
+        <div className="border-b border-gray-200 mb-6">
+          <div className="flex -mb-px">
+            <button
+              onClick={() => setActiveTab('overview')}
+              className={`mr-8 py-4 px-1 ${
+                activeTab === 'overview'
+                  ? 'border-b-2 border-[#ff8000] text-[#ff8000]'
+                  : 'text-gray-500'
+              } font-medium`}
+            >
+              Overview
+            </button>
+            <button
+              onClick={() => setActiveTab('applications')}
+              className={`mr-8 py-4 px-1 ${
+                activeTab === 'applications'
+                  ? 'border-b-2 border-[#ff8000] text-[#ff8000]'
+                  : 'text-gray-500'
+              } font-medium`}
+            >
+              Applications
+            </button>
+            <button
+              onClick={() => setActiveTab('messages')}
+              className={`mr-8 py-4 px-1 ${
+                activeTab === 'messages'
+                  ? 'border-b-2 border-[#ff8000] text-[#ff8000]'
+                  : 'text-gray-500'
+              } font-medium`}
+            >
+              Messages
+            </button>
+          </div>
+        </div>
+        
+        {/* Tab Content */}
+        {activeTab === 'overview' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Recent Applications */}
+            <div className="lg:col-span-2">
+              <div className="bg-white rounded-lg shadow border border-gray-200">
+                <div className="px-6 py-5 border-b border-gray-200 flex justify-between items-center">
+                  <h2 className="font-semibold">Recent Applications</h2>
+                  <button 
+                    className="text-sm text-[#ff8000]"
+                    onClick={() => navigate('/matched-applications')}
+                  >
+                    View All
+                  </button>
+                </div>
+                <div className="p-6">
+                  {applicationsLoading ? (
+                    <div className="text-center py-10 text-gray-500">Loading applications...</div>
+                  ) : lenderApplications && lenderApplications.length > 0 ? (
+                    <div className="space-y-4">
+                      {lenderApplications.slice(0, 5).map(app => (
+                        <div 
+                          key={app.id} 
+                          className="p-4 border border-gray-100 rounded-lg hover:bg-gray-50 cursor-pointer"
+                          onClick={() => navigate(`/lender/applications/${app.id}`)}
+                        >
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <div className="font-medium">{app.company_name || 'Business'}</div>
+                              <div className="text-sm text-gray-500">
+                                {new Intl.NumberFormat('en-GB', {
+                                  style: 'currency',
+                                  currency: 'GBP'
+                                }).format(app.loan_amount || 0)} - {app.loan_purpose || 'Funding'}
+                              </div>
+                            </div>
+                            <span className={`px-2 py-1 text-xs rounded-full ${
+                              app.isMatched 
+                                ? 'bg-green-100 text-green-800' 
+                                : 'bg-blue-100 text-blue-800'
+                            }`}>
+                              {app.isMatched ? 'Matched' : 'New'}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-10 text-gray-500">
+                      No applications available at the moment.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            
+            {/* Monthly Performance */}
+            <div>
+              <div className="bg-white rounded-lg shadow border border-gray-200 h-full">
+                <div className="px-6 py-5 border-b border-gray-200">
+                  <h2 className="font-semibold">Monthly Performance</h2>
+                </div>
+                <div className="p-6">
+                  <div className="mb-6">
+                    <div className="text-sm text-gray-500 mb-1">Offers Extended</div>
+                    <div className="text-xl font-bold">{stats.monthlyConversion.total}</div>
+                    <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
+                      <div 
+                        className="bg-[#ff8000] h-2.5 rounded-full" 
+                        style={{ width: `${stats.monthlyConversion.total ? (stats.monthlyConversion.accepted / stats.monthlyConversion.total) * 100 : 0}%` }}
+                      ></div>
+                    </div>
+                    <div className="mt-1 text-xs text-gray-400">
+                      {stats.monthlyConversion.accepted} accepted ({stats.monthlyConversion.total ? 
+                        Math.round((stats.monthlyConversion.accepted / stats.monthlyConversion.total) * 100) : 0}% conversion)
+                    </div>
+                  </div>
+                  
+                  <button 
+                    className="w-full py-2 bg-[#ff8000] text-white rounded-md hover:bg-[#ff8000]/90"
+                    onClick={() => navigate('/lender/billing')}
+                  >
+                    Purchase More Credits
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {activeTab === 'applications' && (
+          <div className="bg-white rounded-lg shadow border border-gray-200">
+            <div className="px-6 py-5 border-b border-gray-200">
+              <h2 className="font-semibold">All Applications</h2>
+            </div>
+            <div className="p-6">
+              {applicationsLoading ? (
+                <div className="text-center py-10 text-gray-500">Loading applications...</div>
+              ) : lenderApplications && lenderApplications.length > 0 ? (
+                <div className="space-y-4">
+                  {lenderApplications.map(app => (
+                    <div 
+                      key={app.id} 
+                      className="p-4 border border-gray-100 rounded-lg hover:bg-gray-50 cursor-pointer"
+                      onClick={() => navigate(`/lender/applications/${app.id}`)}
+                    >
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <div className="font-medium">{app.company_name || 'Business'}</div>
+                          <div className="text-sm text-gray-500">
+                            {new Intl.NumberFormat('en-GB', {
+                              style: 'currency',
+                              currency: 'GBP'
+                            }).format(app.loan_amount || 0)} - {app.loan_purpose || 'Funding'}
+                          </div>
+                        </div>
+                        <span className={`px-2 py-1 text-xs rounded-full ${
+                          app.isMatched 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-blue-100 text-blue-800'
+                        }`}>
+                          {app.isMatched ? 'Matched' : 'New'}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-10 text-gray-500">
+                  No applications available at the moment.
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+        
+        {activeTab === 'messages' && (
+          <div className="bg-white rounded-lg shadow border border-gray-200">
+            <div className="px-6 py-5 border-b border-gray-200">
+              <h2 className="font-semibold">Conversations</h2>
+            </div>
+            <div className="p-6">
+              {acceptedOffersLoading ? (
+                <div className="text-center py-10 text-gray-500">Loading conversations...</div>
+              ) : acceptedOffers && acceptedOffers.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="md:col-span-1 border-r border-gray-200 pr-4">
+                    <h3 className="font-medium text-gray-500 mb-4">Businesses</h3>
+                    {acceptedOffers.map(offer => (
+                      <div 
+                        key={offer.id}
+                        onClick={() => selectConversation(offer)}
+                        className={`p-3 rounded-lg mb-2 cursor-pointer ${
+                          selectedConversation?.id === offer.id
+                            ? 'bg-[#ff8000]/10 border border-[#ff8000]/30'
+                            : 'hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="font-medium">
+                          {offer.application?.company_name || 'Business'}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {new Intl.NumberFormat('en-GB', {
+                            style: 'currency',
+                            currency: 'GBP'
+                          }).format(offer.offered_amount || 0)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <div className="md:col-span-2">
+                    {selectedConversation ? (
+                      <div className="h-[500px] flex flex-col">
+                        <div className="bg-gray-50 p-3 border-b border-gray-200">
+                          <div className="font-medium">{selectedConversation.businessName}</div>
+                          <div className="text-sm text-gray-500">
+                            {new Intl.NumberFormat('en-GB', {
+                              style: 'currency',
+                              currency: 'GBP'
+                            }).format(selectedConversation.amount || 0)}
+                          </div>
+                        </div>
+                        
+                        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                          {messagesLoading ? (
+                            <div className="text-center text-gray-500">Loading messages...</div>
+                          ) : messages && messages.length > 0 ? (
+                            messages.map(msg => (
+                              <div 
+                                key={msg.id}
+                                className={`max-w-[80%] p-3 rounded-lg ${
+                                  msg.sender_id === user.uid
+                                    ? 'bg-[#ff8000]/10 ml-auto'
+                                    : 'bg-gray-100 mr-auto'
+                                }`}
+                              >
+                                <div className="text-sm">{msg.message}</div>
+                                <div className="text-xs text-gray-500 mt-1">
+                                  {new Date(msg.timestamp).toLocaleString()}
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="text-center text-gray-500">
+                              No messages yet. Start the conversation!
+                            </div>
+                          )}
+                        </div>
+                        
+                        <form onSubmit={sendMessage} className="p-3 border-t border-gray-200 flex gap-2">
+                          <input
+                            type="text"
+                            value={newMessage}
+                            onChange={(e) => setNewMessage(e.target.value)}
+                            placeholder="Type your message..."
+                            className="flex-1 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#ff8000]"
+                          />
+                          <button
+                            type="submit"
+                            className="bg-[#ff8000] text-white px-4 py-2 rounded-md hover:bg-[#ff8000]/90"
+                            disabled={!newMessage.trim()}
+                          >
+                            Send
+                          </button>
+                        </form>
+                      </div>
+                    ) : (
+                      <div className="text-center py-20 text-gray-500">
+                        Select a conversation to start messaging
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-10 text-gray-500">
+                  No active conversations yet. Accept offers to start messaging businesses.
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </PageLayout>
   );

@@ -100,20 +100,19 @@ const renderRows = (obj: Record<string, any>, parentKey = "", level = 0) => {
 
   return Object.entries(obj).map(([key, value]) => {
     // Improved filtering: Skip these specific keys that are metadata or should be displayed elsewhere
-    // Add more variations of "summary" to filter out
     if (['summary', 'metadata', 'json'].includes(key) || 
         key.toLowerCase().includes('summary') || 
         parentKey.toLowerCase().includes('summary')) {
       return null;
     }
-    
+
     // Convert key from camelCase to Title Case for display
     const displayKey = key
       .replace(/([A-Z])/g, ' $1')
       .replace(/^./, str => str.toUpperCase())
-      .replace(/_/g, ' ') // Replace underscores with spaces
+      .replace(/_/g, ' ')
       .trim();
-      
+
     if (isPrimitive(value)) {
       return (
         <tr key={parentKey + key} className="border-b hover:bg-gray-50 transition-colors">
@@ -126,16 +125,17 @@ const renderRows = (obj: Record<string, any>, parentKey = "", level = 0) => {
     } else if (typeof value === "object" && value !== null) {
       const isArray = Array.isArray(value);
       const isEmpty = Object.keys(value).length === 0;
-      
+
       // Skip empty objects/arrays
       if (isEmpty) return null;
-      
+
       return (
         <React.Fragment key={parentKey + key}>
-          <tr className="bg-blue-50">
+          <tr>
             <td 
               colSpan={2} 
-              className={`py-2 px-4 font-semibold ${level === 0 ? 'text-blue-800 bg-blue-100' : 'text-blue-700'}`}
+              className={`py-2 px-4 font-semibold text-orange-500 bg-gray-900 ${level === 0 ? 'uppercase tracking-wide' : ''}`}
+              style={{ borderRadius: 6 }}
             >
               {displayKey} {isArray ? `(${Object.keys(value).length} items)` : ''}
             </td>
@@ -238,9 +238,9 @@ export const FinancialsTable: React.FC<FinancialsTableProps> = ({ data, title, s
       
       <table className="min-w-[350px] w-full border rounded-lg shadow-md bg-white border-separate border-spacing-0">
         <thead>
-          <tr className="bg-gray-100">
-            <th className="py-2 px-4 text-left font-semibold text-gray-700 border-b">Metric</th>
-            <th className="py-2 px-4 text-right font-semibold text-gray-700 border-b">Value</th>
+          <tr className="bg-gray-900">
+            <th className="py-2 px-4 text-left font-semibold text-white border-b">Metric</th>
+            <th className="py-2 px-4 text-right font-semibold text-white border-b">Value</th>
           </tr>
         </thead>
         <tbody>

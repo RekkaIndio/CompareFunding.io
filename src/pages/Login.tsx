@@ -27,6 +27,44 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
+// Utility function to validate user role
+const validateUserRole = async (userId: string): Promise<{role: string | null, valid: boolean}> => {
+  try {
+    // First check in the users collection
+    const userRef = doc(firestore, "users", userId);
+    const userSnap = await getDoc(userRef);
+    
+    if (userSnap.exists()) {
+      const userData = userSnap.data();
+      return { role: userData.role, valid: true };
+    }
+    
+    // If not found or role not set in users, check if it's a lender by checking lender_profiles
+    const lenderRef = doc(firestore, "lender_profiles", userId);
+    const lenderSnap = await getDoc(lenderRef);
+    
+    if (lenderSnap.exists()) {
+      // If there's a lender profile, assign the lender role
+      return { role: 'lender', valid: true };
+    }
+    
+    // If not a lender, check if it's a business by checking business_profiles
+    const businessRef = doc(firestore, "business_profiles", userId);
+    const businessSnap = await getDoc(businessRef);
+    
+    if (businessSnap.exists()) {
+      // If there's a business profile, assign the business role
+      return { role: 'business', valid: true };
+    }
+    
+    // No role information found
+    return { role: null, valid: false };
+  } catch (error) {
+    console.error("Error validating user role:", error);
+    return { role: null, valid: false };
+  }
+};
+
 const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { signIn } = useAuth();
@@ -56,31 +94,25 @@ const Login = () => {
       // Get the user's ID from the login response
       const userId = data.user.uid;
       
-      try {
-        // Fetch the user's role from Firestore
-        const userRef = doc(firestore, "users", userId);
-        const userSnap = await getDoc(userRef);
-        
-        if (userSnap.exists()) {
-          const userData = userSnap.data();
-          const userRole = userData.role;
-          
-          // Redirect based on user role
-          if (userRole === 'business') {
-            navigate('/business/dashboard');
-          } else if (userRole === 'lender') {
-            navigate('/lender/dashboard');
-          } else {
-            // Default redirect if role is not specified
-            navigate('/applications');
-          }
+      // Validate user role and redirect accordingly
+      const { role, valid } = await validateUserRole(userId);
+      
+      if (valid) {
+        console.log("User role found:", role);
+        // Redirect based on user role
+        if (role === 'business') {
+          navigate('/business/dashboard');
+        } else if (role === 'lender') {
+          console.log("Redirecting to lender dashboard");
+          navigate('/lender/dashboard');
         } else {
-          // User document doesn't exist, use default redirect
+          console.log("No specific role found, using default redirect");
+          // Default redirect if role is not specified
           navigate('/applications');
         }
-      } catch (error) {
-        console.error("Error fetching user role:", error);
-        // Fall back to default redirect
+      } else {
+        console.log("No role information found, using default redirect");
+        // No role information found, use default redirect
         navigate('/applications');
       }
     } catch (error: any) {

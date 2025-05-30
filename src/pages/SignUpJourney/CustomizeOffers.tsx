@@ -10,6 +10,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
+import SignUpSidebar from '@/components/SignUpSidebar';
+import '../../styles/animations.css';
 
 type FundingMatch = {
   id: string;
@@ -27,6 +29,7 @@ const CustomizeOffers = () => {
   const navigate = useNavigate();
   const [userInfo, setUserInfo] = useState(location.state?.userInfo || {});
   const [matches, setMatches] = useState<any>(location.state?.matches || { loans: [], equity: [], grants: [] });
+  const [currentStep] = useState(4); // This is step 4 in the sign up journey
   
   // For Loan Preferences
   const [loanAmount, setLoanAmount] = useState([100000]);
@@ -62,7 +65,7 @@ const CustomizeOffers = () => {
     { label: 'Business Details', path: '/signup-journey/business-details' },
     { label: 'Matches', path: '/signup-journey/funding-matches' },
   ];
-  const currentStep = 2; // Ensure this is a number type for comparison
+  
   const goToStep = (stepIdx: number) => {
     if (stepIdx === 0) navigate('/signup-journey/apply', { state: location.state });
     if (stepIdx === 1) navigate('/signup-journey/business-details', { state: location.state });
@@ -133,7 +136,6 @@ const CustomizeOffers = () => {
       <PageLayout className="bg-white">
         <div className="container mx-auto px-4 py-12">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            {/* Main Form Section */}
             <div className="lg:col-span-8">
               {/* Progress Bar & Steps */}
               <div className="mb-10">
@@ -145,7 +147,7 @@ const CustomizeOffers = () => {
                     ></div>
                   ))}
                 </div>
-                <div className="grid grid-cols-4 text-center text-sm font-medium text-[#2a3441]">
+                <div className="grid grid-cols-3 text-center text-sm font-medium text-[#2a3441]">
                   {steps.map((step, idx) => (
                     <span key={step.label} className={idx === currentStep ? 'font-bold text-[#ff8000]' : ''}>{step.label}</span>
                   ))}
@@ -174,7 +176,7 @@ const CustomizeOffers = () => {
                 </button>
               </div>
 
-              <div className="space-y-8">
+              <div className="space-y-8 animate-fadeIn">
                 <div className="mb-8">
                   <h1 className="text-3xl md:text-4xl font-bold text-[#2a3441] mb-2">Customize Your Funding Options</h1>
                   <p className="text-lg text-[#2a3441]">Tailor your funding search to match your specific business needs</p>
@@ -182,7 +184,7 @@ const CustomizeOffers = () => {
                 
                 <form onSubmit={handleSubmit}>
                   {/* Business Details Section */}
-                  <Card className="p-6 mb-8 border border-[#ff8000] bg-white">
+                  <Card className="p-6 mb-8 border border-[#ff8000] bg-white animate-fadeIn delay-100">
                     <h2 className="text-xl font-semibold text-[#2a3441] mb-4">Business Details</h2>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -198,10 +200,7 @@ const CustomizeOffers = () => {
                       
                       <div>
                         <Label htmlFor="industry" className="text-[#2a3441]">Industry</Label>
-                        <Select
-                          value={industry}
-                          onValueChange={setIndustry}
-                        >
+                        <Select value={industry} onValueChange={setIndustry}>
                           <SelectTrigger id="industry" className="mt-1 bg-white border-2 border-[#ff8000] focus:border-[#ff8000] focus:ring-1 focus:ring-[#ff8000] text-[#2a3441]">
                             <SelectValue placeholder="Select an industry" />
                           </SelectTrigger>
@@ -210,42 +209,55 @@ const CustomizeOffers = () => {
                             <SelectItem value="technology">Technology</SelectItem>
                             <SelectItem value="manufacturing">Manufacturing</SelectItem>
                             <SelectItem value="healthcare">Healthcare</SelectItem>
-                            <SelectItem value="finance">Financial Services</SelectItem>
                             <SelectItem value="hospitality">Hospitality</SelectItem>
                             <SelectItem value="construction">Construction</SelectItem>
                             <SelectItem value="professional">Professional Services</SelectItem>
+                            <SelectItem value="agriculture">Agriculture</SelectItem>
+                            <SelectItem value="other">Other</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                       
                       <div>
                         <Label htmlFor="revenue" className="text-[#2a3441]">Annual Revenue</Label>
-                        <Input 
-                          id="revenue"
-                          value={formatCurrency(revenue)}
-                          onChange={(e) => {
-                            const value = e.target.value.replace(/[^0-9]/g, '');
-                            setRevenue(value);
-                          }}
-                          className="mt-1 bg-white border-2 border-[#ff8000] focus:border-[#ff8000] focus:ring-1 focus:ring-[#ff8000] text-[#2a3441]"
-                        />
+                        <Select value={revenue} onValueChange={setRevenue}>
+                          <SelectTrigger id="revenue" className="mt-1 bg-white border-2 border-[#ff8000] focus:border-[#ff8000] focus:ring-1 focus:ring-[#ff8000] text-[#2a3441]">
+                            <SelectValue placeholder="Select revenue" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-white border border-[#ff8000] text-[#2a3441]">
+                            <SelectItem value="50000">Less than £50,000</SelectItem>
+                            <SelectItem value="100000">£50,000 - £100,000</SelectItem>
+                            <SelectItem value="250000">£100,001 - £250,000</SelectItem>
+                            <SelectItem value="500000">£250,001 - £500,000</SelectItem>
+                            <SelectItem value="1000000">£500,001 - £1,000,000</SelectItem>
+                            <SelectItem value="5000000">£1,000,001 - £5,000,000</SelectItem>
+                            <SelectItem value="10000000">More than £5,000,000</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                       
                       <div>
-                        <Label htmlFor="yearsTrading" className="text-[#2a3441]">Years Trading</Label>
-                        <Input 
-                          id="yearsTrading"
-                          type="number"
-                          value={yearsTrading}
-                          onChange={(e) => setYearsTrading(e.target.value)}
-                          className="mt-1 bg-white border-2 border-[#ff8000] focus:border-[#ff8000] focus:ring-1 focus:ring-[#ff8000] text-[#2a3441]"
-                        />
+                        <Label htmlFor="yearsTrading" className="text-[#2a3441]">Years in Business</Label>
+                        <Select value={yearsTrading} onValueChange={setYearsTrading}>
+                          <SelectTrigger id="yearsTrading" className="mt-1 bg-white border-2 border-[#ff8000] focus:border-[#ff8000] focus:ring-1 focus:ring-[#ff8000] text-[#2a3441]">
+                            <SelectValue placeholder="Select years trading" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-white border border-[#ff8000] text-[#2a3441]">
+                            <SelectItem value="0">Less than 1 year</SelectItem>
+                            <SelectItem value="1">1 year</SelectItem>
+                            <SelectItem value="2">2 years</SelectItem>
+                            <SelectItem value="3">3 years</SelectItem>
+                            <SelectItem value="5">4-5 years</SelectItem>
+                            <SelectItem value="10">6-10 years</SelectItem>
+                            <SelectItem value="11">More than 10 years</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
                   </Card>
                   
                   {/* Loan Preferences Section */}
-                  <Card className="p-6 mb-8 border border-[#ff8000] bg-white">
+                  <Card className="p-6 mb-8 border border-[#ff8000] bg-white animate-fadeIn delay-200">
                     <div className="flex items-center justify-between mb-4">
                       <h2 className="text-xl font-semibold text-[#2a3441]">Loan Preferences</h2>
                       <div className="flex items-center">
@@ -270,7 +282,7 @@ const CustomizeOffers = () => {
                             value={loanAmount}
                             onValueChange={setLoanAmount}
                             max={1000000}
-                            step={5000}
+                            step={10000}
                             className="[&>span]:bg-[#ff8000]"
                           />
                           <div className="flex justify-between mt-1">
@@ -287,13 +299,14 @@ const CustomizeOffers = () => {
                           <Slider
                             value={loanTerm}
                             onValueChange={setLoanTerm}
-                            max={84}
-                            step={1}
+                            min={3}
+                            max={120}
+                            step={3}
                             className="[&>span]:bg-[#ff8000]"
                           />
                           <div className="flex justify-between mt-1">
                             <span className="text-xs text-[#2a3441]">3 months</span>
-                            <span className="text-xs text-[#2a3441]">7 years</span>
+                            <span className="text-xs text-[#2a3441]">10 years</span>
                           </div>
                         </div>
                       </div>
@@ -301,7 +314,7 @@ const CustomizeOffers = () => {
                   </Card>
                   
                   {/* Equity Preferences Section */}
-                  <Card className="p-6 mb-8 border border-[#ff8000] bg-white">
+                  <Card className="p-6 mb-8 border border-[#ff8000] bg-white animate-fadeIn delay-300">
                     <div className="flex items-center justify-between mb-4">
                       <h2 className="text-xl font-semibold text-[#2a3441]">Equity Preferences</h2>
                       <div className="flex items-center">
@@ -357,7 +370,7 @@ const CustomizeOffers = () => {
                   </Card>
                   
                   {/* Grant Preferences Section */}
-                  <Card className="p-6 mb-8 border border-[#ff8000] bg-white">
+                  <Card className="p-6 mb-8 border border-[#ff8000] bg-white animate-fadeIn delay-400">
                     <div className="flex items-center justify-between mb-4">
                       <h2 className="text-xl font-semibold text-[#2a3441]">Grant Preferences</h2>
                       <div className="flex items-center">
@@ -397,57 +410,29 @@ const CustomizeOffers = () => {
                   <div className="flex justify-center mt-8">
                     <Button 
                       type="submit" 
-                      className="bg-[#ff8000] hover:bg-[#e67300] text-white px-14 py-5 text-lg h-auto rounded-full font-medium shadow-md transition-all hover:shadow-lg hover:scale-[1.02]"
+                      className="bg-[#ff8000] hover:bg-[#e67300] text-white px-14 py-5 text-lg h-auto rounded-full font-medium shadow-md transition-all hover:shadow-lg hover:scale-[1.02] animate-fadeIn delay-500"
                     >
                       Find My Matches
                     </Button>
                   </div>
                 </form>
               </div>
-
-              {/* Sidebar Column */}
-              <div className="lg:col-span-4 flex flex-col h-full p-0 m-0">
-                <div
-                  className="flex flex-col items-center bg-[#2a3441] h-[100vh] fixed right-0 top-0 bottom-0 w-full lg:w-[33.333333%] z-10 p-0 m-0"
-                >
-                  <div className="flex flex-col items-center justify-center w-full h-full" style={{ flex: 1 }}>
-                    <img src="/path/to/cflogowhite.png" alt="Compare Funding Logo" className="h-20 mb-12" style={{ maxWidth: '220px' }} />
-                    <div className="flex flex-col justify-center w-full" style={{ flex: 1 }}>
-                      <Card className="bg-white p-6 shadow-md border border-gray-100 mb-6">
-                        <h3 className="text-xl font-bold text-[#2a3441] mb-4">Business funding options. Simplified.</h3>
-                        <div className="space-y-4">
-                          <div className="flex items-center gap-2">
-                            <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center">
-                              <Check className="h-4 w-4 text-primary" />
-                            </div>
-                            <p className="text-[#2a3441]">1 application unlimited options</p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center">
-                              <Check className="h-4 w-4 text-primary" />
-                            </div>
-                            <p className="text-[#2a3441]">Fast track your access to funds</p>
-                          </div>
-                        </div>
-                      </Card>
-                      <Card className="bg-white p-6 border border-primary">
-                        <div className="text-center">
-                          <h3 className="text-xl font-bold mb-3 text-[#2a3441]">Trust Pilot</h3>
-                          <div className="flex justify-center mb-2">
-                            {/* Star rating */}
-                            {[...Array(5)].map((_, i) => (
-                              <svg key={i} className="w-5 h-5 text-primary fill-current" viewBox="0 0 24 24">
-                                <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
-                              </svg>
-                            ))}
-                          </div>
-                          <p className="font-semibold text-[#2a3441]">4.8/5 rating</p>
-                        </div>
-                      </Card>
-                    </div>
-                  </div>
-                </div>
-              </div>
+            </div>
+            
+            {/* Sidebar Column - Modular and tailored for this step */}
+            <div className="lg:col-span-4 flex flex-col h-full p-0 m-0">
+              <SignUpSidebar
+                title="Customize Your Perfect Funding Solution"
+                description="Tell us your preferences to find the perfect funding match for your business."
+                highlight="The more details you provide, the better we can tailor your funding options."
+                tips={[
+                  "Different funding types (loans, equity, grants) suit different business goals",
+                  "Consider the amount of funding you're comfortable managing",
+                  "Think about your timeline - how quickly do you need the funds?",
+                  "Balance control and investment - equity means giving up some ownership"
+                ]}
+                step={currentStep}
+              />
             </div>
           </div>
         </div>

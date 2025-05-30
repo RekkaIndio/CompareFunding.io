@@ -35,7 +35,9 @@ import {
   MapPin,
   Users2,
   Clock,
-  MessageSquare
+  MessageSquare,
+  Lightbulb,
+  XCircle
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -393,7 +395,7 @@ const MatchedApplications = () => {
         <Button
           size="sm"
           variant="outline"
-          className="text-green-600 border-green-600"
+          className="text-green-600 border-green-200 bg-green-50 shadow-sm"
           disabled
         >
           <CheckCircle className="mr-1 h-3 w-3" />
@@ -412,14 +414,14 @@ const MatchedApplications = () => {
           <Button
             size="sm"
             variant="outline"
-            className="text-green-600 border-green-600 w-full md:w-auto"
+            className="text-green-600 border-green-200 bg-green-50 hover:bg-green-100 shadow-sm w-full md:w-auto"
           >
             <CheckCircle className="mr-1 h-3 w-3" />
             Matched
           </Button>
           <Button
             size="sm"
-            className="bg-[#ff8000] hover:bg-[#ff8000]/90 w-full md:w-auto"
+            className="bg-[#ff8000] hover:bg-[#ff8000]/90 text-white w-full md:w-auto shadow-sm"
             onClick={(e) => {
               e.stopPropagation();
               handleStartConversation(app);
@@ -433,16 +435,15 @@ const MatchedApplications = () => {
     }
     
     if (interestStatus === 'pending') {
-      return (
-        <Button
-          size="sm"
-          variant="outline"
-          className="text-green-600 border-green-600"
-          disabled
-        >
-          <ThumbsUp className="mr-1 h-3 w-3" />
-          Interest Sent
-        </Button>
+      return (          <Button
+            size="sm"
+            variant="outline"
+            className="text-[#212936] border-[#212936]/20 bg-[#212936]/5 shadow-sm"
+            disabled
+          >
+            <ThumbsUp className="mr-1 h-3 w-3" />
+            Interest Sent
+          </Button>
       );
     }
     
@@ -451,9 +452,10 @@ const MatchedApplications = () => {
         <Button
           size="sm"
           variant="outline"
-          className="text-red-600 border-red-600"
+          className="text-red-600 border-red-200 bg-red-50 shadow-sm"
           disabled
         >
+          <XCircle className="mr-1 h-3 w-3" />
           Interest Declined
         </Button>
       );
@@ -462,11 +464,14 @@ const MatchedApplications = () => {
     return (
       <Button
         size="sm"
-        className="bg-fundhub-blue hover:bg-fundhub-blue/90"
-        onClick={() => handleExpressInterest(app)}
+        className="bg-[#ff8000] hover:bg-[#ff8000]/90 text-white shadow-sm"
+        onClick={(e) => {
+          e.stopPropagation();
+          handleExpressInterest(app);
+        }}
       >
+        <ThumbsUp className="mr-1 h-3 w-3" />
         Express Interest
-        <ChevronRight className="ml-1 h-3 w-3" />
       </Button>
     );
   };
@@ -513,228 +518,416 @@ const MatchedApplications = () => {
 
   return (
     <PageLayout>
-      <div className="container py-8">
-        <div className="flex flex-col md:flex-row justify-between items-start mb-6">
-          <div>
-            <h1 className="text-3xl font-bold mb-2">All Applications</h1>
-            <p className="text-muted-foreground">
-              Browse all business funding applications available to you
-            </p>
-          </div>
-        </div>
-        
-        <div className="flex flex-col md:flex-row gap-4 items-start mb-6">
-          <div className="relative w-full md:w-72">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search applications..."
-              className="pl-9"
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-            />
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-gray-100">
+        <div className="container px-6 py-8 mx-auto">
+          {/* Main Header Section */}
+          <div className="bg-[#212936] text-white rounded-xl p-6 sm:p-8 mb-8 shadow-xl border-b-2 border-[#ff8000] flex flex-col md:flex-row justify-between items-start md:items-center">
+            <div>
+              <h1 className="text-3xl sm:text-4xl font-bold mb-2 tracking-tight text-white">Funding Applications</h1>
+              <p className="text-gray-200 text-base sm:text-lg">
+                Browse, match and offer funding to businesses that meet your criteria
+              </p>
+            </div>
           </div>
           
-          <div className="flex flex-col md:flex-row gap-2 items-center">
-            <div className="text-sm font-medium">Status:</div>
-            <Tabs value={statusFilter} onValueChange={setStatusFilter} className="w-full md:w-auto">
-              <TabsList>
-                <TabsTrigger value="all">All</TabsTrigger>
-                <TabsTrigger value="submitted">New</TabsTrigger>
-                <TabsTrigger value="matched">Active</TabsTrigger>
-                <TabsTrigger value="approved">With Offers</TabsTrigger>
-                <TabsTrigger value="declined">Declined</TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
-        </div>
-        
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle>Applications</CardTitle>
-            <CardDescription>
-              All applications matching your lending criteria
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="animate-pulse space-y-4">
-                {[1, 2, 3, 4, 5].map(i => (
-                  <div key={i} className="h-24 bg-gray-100 rounded"></div>
-                ))}
+          {/* Search and Filter Controls */}
+          <div className="mb-8 bg-white backdrop-blur-sm rounded-lg border border-slate-200/50 p-6 shadow-lg">
+            <div className="flex flex-col md:flex-row gap-4 items-start">
+              <div className="relative w-full md:w-72">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[#ff8000]" />
+                <Input
+                  placeholder="Search applications..."
+                  className="pl-9 border-slate-200 focus-visible:ring-[#212936] hover:border-[#212936]/20"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                />
               </div>
-            ) : sanitizedApplications && sanitizedApplications.length > 0 ? (
-              <div className="grid grid-cols-1 gap-4">
-                {sanitizedApplications.map((app) => (
-                  <Card key={app.id} className="relative overflow-hidden">
-                    <CardContent className="p-6">
-                      <div className="grid grid-cols-[1fr,auto] gap-4 items-start">
-                        <div className="space-y-1.5">
-                          <div className="flex items-center gap-2">
-                            {app.business?.logo_url ? (
-                              <img
-                                src={app.business.logo_url}
-                                alt={`${app.business.business_name} logo`}
-                                className="w-8 h-8 object-contain rounded"
-                              />
-                            ) : !isApplicationDeclined(app) && (
-                              <Building className="w-8 h-8 text-gray-400" />
-                            )}
-                            <div>
-                              <h3 className="font-semibold">{app.business?.business_name || `Application #${app.id}`}</h3>
-                              {!isApplicationDeclined(app) && app.business?.industry_sector && (
-                                <p className="text-sm text-gray-500">{app.business.industry_sector}</p>
+              
+              <div className="flex flex-col md:flex-row gap-4 items-center w-full md:w-auto">
+                <div className="text-sm font-medium text-[#212936]">Filter by status:</div>
+                <Tabs value={statusFilter} onValueChange={setStatusFilter} className="w-full md:w-auto">
+                  <TabsList className="bg-slate-100 border border-slate-200">
+                    <TabsTrigger value="all" className="data-[state=active]:bg-[#212936] data-[state=active]:text-white">All</TabsTrigger>
+                    <TabsTrigger value="submitted" className="data-[state=active]:bg-[#212936] data-[state=active]:text-white">New</TabsTrigger>
+                    <TabsTrigger value="matched" className="data-[state=active]:bg-[#212936] data-[state=active]:text-white">Active</TabsTrigger>
+                    <TabsTrigger value="approved" className="data-[state=active]:bg-[#212936] data-[state=active]:text-white">With Offers</TabsTrigger>
+                    <TabsTrigger value="declined" className="data-[state=active]:bg-[#212936] data-[state=active]:text-white">Declined</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+                
+                <div className="flex items-center gap-2 ml-0 md:ml-4 mt-4 md:mt-0">
+                  <Button variant="outline" size="sm" onClick={() => handleSort('loan_amount')} className="border-slate-300">
+                    <PoundSterling className="h-3.5 w-3.5 mr-1" />
+                    Amount
+                    <ArrowUpDown className={`ml-1 h-3.5 w-3.5 ${sortOrder.field === 'loan_amount' ? 'opacity-100' : 'opacity-40'}`} />
+                  </Button>
+                  
+                  <Button variant="outline" size="sm" onClick={() => handleSort('created_at')} className="border-slate-300">
+                    <Clock className="h-3.5 w-3.5 mr-1" />
+                    Date
+                    <ArrowUpDown className={`ml-1 h-3.5 w-3.5 ${sortOrder.field === 'created_at' ? 'opacity-100' : 'opacity-40'}`} />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Summary Stats Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+            {/* Total Applications Card */}
+            <Card className="bg-white/90 backdrop-blur-sm border border-slate-200/50 shadow-lg hover:shadow-xl transition-all duration-300">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div className="bg-[#212936] p-3 rounded-full shadow-sm">
+                    <Briefcase className="h-6 w-6 text-[#ff8000]" />
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-medium text-slate-600">Total Applications</p>
+                    <h3 className="text-2xl font-bold text-[#212936]">
+                      {isLoading ? (
+                        <span className="animate-pulse">...</span>
+                      ) : (
+                        sanitizedApplications?.length || 0
+                      )}
+                    </h3>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            {/* Matched Applications Card */}
+            <Card className="bg-white/90 backdrop-blur-sm border border-slate-200/50 shadow-lg hover:shadow-xl transition-all duration-300">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div className="bg-[#212936] p-3 rounded-full shadow-sm">
+                    <BadgeCheck className="h-6 w-6 text-[#ff8000]" />
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-medium text-slate-600">Matched Applications</p>
+                    <h3 className="text-2xl font-bold text-[#212936]">
+                      {isLoading ? (
+                        <span className="animate-pulse">...</span>
+                      ) : (
+                        matchedApplications?.length || 0
+                      )}
+                    </h3>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            {/* Total Value Card */}
+            <Card className="bg-white/90 backdrop-blur-sm border border-slate-200/50 shadow-lg hover:shadow-xl transition-all duration-300">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div className="bg-[#212936] p-3 rounded-full shadow-sm">
+                    <PoundSterling className="h-6 w-6 text-[#ff8000]" />
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-medium text-slate-600">Total Loan Value</p>
+                    <h3 className="text-2xl font-bold text-[#212936]">
+                      {isLoading ? (
+                        <span className="animate-pulse">...</span>
+                      ) : (
+                        `£${(sanitizedApplications?.reduce((sum, app) => sum + (app.loan_amount || 0), 0) || 0).toLocaleString()}`
+                      )}
+                    </h3>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            {/* New Applications Card */}
+            <Card className="bg-white/90 backdrop-blur-sm border border-slate-200/50 shadow-lg hover:shadow-xl transition-all duration-300">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div className="bg-[#212936] p-3 rounded-full shadow-sm">
+                    <ChevronRight className="h-6 w-6 text-[#ff8000]" />
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-medium text-slate-600">New Applications</p>
+                    <h3 className="text-2xl font-bold text-[#212936]">
+                      {isLoading ? (
+                        <span className="animate-pulse">...</span>
+                      ) : (
+                        lenderApplications?.filter(app => app.status === 'submitted').length || 0
+                      )}
+                    </h3>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+          
+          {/* Main Applications Card */}
+          <Card className="mb-8 bg-white/90 backdrop-blur-sm border border-slate-200/50 shadow-lg">
+            <CardHeader className="bg-[#212936] text-white rounded-t-lg">
+              <CardTitle className="flex items-center text-white">
+                <Briefcase className="mr-2 h-5 w-5 text-[#ff8000]" />
+                <span className="text-white">Applications</span>
+              </CardTitle>
+              <CardDescription className="text-gray-200">
+                {statusFilter === 'all' ? 'All applications' : 
+                 statusFilter === 'submitted' ? 'New applications waiting for interest' :
+                 statusFilter === 'matched' ? 'Active applications you are matched with' :
+                 statusFilter === 'approved' ? 'Applications where you have made offers' :
+                 'Applications you have declined or were declined'}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-6">
+              {isLoading ? (
+                <div className="animate-pulse space-y-4">
+                  {[1, 2, 3, 4, 5].map(i => (
+                    <div key={i} className="h-28 bg-gray-100 rounded-lg"></div>
+                  ))}
+                </div>
+              ) : sanitizedApplications && sanitizedApplications.length > 0 ? (
+                <div className="grid grid-cols-1 gap-4">
+                  {sanitizedApplications.map((app) => (
+                    <Card 
+                      key={app.id} 
+                      className={`relative overflow-hidden bg-white hover:shadow-xl transition-all duration-300 ${
+                        isApplicationDeclined(app) ? 'border-red-200' : 
+                        app.isMatched ? 'border-green-200' : 'border-slate-200/80'
+                      }`}
+                      onClick={() => navigate(`/business/${app.id}`)}
+                    >
+                      <CardContent className="p-6">
+                        <div className="grid grid-cols-1 lg:grid-cols-[2fr,1fr,1fr] gap-4 items-start">
+                          {/* Left Column: Business Info */}
+                          <div className="space-y-3">
+                            <div className="flex items-center gap-3">
+                              {app.business?.logo_url ? (
+                                <div className="w-14 h-14 rounded-md bg-white border border-slate-100 shadow-sm flex items-center justify-center p-1">
+                                  <img
+                                    src={app.business.logo_url}
+                                    alt={`${app.business.business_name} logo`}
+                                    className="max-w-full max-h-full object-contain"
+                                  />
+                                </div>
+                              ) : !isApplicationDeclined(app) && (
+                                <div className="w-14 h-14 rounded-md bg-[#212936] flex items-center justify-center">
+                                  <Building className="w-7 h-7 text-[#ff8000]" />
+                                </div>
+                              )}
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <h3 className="font-semibold text-lg text-[#212936]">
+                                    {app.business?.business_name || `Application #${app.application_number || app.id?.substring(0, 8)}`}
+                                  </h3>
+                                  <StatusBadge status={app.status} />
+                                </div>
+                                <div className="flex items-center gap-2 text-sm text-slate-500">
+                                  <span>Application #{app.application_number || app.id?.substring(0, 8)}</span>
+                                  <span>•</span>
+                                  <span>{new Date(app.created_at || Date.now()).toLocaleDateString()}</span>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            {/* Industry and Details */}
+                            <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
+                              {app.business?.industry_sector && !isApplicationDeclined(app) && (
+                                <div className="flex items-center gap-1.5">
+                                  <Briefcase className="h-3.5 w-3.5 text-slate-500" />
+                                  <span className="text-slate-700">{app.business.industry_sector}</span>
+                                </div>
+                              )}
+                              
+                              {app.loan_type && (
+                                <div className="flex items-center gap-1.5">
+                                  <Tag className="h-3.5 w-3.5 text-slate-500" />
+                                  <span className="text-slate-700 capitalize">{app.loan_type.replace('_', ' ')}</span>
+                                </div>
+                              )}
+                              
+                              {app.location && !isApplicationDeclined(app) && (
+                                <div className="flex items-center gap-1.5">
+                                  <MapPin className="h-3.5 w-3.5 text-slate-500" />
+                                  <span className="text-slate-700">{app.location}</span>
+                                </div>
+                              )}
+                              
+                              {app.years_trading && !isApplicationDeclined(app) && (
+                                <div className="flex items-center gap-1.5">
+                                  <CalendarClock className="h-3.5 w-3.5 text-slate-500" />
+                                  <span className="text-slate-700">{app.years_trading} years trading</span>
+                                </div>
                               )}
                             </div>
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            Application #{app.application_number}
-                          </div>
-                          <div className="flex flex-wrap gap-x-3 gap-y-1">
-                            <div className="flex items-center gap-1">
-                              <Building className="h-3 w-3 text-muted-foreground" />
-                              <span className="text-muted-foreground">
-                                {app.business?.industry_sector || 'Industry not specified'}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Tag className="h-3 w-3 text-muted-foreground" />
-                              <span className="text-muted-foreground capitalize">
-                                {app.loan_type?.replace('_', ' ') || 'Business Loan'}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Users2 className="h-3 w-3 text-muted-foreground" />
-                              <span className="text-muted-foreground">
-                                {app.employees || '?'} employees
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <CalendarClock className="h-3 w-3 text-muted-foreground" />
-                              <span className="text-muted-foreground">
-                                {app.years_trading || '?'} years trading
-                              </span>
-                            </div>
-                            {app.location && (
-                              <div className="flex items-center gap-1">
-                                <MapPin className="h-3 w-3 text-muted-foreground" />
-                                <span className="text-muted-foreground">{app.location}</span>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Add key financial metrics */}
-                          <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-4 bg-gray-50 p-3 rounded-lg">
-                            {app.annual_revenue && (
-                              <div className="text-xs space-y-1">
-                                <div className="text-muted-foreground">Annual Revenue</div>
-                                <div className="font-semibold">£{(app.annual_revenue).toLocaleString()}</div>
-                                <div className="text-xs text-muted-foreground">Monthly: £{(app.monthly_revenue).toLocaleString()}</div>
+                            
+                            {/* Purpose Card - Only show if not declined */}
+                            {app.purpose && !isApplicationDeclined(app) && (
+                              <div className="bg-gradient-to-r from-[#212936]/5 to-[#ff8000]/5 p-3 rounded-md border border-[#212936]/10 mt-3">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <Lightbulb className="h-4 w-4 text-[#ff8000]" />
+                                  <p className="text-xs font-medium text-[#212936]">Funding Purpose</p>
+                                </div>
+                                <p className="text-sm text-slate-700">{app.purpose}</p>
                               </div>
                             )}
                             
-                            <div className="text-xs space-y-1">
-                              <div className="text-muted-foreground">Business Health</div>
-                              <div className="font-semibold flex items-center gap-1">
-                                <div className={`h-2 w-2 rounded-full ${app.risk_score === 'Low' ? 'bg-green-500' : app.risk_score === 'Medium' ? 'bg-yellow-500' : 'bg-red-500'}`}></div>
-                                {app.risk_score} Risk
-                              </div>
-                              <div className="text-xs text-muted-foreground">Score: {app.credit_score}/100</div>
-                            </div>
-
-                            <div className="text-xs space-y-1">
-                              <div className="text-muted-foreground">Assets & Capital</div>
-                              <div className="font-semibold">£{(app.asset_value || 0).toLocaleString()}</div>
-                              <div className="text-xs text-muted-foreground">WC: £{(app.working_capital || 0).toLocaleString()}</div>
-                            </div>
-
-                            <div className="text-xs space-y-1">
-                              <div className="text-muted-foreground">Performance</div>
-                              <div className="font-semibold">{app.profit_margin}% Margin</div>
-                              <div className="text-xs text-muted-foreground">DSR: {app.debt_service_ratio}x</div>
-                            </div>
-                          </div>
-
-                          {/* Add purpose details with improved styling */}
-                          {app.purpose && (
-                            <div className="mt-3">
-                              <div className="text-xs text-muted-foreground mb-1">Loan Purpose:</div>
-                              <div className="text-sm bg-blue-50 p-2 rounded-md border border-blue-100">
-                                {app.purpose}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                        
-                        {/* Amount column with enhanced styling */}
-                        <div className="w-full md:w-2/12 flex md:block items-center justify-between md:text-center md:justify-center">
-                          <div className="md:hidden font-medium text-sm text-muted-foreground">Amount:</div>
-                          <div className="bg-white p-3 rounded-lg shadow-sm border">
-                            <div className="font-bold text-lg text-fundhub-blue">
-                              £{app.loan_amount?.toLocaleString()}
-                            </div>
-                            <div className="text-sm font-medium">
-                              {app.loan_term_months} months
-                            </div>
-                            <div className="text-xs text-muted-foreground mt-2 space-y-1">
-                              {app.interested_lenders?.length > 0 && (
-                                <div className="flex items-center justify-center gap-1">
-                                  <Users2 className="h-3 w-3" />
-                                  <span className="font-medium">{app.interested_lenders.length}</span> interested
+                            {/* Financial Metrics - Only if matched and not declined */}
+                            {isLenderMatched(app) && !isApplicationDeclined(app) && app.annual_revenue && (
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-white p-3 rounded-md border border-slate-200/80 shadow-sm mt-3">
+                                <div className="space-y-1">
+                                  <p className="text-xs text-slate-500">Revenue</p>
+                                  <p className="font-semibold text-[#212936]">£{app.annual_revenue.toLocaleString()}</p>
                                 </div>
-                              )}
-                              {app.expires_at && (
-                                <div className="flex items-center justify-center gap-1 text-amber-600">
-                                  <Clock className="h-3 w-3" />
-                                  Expires in {Math.ceil((new Date(app.expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24))} days
+                                
+                                <div className="space-y-1">
+                                  <p className="text-xs text-slate-500">Credit Score</p>
+                                  <div className="flex items-center gap-1">
+                                    <div className={`h-2 w-2 rounded-full ${
+                                      app.credit_score > 70 ? 'bg-green-500' : 
+                                      app.credit_score > 50 ? 'bg-[#ff8000]' : 
+                                      'bg-red-500'
+                                    }`}></div>
+                                    <p className="font-semibold text-[#212936]">{app.credit_score}/100</p>
+                                  </div>
                                 </div>
-                              )}
+                                
+                                <div className="space-y-1">
+                                  <p className="text-xs text-slate-500">Profit Margin</p>
+                                  <p className="font-semibold text-[#212936]">{app.profit_margin}%</p>
+                                </div>
+                                
+                                <div className="space-y-1">
+                                  <p className="text-xs text-slate-500">Debt Service Ratio</p>
+                                  <p className="font-semibold text-[#212936]">{app.debt_service_ratio}x</p>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                          
+                          {/* Middle Column: Amount and Term */}
+                          <div className="bg-white rounded-lg p-4 border border-slate-200/80 shadow-sm flex flex-col items-center justify-center text-center">
+                            <div className="bg-[#212936]/10 rounded-full p-2 mb-2">
+                              <PoundSterling className="h-5 w-5 text-[#ff8000]" />
+                            </div>
+                            <p className="text-sm text-slate-600 mb-1">Loan Amount</p>
+                            <p className="text-3xl font-bold text-[#212936]">£{app.loan_amount?.toLocaleString()}</p>
+                            <p className="text-sm font-medium text-slate-700 mb-3">{app.loan_term_months} months</p>
+                            
+                            <div className="mt-1 w-full">
+                              <div className="flex items-center justify-center gap-2 text-xs">
+                                <Badge variant="outline" className="bg-white shadow-sm border-slate-300 text-[#212936]">
+                                  {isApplicationDeclined(app) ? 'No Credit Cost' : `${getCreditCost(app.loan_amount)} credits`}
+                                </Badge>
+                                
+                                {app.expires_at && (
+                                  <Badge variant="outline" className="bg-[#212936]/5 shadow-sm border-[#212936]/20 text-[#212936]">
+                                    <Clock className="mr-1 h-3 w-3" />
+                                    {Math.ceil((new Date(app.expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24))} days left
+                                  </Badge>
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                        
-                        {/* Status & Action column - 3/12 width */}
-                        <div className="w-full md:w-3/12 flex flex-col md:items-center gap-2 mt-3 md:mt-0">
-                          <StatusBadge status={app.status} />
-                          <div className="mt-2">
-                            {getActionButton(app)}
+                          
+                          {/* Right Column: Status and Actions */}
+                          <div className="flex flex-col items-center space-y-3">
+                            {/* Interest Indicator */}
+                            {app.interested_lenders && app.interested_lenders.length > 0 && !isApplicationDeclined(app) && (
+                              <Badge className="bg-[#212936]/10 text-[#212936] border-[#212936]/20 hover:bg-[#212936]/15 shadow-sm transition-colors">
+                                <Users2 className="mr-1 h-3 w-3" />
+                                {app.interested_lenders.length} lender{app.interested_lenders.length !== 1 ? 's' : ''} interested
+                              </Badge>
+                            )}
+                            
+                            {/* Main Action Button */}
+                            <div className="w-full flex justify-center">
+                              {getActionButton(app)}
+                            </div>
+                            
+                            {/* View Details Button - Always show except for declined */}
+                            {!isApplicationDeclined(app) && (                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="w-full border-[#212936] text-[#212936] hover:bg-[#212936] hover:text-white transition-colors shadow-sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/business/${app.id}`);
+                  }}
+                >
+                  View Details
+                </Button>
+                            )}
                           </div>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <div className="mb-3">
-                  <Filter className="h-10 w-10 text-gray-300 mx-auto" />
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
-                <h3 className="font-medium text-lg">No matching applications found</h3>
-                <p className="text-muted-foreground mb-6">
-                  {searchQuery || statusFilter !== 'all' ? 
-                    'Try adjusting your search or filters.' : 
-                    'Applications matching your criteria will appear here.'}
-                </p>
-                {(searchQuery || statusFilter !== 'all') && (
-                  <Button variant="outline" onClick={() => {
-                    setSearchQuery('');
-                    setStatusFilter('all');
-                  }}>
-                    Clear Filters
-                  </Button>
-                )}
+              ) : (
+                <div className="text-center py-16 bg-white/90 backdrop-blur-sm rounded-lg border border-slate-200/50 shadow-lg">
+                  <div className="bg-[#212936] w-20 h-20 rounded-full mx-auto mb-6 flex items-center justify-center">
+                    <Filter className="h-10 w-10 text-[#ff8000]" />
+                  </div>
+                  <h3 className="font-semibold text-xl text-[#212936] mb-3">No matching applications found</h3>
+                  <p className="text-slate-600 mb-8 max-w-md mx-auto">
+                    {searchQuery || statusFilter !== 'all' ? 
+                      'Try adjusting your search or filters to see more applications.' : 
+                      'Applications matching your lending criteria will appear here.'}
+                  </p>
+                  {(searchQuery || statusFilter !== 'all') && (
+                    <Button 
+                      variant="outline" 
+                      onClick={() => {
+                        setSearchQuery('');
+                        setStatusFilter('all');
+                      }}
+                      className="border-[#212936] text-[#212936] hover:bg-[#212936] hover:text-white transition-colors shadow-sm"
+                    >
+                      <Filter className="mr-2 h-4 w-4" />
+                      Clear Filters
+                    </Button>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+          
+          {/* Quick Tips Section */}
+          <Card className="mb-8 bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200/50 shadow-lg hover:shadow-xl transition-all duration-300">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center text-xl text-blue-900">
+                <Lightbulb className="mr-2 h-5 w-5 text-amber-500" />
+                Quick Tips for Lenders
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-white/70 rounded-lg p-4 border border-blue-100">
+                  <h3 className="font-medium text-blue-800 mb-1">Express Interest</h3>
+                  <p className="text-sm text-slate-600">
+                    When you express interest in an application, the business receives a notification and can choose to connect with you.
+                  </p>
+                </div>
+                <div className="bg-white/70 rounded-lg p-4 border border-blue-100">
+                  <h3 className="font-medium text-blue-800 mb-1">Credit Usage</h3>
+                  <p className="text-sm text-slate-600">
+                    Credits are only deducted when you view the full application details after being matched.
+                  </p>
+                </div>
+                <div className="bg-white/70 rounded-lg p-4 border border-blue-100">
+                  <h3 className="font-medium text-blue-800 mb-1">Making Offers</h3>
+                  <p className="text-sm text-slate-600">
+                    Once matched, you can communicate with the business and make formal offers directly.
+                  </p>
+                </div>
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
       </div>
       
       {/* Confirmation Dialog */}
       <Dialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
-        <DialogContent>
+        <DialogContent className="bg-white border-none shadow-2xl">
           <DialogHeader>
-            <DialogTitle>Express Interest</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-[#212936] text-xl font-semibold">Express Interest</DialogTitle>
+            <DialogDescription className="text-slate-600">
               Are you interested in this funding application? Your information will be shared with the 
               business and they will be notified of your interest.
             </DialogDescription>
@@ -742,36 +935,46 @@ const MatchedApplications = () => {
           
           {selectedApplication && (
             <div className="py-4">
-              <div className="font-medium mb-2">Application Details:</div>
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div className="text-muted-foreground">Application:</div>
-                <div>#{selectedApplication.application_number || selectedApplication.id?.substring(0, 8)}</div>
-                
-                <div className="text-muted-foreground">Amount:</div>
-                <div>£{selectedApplication.loan_amount?.toLocaleString()}</div>
-                
-                <div className="text-muted-foreground">Term:</div>
-                <div>{selectedApplication.loan_term_months} months</div>
-                
-                <div className="text-muted-foreground">Purpose:</div>
-                <div>{selectedApplication.purpose || 'Not specified'}</div>
+              <div className="font-medium mb-2 text-[#212936]">Application Details:</div>
+              <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="text-slate-500">Application:</div>
+                  <div className="font-medium">#{selectedApplication.application_number || selectedApplication.id?.substring(0, 8)}</div>
+                  
+                  <div className="text-slate-500">Amount:</div>
+                  <div className="font-medium">£{selectedApplication.loan_amount?.toLocaleString()}</div>
+                  
+                  <div className="text-slate-500">Term:</div>
+                  <div className="font-medium">{selectedApplication.loan_term_months} months</div>
+                  
+                  <div className="text-slate-500">Purpose:</div>
+                  <div className="font-medium">{selectedApplication.purpose || 'Not specified'}</div>
+                </div>
+              </div>
+              
+              <div className="mt-4 bg-[#212936]/5 p-3 rounded-md border border-[#212936]/10">
+                <p className="text-sm text-[#212936]">
+                  <BadgeCheck className="inline-block h-4 w-4 mr-1 text-[#ff8000]" />
+                  If the business accepts your interest, you'll be matched and can view their full details
+                </p>
               </div>
             </div>
           )}
           
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsConfirmDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setIsConfirmDialogOpen(false)} className="border-slate-300 text-slate-700 hover:bg-slate-100">
               Cancel
             </Button>
             <Button
-              variant="destructive"
+              variant="outline"
               onClick={handleDeclineInterest}
               disabled={isSubmitting}
+              className="border-red-200 bg-red-50 text-red-600 hover:bg-red-100"
             >
               {isSubmitting ? 'Declining...' : 'Decline'}
             </Button>
             <Button 
-              className="bg-fundhub-blue hover:bg-fundhub-blue/90"
+              className="bg-[#ff8000] hover:bg-[#ff8000]/90 text-white shadow-sm"
               onClick={confirmExpressInterest}
               disabled={isSubmitting}
             >
