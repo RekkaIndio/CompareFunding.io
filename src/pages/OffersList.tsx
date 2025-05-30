@@ -77,7 +77,7 @@ const OffersList = () => {
                 const appBusinessId = application[0].business_id || application[0].user_id;
                 if (appBusinessId) {
                   const { data: business } = await getDocuments(
-                    'business_profiles',
+                    'businesses',
                     [{ field: 'id', operator: '==', value: appBusinessId }]
                   );
                   

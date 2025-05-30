@@ -323,7 +323,7 @@ const getLenderApplications = async (lenderId: string) => {
     // Process matched applications and get business data
     const matchedApplications = await Promise.all(matchedSnap.docs.map(async docSnap => {
       const appData = docSnap.data();
-      const businessRef = doc(firestore, 'business_profiles', appData.user_id);
+      const businessRef = doc(firestore, 'businesses', appData.user_id);
       const businessSnap = await getDoc(businessRef);
       const businessData = businessSnap.data() as BusinessProfile | undefined;
       
@@ -351,7 +351,7 @@ const getLenderApplications = async (lenderId: string) => {
       .filter(docSnap => !docSnap.data().matched_lenders?.includes(lenderId))
       .map(async docSnap => {
         const appData = docSnap.data();
-        const businessRef = doc(firestore, 'business_profiles', appData.user_id);
+        const businessRef = doc(firestore, 'businesses', appData.user_id);
         const businessSnap = await getDoc(businessRef);
         const businessData = businessSnap.data() as BusinessProfile | undefined;
         

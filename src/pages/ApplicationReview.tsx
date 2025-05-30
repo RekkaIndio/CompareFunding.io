@@ -67,6 +67,26 @@ const ApplicationReview = () => {
         }
         
         console.log("Application data retrieved:", data);
+        
+        // If business data is part of the application, we'll use it directly
+        if (!data.business && data.business_id) {
+          try {
+            console.log("Fetching business data with ID:", data.business_id);
+            const businessResponse = await getDocument('businesses', data.business_id);
+            if (businessResponse.data) {
+              data.business = businessResponse.data;
+              console.log("Business data added to application:", data.business);
+            }
+          } catch (err) {
+            console.error("Error fetching business data:", err);
+          }
+        }
+        
+        // Force completeness percentage to 100 if application status is 'submitted'
+        if (data.status === 'submitted') {
+          data.completeness_percentage = 100;
+        }
+        
         return data;
       } catch (err) {
         console.error("Error in queryFn:", err);
@@ -81,17 +101,36 @@ const ApplicationReview = () => {
 
   // Fetch business profile data
   const { data: businessProfile } = useQuery({
-    queryKey: ['businessProfile', user?.uid],
+    queryKey: ['businessProfile', user?.uid, application?.business_id],
     queryFn: async () => {
-      if (!user?.uid) return null;
-      const { data, error } = await getDocument('business_profiles', user.uid);
+      if (!user?.uid && !application?.business_id) return null;
+      
+      // First try to get business data from the application
+      if (application?.business) {
+        console.log('Using business data from application:', application.business);
+        return application.business;
+      }
+      
+      // Then try to get it using application.business_id
+      if (application?.business_id) {
+        console.log('Fetching business profile using business_id:', application.business_id);
+        const { data, error } = await getDocument('businesses', application.business_id);
+        if (data && !error) {
+          console.log('Found business profile using business_id:', data);
+          return data;
+        }
+      }
+      
+      // Finally, try using user.uid
+      console.log('Fetching business profile using user.uid:', user?.uid);
+      const { data, error } = await getDocument('businesses', user.uid);
       if (error) {
         console.error('Error fetching business profile:', error);
         return null;
       }
       return data;
     },
-    enabled: !!user?.uid,
+    enabled: !!(user?.uid || application?.business_id),
   });
 
   // Fetch accounting integration status
@@ -111,22 +150,43 @@ const ApplicationReview = () => {
 
   // Fetch financial documents
   const { data: financialsData, isLoading: isLoadingFinancials } = useQuery({
-    queryKey: ['financialDocuments', user?.uid],
+    queryKey: ['financialDocuments', user?.uid, application?.business_id, application?.id],
     queryFn: async () => {
-      if (!user?.uid) return [];
+      // If application already has financial documents, use those
+      if (application?.financialDocuments) {
+        console.log('Using financial documents from application:', Object.keys(application.financialDocuments || {}));
+        setFinancialDocs(Object.values(application.financialDocuments || {}));
+        return Object.values(application.financialDocuments || {});
+      }
+      
+      // Determine the business ID to use for fetching documents
+      let businessId = application?.business_id || null;
+      
+      if (!businessId && application?.business?.id) {
+        businessId = application.business.id;
+      }
+      
+      if (!businessId && user?.uid) {
+        try {
+          const db = getFirestore();
+          // First get the business ID from the user document
+          const userDocRef = doc(db, "users", user.uid);
+          const userDoc = await getDoc(userDocRef);
+          businessId = userDoc.data()?.businessId || user.uid;
+        } catch (err) {
+          console.error('Error getting business ID from user document:', err);
+        }
+      }
+      
+      if (!businessId) {
+        console.log('No business ID found for fetching documents');
+        return [];
+      }
+      
+      console.log('Fetching financial documents using business ID:', businessId);
       
       try {
         const db = getFirestore();
-        
-        // First get the business ID from the user document
-        const userDocRef = doc(db, "users", user.uid);
-        const userDoc = await getDoc(userDocRef);
-        const businessId = userDoc.data()?.businessId;
-        
-        if (!businessId) {
-          console.log('No business ID found for user');
-          return [];
-        }
         
         // Query the financials collection for this business
         const financialsCollection = collection(db, "businesses", businessId, "financials");
@@ -137,17 +197,129 @@ const ApplicationReview = () => {
           ...doc.data()
         }));
         
-        setFinancialDocs(financialDocs);
-        console.log('Loaded financial documents:', financialDocs.length);
+        console.log('Fetched financial documents:', financialDocs.length);
         
+        // Group documents by type and process them
+        let processedFinancialDocs = {};
+        let financialSummaries = {};
+
+        financialDocs.forEach(doc => {
+          const key = doc.documentType?.toLowerCase()?.includes('profit') ? 'pl'
+            : doc.documentType?.toLowerCase()?.includes('balance') && !doc.documentType?.toLowerCase()?.includes('trial') ? 'bs'
+            : doc.documentType?.toLowerCase()?.includes('trial') ? 'tb'
+            : doc.documentType?.toLowerCase()?.includes('payable') ? 'ap'
+            : doc.documentType?.toLowerCase()?.includes('receivable') ? 'ar'
+            : null;
+
+          if (key) {
+            // Process the data with extra handling for Trial Balance and Balance Sheet
+            let processedData = doc.data || {};
+            
+            // Sometimes the data is a string that needs to be parsed
+            if (typeof processedData === 'string') {
+              try {
+                processedData = JSON.parse(processedData);
+              } catch (e) {
+                console.error(`Failed to parse ${key} data as JSON:`, e);
+              }
+            }
+            
+            // Special handling for Trial Balance
+            if (key === 'tb' && (!processedData || Object.keys(processedData).length === 0)) {
+              // Try to extract data from the summary if the data field is empty
+              try {
+                if (doc.summary && typeof doc.summary === 'string') {
+                  const summaryJson = JSON.parse(doc.summary);
+                  if (summaryJson.json && Object.keys(summaryJson.json).length > 0) {
+                    processedData = summaryJson.json;
+                  }
+                }
+              } catch (e) {
+                console.error('Failed to extract Trial Balance data from summary:', e);
+              }
+            }
+            
+            processedFinancialDocs[key] = processedData;
+            financialSummaries[key] = doc.summary || '';
+          }
+        });
+        
+        // Update the application object with the processed financial documents
+        if (application) {
+          application.financialDocuments = processedFinancialDocs;
+          application.financialSummaries = financialSummaries;
+        }
+        
+        setFinancialDocs(financialDocs);
         return financialDocs;
       } catch (error) {
         console.error('Error fetching financial documents:', error);
         return [];
       }
     },
-    enabled: !!user?.uid,
+    enabled: !!(application) && (!application.financialDocuments || Object.keys(application.financialDocuments || {}).length === 0),
   });
+
+  // Helper function to check if any financial documents exist
+  const hasFinancialDocs = (() => {
+    // More detailed logging to help diagnose issues
+    console.log("[DEBUG] Checking for financial documents:");
+    console.log("- Application:", application?.id);
+    console.log("- Traditional format:", application?.financial_documents);
+    console.log("- Object format:", application?.financialDocuments);
+    console.log("- Financials property:", application?.financials);
+    console.log("- Financial Documents Tab:", application?.financialDocumentsTab);
+    console.log("- Financial Summaries:", application?.financialSummaries);
+    console.log("- Fetched docs:", financialDocs);
+    console.log("- Business financial_documents:", businessProfile?.financial_documents);
+    
+    // Check from all possible sources
+    const hasTraditionalFormat = 
+      (application?.financial_documents && application.financial_documents.length > 0) ||
+      (businessProfile?.financial_documents && businessProfile.financial_documents.length > 0);
+      
+    const hasObjectFormat = 
+      (application?.financialDocuments && Object.keys(application.financialDocuments || {}).length > 0) || 
+      (application?.financialDocumentsTab && Object.keys(application.financialDocumentsTab || {}).length > 0);
+      
+    const hasFinancialSummaries = application?.financialSummaries && 
+      Object.keys(application.financialSummaries || {}).length > 0;
+      
+    const hasFinancialsProperty = application?.financials && 
+      Object.keys(application.financials || {}).length > 0;
+      
+    const hasFetchedDocs = financialDocs && financialDocs.length > 0;
+    
+    // Also check for presence of any document-specific fields that might be used
+    const hasDocumentFields = 
+      application?.profit_and_loss || 
+      application?.balance_sheet || 
+      application?.trial_balance || 
+      application?.aged_payables || 
+      application?.aged_receivables;
+    
+    // Check if the application has a completeness value already calculated
+    const hasCompleteness = application?.completeness_percentage === 100;
+    
+    console.log("[DEBUG] Financial document sources:", {
+      hasTraditionalFormat,
+      hasObjectFormat,
+      hasFinancialSummaries,
+      hasFinancialsProperty,
+      hasFetchedDocs,
+      hasDocumentFields,
+      hasCompleteness
+    });
+    
+    // Consider it valid if any of these are true
+    return hasTraditionalFormat || 
+           hasObjectFormat || 
+           hasFinancialSummaries || 
+           hasFinancialsProperty || 
+           hasFetchedDocs || 
+           hasDocumentFields || 
+           hasCompleteness;
+  })();
 
   // Calculate application completeness
   const calculateCompleteness = () => {
@@ -155,42 +327,93 @@ const ApplicationReview = () => {
     let total = 0;
     const missing = [];
 
-    // Core application (always present if we're here)
-    completed += 1;
-    total += 1;
-
-    // Business profile
-    total += 1;
-    if (businessProfile) {
-      completed += 1;
-    } else {
-      missing.push('Business Profile');
+    if (!application) {
+      return { completed: 0, total: 4, percentage: 0, missing: ['Application Data'] };
     }
+    
+    // Check if any credit score exists
+    const hasCreditScore = 
+      // Check on businessProfile
+      (businessProfile?.credit_info?.credit_score) || 
+      // Check on application.business
+      (application?.business?.credit_info?.credit_score) ||
+      // Check for score property
+      (application?.business?.credit_info?.score !== undefined && 
+       application?.business?.credit_info?.score !== null) || 
+      // Check for direct credit_info on application
+      (application?.credit_info?.credit_score || application?.credit_info?.score);
+    
+    console.log("[DEBUG] Credit score detection:", {
+      businessProfileScore: businessProfile?.credit_info?.credit_score,
+      applicationBusinessScore: application?.business?.credit_info?.credit_score,
+      applicationBusinessScoreAlt: application?.business?.credit_info?.score,
+      applicationDirectScore: application?.credit_info?.credit_score,
+      result: hasCreditScore
+    });
+    
+    // Business check should look at both businessProfile and application.business
+    const hasBusinessProfile = businessProfile || application?.business;
+    
+    // Application details check
+    const hasApplicationDetails = application.loan_amount && application.loan_term_months && application.purpose;
 
-    // Credit score
-    total += 1;
-    if (businessProfile?.credit_info?.credit_score) {
-      completed += 1;
-    } else {
-      missing.push('Credit Score');
-    }
+    const checks = [
+      { name: 'Business profile', value: hasBusinessProfile ? true : false },
+      { name: 'Credit score', value: hasCreditScore ? true : false },
+      { name: 'Financial documents', value: hasFinancialDocs ? true : false },
+      { name: 'Application details', value: hasApplicationDetails ? true : false }
+    ];
+    
+    // Debug output for all checks
+    console.log("[DEBUG] Application completeness checks:", checks.map(c => ({
+      name: c.name, 
+      value: c.value
+    })));
+    
+    const completedChecks = checks.filter(check => check.value).length;
+    const missingChecks = checks.filter(check => !check.value).map(check => check.name);
+    const totalChecks = checks.length;
 
-    // Accounting integration is no longer counted toward application strength
-    // We still check it but don't include it in the calculation
-
-    // Documents (check if any exist)
-    total += 1;
-    if (financialDocs && financialDocs.length > 0) {
-      completed += 1;
-    } else {
-      missing.push('Financial Documents');
-    }
-
-    const percentage = Math.round((completed / total) * 100);
-    return { completed, total, percentage, missing };
+    const percentage = Math.round((completedChecks / totalChecks) * 100);
+    return { 
+      completed: completedChecks, 
+      total: totalChecks, 
+      percentage, 
+      missing: missingChecks 
+    };
   };
 
-  const completeness = calculateCompleteness();
+  // If application already has a completeness percentage from ApplicationDetail,
+  // use that instead of recalculating
+  const completenessFromApplication = application?.completeness_percentage ? {
+    percentage: application.completeness_percentage,
+    completed: application.completeness_percentage === 100 ? 4 : Math.round((application.completeness_percentage / 100) * 4),
+    total: 4,
+    missing: []
+  } : null;
+  
+  // Calculate completeness after all data is loaded
+  const calculatedCompleteness = calculateCompleteness();
+  
+  // Use the higher of the two completeness values
+  const completeness = 
+    completenessFromApplication && 
+    completenessFromApplication.percentage > calculatedCompleteness.percentage 
+      ? completenessFromApplication 
+      : calculatedCompleteness;
+  
+  console.log("[DEBUG] Final completeness:", {
+    fromApplication: completenessFromApplication,
+    calculated: calculatedCompleteness,
+    final: completeness
+  });
+  
+  useEffect(() => {
+    // Force completeness recalculation when financialDocs change
+    if (financialDocs && financialDocs.length > 0) {
+      console.log("Financial docs loaded, recalculating completeness...");
+    }
+  }, [financialDocs]);
 
   const handleSubmit = async () => {
     if (isSubmitting) return; // Prevent multiple submissions
@@ -271,6 +494,29 @@ const ApplicationReview = () => {
       setIsSubmitting(false);
     }
   };
+
+  // Auto-mark application as complete when all items are present
+  useEffect(() => {
+    const updateApplicationCompleteness = async () => {
+      // Only update if application exists and is not already submitted
+      if (!application || !id || application.status === 'submitted') return;
+      
+      // Only update if calculated completeness is 100% but the stored value isn't
+      if (completeness.percentage === 100 && application.completeness_percentage !== 100) {
+        console.log("Marking application as complete in the database");
+        try {
+          await updateDocument('applications', id, {
+            completeness_percentage: 100
+          });
+          toast.success("Application is ready to submit!");
+        } catch (err) {
+          console.error("Failed to update application completeness:", err);
+        }
+      }
+    };
+    
+    updateApplicationCompleteness();
+  }, [application, completeness.percentage, id]);
 
   return (
     <PageLayout>
@@ -378,7 +624,7 @@ const ApplicationReview = () => {
                             </span>
                           </div>
                           
-                          {completeness.missing.length > 0 && (
+                          {completeness.percentage < 100 && completeness.missing.length > 0 && (
                             <div className="mt-2 px-4">
                               {completeness.missing.map((item, index) => (
                                 <div key={index} className="bg-amber-50 border border-amber-200/70 rounded-lg p-2 mb-2 flex items-center">
@@ -386,6 +632,15 @@ const ApplicationReview = () => {
                                   <p className="text-amber-800 text-xs font-medium">{item} missing</p>
                                 </div>
                               ))}
+                            </div>
+                          )}
+                          
+                          {completeness.percentage === 100 && (
+                            <div className="mt-2 px-4">
+                              <div className="bg-green-50 border border-green-200/70 rounded-lg p-2 mb-2 flex items-center">
+                                <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
+                                <p className="text-green-800 text-xs font-medium">Application Complete</p>
+                              </div>
                             </div>
                           )}
                           
@@ -526,15 +781,34 @@ const ApplicationReview = () => {
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
-                      {businessProfile?.credit_info?.credit_score ? (
+                      {(businessProfile?.credit_info?.credit_score || 
+                        application?.business?.credit_info?.credit_score || 
+                        application?.business?.credit_info?.score ||
+                        application?.credit_info?.credit_score ||
+                        application?.credit_info?.score) ? (
                         <div className="text-center py-4">
                           <div className="bg-green-50/80 border border-green-200/70 rounded-lg p-4 mb-4">
                             <div className="text-4xl font-bold text-green-700 mb-2">
-                              {businessProfile.credit_info.credit_score}
+                              {businessProfile?.credit_info?.credit_score || 
+                               application?.business?.credit_info?.credit_score || 
+                               application?.business?.credit_info?.score ||
+                               application?.credit_info?.credit_score ||
+                               application?.credit_info?.score || 
+                               "✓"}
                             </div>
                             <p className="text-sm text-green-600">Business Credit Score</p>
-                            {businessProfile.credit_info.risk && (
-                              <p className="text-sm font-medium text-green-700 mt-1">{businessProfile.credit_info.risk}</p>
+                            {(businessProfile?.credit_info?.risk || 
+                              application?.business?.credit_info?.risk ||
+                              application?.business?.credit_info?.risk_level ||
+                              application?.credit_info?.risk ||
+                              application?.credit_info?.risk_level) && (
+                              <p className="text-sm font-medium text-green-700 mt-1">
+                                {businessProfile?.credit_info?.risk || 
+                                 application?.business?.credit_info?.risk ||
+                                 application?.business?.credit_info?.risk_level ||
+                                 application?.credit_info?.risk ||
+                                 application?.credit_info?.risk_level}
+                              </p>
                             )}
                           </div>
                           <Badge variant="default" className="bg-green-600 text-white shadow-sm">Score Available</Badge>
@@ -551,51 +825,6 @@ const ApplicationReview = () => {
                             className="border-orange-200 text-orange-700 hover:bg-orange-50 hover:border-orange-300 transition-colors"
                           >
                             Check Credit
-                          </Button>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-
-                  {/* Financial Data Card */}
-                  <Card className="bg-white/90 backdrop-blur-sm border border-slate-200/50 shadow-lg hover:shadow-xl transition-all duration-300">
-                    <CardHeader className="bg-[#212936] text-white rounded-t-lg">
-                      <CardTitle className="flex items-center justify-between">
-                        <div className="flex items-center">
-                          <Zap className="mr-2 h-5 w-5 text-[#ff8000]" />
-                          <span className="text-white">Financial Data</span>
-                        </div>
-                        <Badge variant="secondary" className="bg-purple-50 text-purple-800 border-purple-200 shadow-sm">
-                          Strength Indicators Only
-                        </Badge>
-                      </CardTitle>
-                      <CardDescription className="text-gray-200">
-                        Financial health indicators - detailed data shared only when connected
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      {accountingIntegration?.auth_status === 'connected' ? (
-                        <div className="text-center py-4">
-                          <div className="bg-green-50/80 border border-green-200/70 rounded-lg p-4 mb-4">
-                            <p className="font-medium text-green-800">✓ Financial data connected</p>
-                            <p className="text-sm text-green-600 mt-1">
-                              Connected to {accountingIntegration.provider || 'accounting software'}
-                            </p>
-                          </div>
-                          <Badge variant="default" className="bg-purple-600 text-white shadow-sm">Live Indicators</Badge>
-                        </div>
-                      ) : (
-                        <div className="text-center py-6">
-                          <div className="bg-orange-50/80 border border-orange-200/70 rounded-lg p-4 mb-4">
-                            <p className="font-medium text-orange-800">No financial data connection</p>
-                            <p className="text-sm text-orange-600 mt-1">Connect for stronger applications and better rates</p>
-                          </div>
-                          <Button 
-                            variant="outline" 
-                            onClick={() => navigate('/business/accounting/connect')} 
-                            className="border-orange-200 text-orange-700 hover:bg-orange-50 hover:border-orange-300 transition-colors"
-                          >
-                            Connect Now
                           </Button>
                         </div>
                       )}
@@ -621,11 +850,26 @@ const ApplicationReview = () => {
                     <CardContent>
                       <div className="space-y-2 mb-4">
                         {DOCUMENT_TYPES.slice(0, 3).map(docType => {
-                          const hasDocument = financialDocs?.some(doc => 
+                          const hasDocumentInFinancialDocs = financialDocs?.some(doc => 
                             (doc.documentType?.toLowerCase().includes(docType.label.toLowerCase()) || 
                              doc.documentName?.toLowerCase().includes(docType.key) || 
                              doc.documentName?.toLowerCase().includes(docType.label.toLowerCase()))
                           );
+                          
+                          // Also check in the application.financialDocuments object
+                          const hasDocumentInFinancialDocuments = 
+                            application?.financialDocuments?.[docType.key] && 
+                            Object.keys(application.financialDocuments[docType.key]).length > 0;
+                          
+                          // Also check in traditional financial_documents array
+                          const hasDocumentInTraditionalFormat = application?.financial_documents?.some(doc => 
+                            (doc.type?.toLowerCase().includes(docType.label.toLowerCase()) || 
+                             doc.type?.toLowerCase().includes(docType.key))
+                          );
+                          
+                          const hasDocument = hasDocumentInFinancialDocs || 
+                                            hasDocumentInFinancialDocuments || 
+                                            hasDocumentInTraditionalFormat;
                           
                           return (
                             <div key={docType.key} className="flex items-center justify-between bg-slate-50/70 rounded-lg p-2 border border-slate-100">
@@ -650,7 +894,7 @@ const ApplicationReview = () => {
                           <p className="text-xs text-slate-500 text-center">+{DOCUMENT_TYPES.length - 3} more document types</p>
                         )}
                       </div>
-                      {(!financialDocs || financialDocs.length === 0) && (
+                      {(!hasFinancialDocs) && (
                         <div className="text-center">
                           <div className="bg-orange-50/80 border border-orange-200/70 rounded-lg p-3 mb-3">
                             <p className="text-sm font-medium text-orange-800">No documents uploaded</p>
@@ -666,12 +910,15 @@ const ApplicationReview = () => {
                           </Button>
                         </div>
                       )}
-                      {(financialDocs && financialDocs.length > 0) && (
+                      {(hasFinancialDocs) && (
                         <div className="text-center bg-green-50/80 border border-green-200/70 rounded-lg p-3 mt-2">
-                          <p className="text-sm font-medium text-green-800">
-                            ✓ {financialDocs.length} financial document{financialDocs.length !== 1 ? 's' : ''} uploaded
-                          </p>
-                          <p className="text-xs text-green-600 mt-1">Financial documents are ready for lender review</p>
+                          <div className="flex items-center justify-center mb-1">
+                            <CheckCircle className="h-4 w-4 text-green-600 mr-2" />
+                            <p className="text-sm font-medium text-green-800">
+                              Financial documents ready
+                            </p>
+                          </div>
+                          <p className="text-xs text-green-600">Documents will be shared when matched with lenders</p>
                         </div>
                       )}
                     </CardContent>
@@ -747,10 +994,18 @@ const ApplicationReview = () => {
               <div className="flex gap-4 justify-between mb-8">
                 <Button
                   variant="outline"
-                  onClick={() => navigate('/applications')}
+                  onClick={handleSaveAsDraft}
+                  disabled={isSubmitting}
                   className="flex-1 bg-white/80 backdrop-blur-sm border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-slate-400 transition-all duration-200 shadow-sm hover:shadow-md"
                 >
-                  Save as Draft
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Save as Draft"
+                  )}
                 </Button>
                 <Button
                   onClick={handleSubmit}
@@ -763,9 +1018,15 @@ const ApplicationReview = () => {
                       Submitting Anonymous Application...
                     </>
                   ) : completeness.percentage < 100 ? (
-                    'Complete Application to Submit'
+                    <>
+                      <AlertTriangle className="h-4 w-4 mr-2" />
+                      Complete Application ({completeness.completed} of {completeness.total})
+                    </>
                   ) : (
-                    'Submit Anonymous Application'
+                    <>
+                      <Zap className="h-4 w-4 mr-2" />
+                      Submit Anonymous Application
+                    </>
                   )}
                 </Button>
               </div>

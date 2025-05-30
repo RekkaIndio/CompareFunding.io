@@ -41,7 +41,7 @@ interface Application extends BaseAudit {
   application_date: string | Date; // ISO string or Date
   documents_submitted?: string[];
   matched_lenders?: string[]; // Array of lender IDs
-  business_profile_snapshot?: BusinessProfile; // Snapshot at time of application
+  businesses_snapshot?: BusinessProfile; // Snapshot at time of application
 }
 
 interface Offer extends BaseAudit {
@@ -145,7 +145,7 @@ const BusinessDashboard = () => {
       if (user?.uid) {
         setOverallDashboardLoading(true);
         try {
-          const profilePromise = getDocument('business_profiles', user.uid);
+          const profilePromise = getDocument('businesses', user.uid);
           const applicationsPromise = getDocuments('applications', [{ field: 'user_id', operator: '==', value: user.uid }]);
           const offersPromise = getDocuments('offers', [{ field: 'user_id', operator: '==', value: user.uid }]); // Assuming offers are linked to user_id directly or via application_id
           const notificationsPromise = getDocuments('notifications', [{ field: 'user_id', operator: '==', value: user.uid }, { field: 'read', operator: '==', value: false }]);

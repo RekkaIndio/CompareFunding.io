@@ -52,9 +52,21 @@ const Applications = () => {
     queryKey: ['businessProfile', user?.uid],
     queryFn: async () => {
       if (!user?.uid) return null;
-      const { data, error } = await getDocument('business_profiles', user?.uid);
-      if (error) throw error;
-      return data;
+      // First try to fetch from businesses collection
+      const businessesResult = await getDocument('businesses', user?.uid);
+      if (businessesResult.data) {
+        console.log('Found business profile in businesses collection');
+        return { ...businessesResult.data, _source: 'businesses' };
+      }
+      // If not found, try business_profiles collection
+      const profilesResult = await getDocument('business_profiles', user?.uid);
+      if (profilesResult.error) throw profilesResult.error;
+      if (profilesResult.data) {
+        console.log('Found business profile in business_profiles collection');
+        return { ...profilesResult.data, _source: 'business_profiles' };
+      }
+      console.log('No business profile found in either collection');
+      return null;
     },
     enabled: !!user?.uid
   });
@@ -136,7 +148,7 @@ const Applications = () => {
         throw err;
       }
     },
-    enabled: !!user?.uid && !!businessProfile, // Make sure we've loaded the business profile first
+    enabled: !!user?.uid, // Don't wait for business profile, we'll check it inside the queryFn
     staleTime: 30000, // 30 seconds - reduce this to refresh more frequently
     refetchOnWindowFocus: true,
     retry: 2

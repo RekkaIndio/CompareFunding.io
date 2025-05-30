@@ -17,11 +17,25 @@ const ProfileLogo: React.FC<ProfileLogoProps> = ({ role, isCollapsed, className 
     const fetchProfile = async () => {
       if (!user?.uid) return;
       
-      const collection = role === 'lender' ? 'lender_profiles' : 'business_profiles';
-      const { data, error } = await getDocument(collection, user.uid);
-      
-      if (!error && data) {
-        setProfile(data);
+      try {
+        // First try the new structure
+        const collection = role === 'lender' ? 'lender_profiles' : 'businesses';
+        const result = await getDocument(collection, user.uid);
+        
+        if (result && result.data) {
+          setProfile(result.data);
+          return;
+        }
+        
+        // Fallback to the old structure if needed
+        if (role === 'business') {
+          const oldResult = await getDocument('businesses', user.uid);
+          if (oldResult && oldResult.data) {
+            setProfile(oldResult.data);
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching profile:", err);
       }
     };
 

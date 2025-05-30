@@ -50,12 +50,12 @@ const businessProfileSchema = z.object({
   industry_sector: z.string().min(1, 'Industry is required'),
   company_size: z.string().min(1, 'Company size is required'),
   company_number: z.string().optional(),
-  description: z.string().optional(),
+  description: z.string().min(1, 'Business description is required'),
   website: z.string().url('Please enter a valid URL').optional().or(z.literal('')),
   logo_url: z.string().optional(),
-  address_line1: z.string().optional(),
-  city: z.string().optional(),
-  postal_code: z.string().optional(),
+  address_line1: z.string().min(1, 'Address is required'),
+  city: z.string().min(1, 'City is required'),
+  postal_code: z.string().min(1, 'Postal code is required'),
   country: z.string().optional(),
   incorporation_date: z.string().optional(),
   // Additional business fields
@@ -143,6 +143,16 @@ const BusinessProfile = () => {
       postal_code: '',
       country: 'United Kingdom',
       incorporation_date: '',
+      business_email: '',
+      business_phone: '',
+      vat_number: '',
+      annual_revenue: '',
+      logo_url: '',
+      trading_address_different: false,
+      trading_address_line1: '',
+      trading_address_city: '',
+      trading_address_postal_code: '',
+      trading_address_country: 'United Kingdom',
     },
   });
 
@@ -154,7 +164,15 @@ const BusinessProfile = () => {
       setIsLoading(true);
       
       try {
-        const { data, error } = await getDocument('business_profiles', user.uid);
+        // First try to fetch from 'businesses' collection (which is where BusinessDetailsForm.tsx saves data)
+        let { data, error } = await getDocument('businesses', user.uid);
+        
+        // If no data in businesses, try the business_profiles collection as fallback
+        if (error || !data) {
+          const businessProfilesResult = await getDocument('business_profiles', user.uid);
+          data = businessProfilesResult.data;
+          error = businessProfilesResult.error;
+        }
           
         if (error) {
           // Not an error if document doesn't exist yet
@@ -165,26 +183,36 @@ const BusinessProfile = () => {
         if (data) {
           // Extract address fields from the address object
           const addressData = data.address || {};
+          const tradingAddressData = data.trading_address || {};
           
           setProfileExists(true);
           setProfile(data);
           
           // Update form values with the extracted address fields, logo URL, and website summary
           form.reset({
-            business_name: data.business_name || '',
-            industry_sector: data.industry_sector || '',
+            business_name: data.business_name || data.name || '',
+            industry_sector: data.industry_sector || data.industry || '',
             company_size: data.company_size || '',
             company_number: data.company_number || '',
-            description: data.website_summary || '', // Use website summary as the business description
+            description: data.description || data.businessDescription || data.website_summary || '', // Use description or website summary
             website: data.website || '',
-            address_line1: addressData.street || '',
+            business_email: data.business_email || '',
+            business_phone: data.business_phone || '',
+            address_line1: addressData.line1 || addressData.street || '',
             city: addressData.city || '',
             postal_code: addressData.postal_code || '',
             country: addressData.country || 'United Kingdom',
+            trading_address_different: !!data.trading_address,
+            trading_address_line1: tradingAddressData.line1 || '',
+            trading_address_city: tradingAddressData.city || '',
+            trading_address_postal_code: tradingAddressData.postal_code || '',
+            trading_address_country: tradingAddressData.country || 'United Kingdom',
             incorporation_date: data.incorporation_date
               ? new Date(data.incorporation_date).toISOString().split('T')[0]
               : '',
             logo_url: data.logo_url || '',
+            vat_number: data.vat_number || '',
+            annual_revenue: data.forecastRevenue || data.annual_revenue || '',
           });
         }
       } catch (err) {
@@ -195,8 +223,152 @@ const BusinessProfile = () => {
       }
     };
     
-    fetchBusinessProfile();
+    // Fetch profile data when component mounts
+    const fetchProfile = async () => {
+      if (!user) return;
+      
+      setIsLoading(true);
+      
+      try {
+        // First try to fetch from 'businesses' collection (which is where BusinessDetailsForm.tsx saves data)
+        let { data, error } = await getDocument('businesses', user.uid);
+        
+        // If no data in businesses, try the business_profiles collection as fallback
+        if (error || !data) {
+          const businessProfilesResult = await getDocument('businesses', user.uid);
+          data = businessProfilesResult.data;
+          error = businessProfilesResult.error;
+        }
+          
+        if (error) {
+          // Not an error if document doesn't exist yet
+          setIsLoading(false);
+          return;
+        }
+        
+        if (data) {
+          // Extract address fields from the address object
+          const addressData = data.address || {};
+          const tradingAddressData = data.trading_address || {};
+          
+          setProfileExists(true);
+          setProfile(data);
+          
+          // Update form values with the extracted address fields, logo URL, and website summary
+          form.reset({
+            business_name: data.business_name || data.name || '',
+            industry_sector: data.industry_sector || data.industry || '',
+            company_size: data.company_size || '',
+            company_number: data.company_number || '',
+            description: data.description || data.businessDescription || data.website_summary || '', // Use description or website summary
+            website: data.website || '',
+            business_email: data.business_email || '',
+            business_phone: data.business_phone || '',
+            address_line1: addressData.line1 || addressData.street || '',
+            city: addressData.city || '',
+            postal_code: addressData.postal_code || '',
+            country: addressData.country || 'United Kingdom',
+            trading_address_different: !!data.trading_address,
+            trading_address_line1: tradingAddressData.line1 || '',
+            trading_address_city: tradingAddressData.city || '',
+            trading_address_postal_code: tradingAddressData.postal_code || '',
+            trading_address_country: tradingAddressData.country || 'United Kingdom',
+            incorporation_date: data.incorporation_date
+              ? new Date(data.incorporation_date).toISOString().split('T')[0]
+              : '',
+            logo_url: data.logo_url || '',
+            vat_number: data.vat_number || '',
+            annual_revenue: data.forecastRevenue || data.annual_revenue || '',
+          });
+        }
+      } catch (err) {
+        console.error('Error fetching profile:', err);
+        toast.error('Failed to load business profile');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchProfile();
   }, [user, form]);
+
+  // Call updateFormWithBusinessData when component mounts
+  useEffect(() => {
+    if (user && !isLoading) {
+      updateFormWithBusinessData();
+    }
+  }, [user, isLoading]);    // Add a function to update form values with business data
+    const updateFormWithBusinessData = async () => {
+    if (!user) return;
+    
+    try {
+      // First check the businesses collection
+      const { data: businessData, error: businessError } = await getDocument('businesses', user.uid);
+      
+      if (businessData) {
+        console.log('Found business data in businesses collection:', businessData);
+        
+        // Get current form values
+        const currentValues = form.getValues();
+        
+        // Extract relevant fields
+        const websiteSummary = businessData.website_summary || '';
+        const businessDescription = businessData.businessDescription || '';
+        const logoUrl = businessData.logo_url || '';
+        const addressData = businessData.address || {};
+        
+        // Update form if the field is currently empty
+        if (!currentValues.description) {
+          form.setValue('description', businessDescription || websiteSummary);
+        }
+        
+        if (!currentValues.logo_url && logoUrl) {
+          form.setValue('logo_url', logoUrl);
+        }
+        
+        if (!currentValues.business_name && businessData.business_name) {
+          form.setValue('business_name', businessData.business_name);
+        }
+        
+        if (!currentValues.company_number && businessData.company_number) {
+          form.setValue('company_number', businessData.company_number);
+        }
+        
+        if (!currentValues.industry_sector && businessData.industry) {
+          form.setValue('industry_sector', businessData.industry);
+        }
+        
+        if (!currentValues.company_size && businessData.company_size) {
+          form.setValue('company_size', businessData.company_size);
+        }
+        
+        if (!currentValues.website && businessData.website) {
+          form.setValue('website', businessData.website);
+        }
+        
+        // Update address fields if they're empty
+        if (!currentValues.address_line1 && addressData.street) {
+          form.setValue('address_line1', addressData.street);
+        }
+        
+        if (!currentValues.city && addressData.city) {
+          form.setValue('city', addressData.city);
+        }
+        
+        if (!currentValues.postal_code && addressData.postal_code) {
+          form.setValue('postal_code', addressData.postal_code);
+        }
+        
+        if (addressData.country && !currentValues.country) {
+          form.setValue('country', addressData.country);
+        }
+        
+        toast.success('Loaded business details from your profile');
+      }
+    } catch (err) {
+      console.error('Error checking for business data:', err);
+    }
+  };
 
   const onSubmit = async (values: BusinessProfileFormValues) => {
     if (!user) return;
@@ -204,48 +376,89 @@ const BusinessProfile = () => {
     setIsSubmitting(true);
     
     try {
-      // Create address object
-      const address = {
-        line1: values.address_line1,
-      };
+      console.log('Form values:', values); // Debug log
       
       // Format incorporation date
       const incorporationDate = values.incorporation_date ? new Date(values.incorporation_date).toISOString() : null;
       
-      const profileData = {
-        business_name: values.business_name,
-        industry_sector: values.industry_sector,
-        company_size: values.company_size,
-        company_number: values.company_number || null,
-        description: values.description || null,
-        website: values.website || null,
-        address: address,
-        city: values.city || null,
-        postal_code: values.postal_code || null,
+      // Create a complete address object
+      const address = {
+        line1: values.address_line1,
+        street: values.address_line1, // Include both for compatibility
+        city: values.city,
+        postal_code: values.postal_code,
         country: values.country || 'United Kingdom',
-        incorporation_date: incorporationDate,
       };
+
+      // Create trading address if different
+      const tradingAddress = values.trading_address_different ? {
+        line1: values.trading_address_line1,
+        street: values.trading_address_line1,
+        city: values.trading_address_city,
+        postal_code: values.trading_address_postal_code,
+        country: values.trading_address_country || 'United Kingdom',
+      } : null;
       
-      let result;
+      // Utility to remove undefined values (Firestore does not allow undefined)
+      function cleanObject(obj: any) {
+        if (obj === undefined) return null;
+        if (obj === null || typeof obj !== 'object') return obj;
+        const cleaned: any = Array.isArray(obj) ? [] : {};
+        for (const key in obj) {
+          if (Object.prototype.hasOwnProperty.call(obj, key)) {
+            const value = obj[key];
+            if (value !== undefined) {
+              cleaned[key] = cleanObject(value);
+            }
+          }
+        }
+        return cleaned;
+      }
+
+      const profileDataRaw = {
+        business_name: values.business_name,
+        name: values.business_name, // For compatibility with businesses collection
+        industry_sector: values.industry_sector,
+        industry: values.industry_sector, // For compatibility with businesses collection
+        company_size: values.company_size,
+        company_number: values.company_number,
+        description: values.description,
+        website: values.website,
+        business_email: values.business_email,
+        business_phone: values.business_phone,
+        vat_number: values.vat_number,
+        annual_revenue: values.annual_revenue,
+        forecastRevenue: values.annual_revenue, // For compatibility with businesses collection
+        address: address,
+        trading_address: tradingAddress,
+        incorporation_date: incorporationDate,
+        updatedAt: new Date(),
+      };
+      const profileData = cleanObject(profileDataRaw);
       
+      // Save to businesses collection
+      let businessProfilesResult;
       if (profileExists) {
         // Update existing profile
-        result = await updateDocument('business_profiles', user.uid, profileData);
+        businessProfilesResult = await updateDocument('businesses', user.uid, profileData);
       } else {
         // Insert new profile
-        result = await createDocument('business_profiles', profileData, user.uid);
+        businessProfilesResult = await createDocument('businesses', profileData, user.uid);
       }
       
-      if (result.error) {
-        console.error('Error saving business profile:', result.error);
+      // Also save to businesses collection for consistency
+      const businessesResult = await updateDocument('businesses', user.uid, {
+        ...profileData,
+        updatedAt: new Date()
+      });
+      
+      if (businessProfilesResult.error && businessesResult.error) {
+        console.error('Error saving business profile:', businessProfilesResult.error);
         toast.error('Failed to save business profile');
         return;
       }
       
       toast.success('Business profile saved successfully');
-      
-      // Navigate to dashboard or accounting connection
-      navigate('/business/dashboard');
     } catch (err) {
       console.error('Error saving profile:', err);
       toast.error('Failed to save business profile');
@@ -366,7 +579,7 @@ const BusinessProfile = () => {
       const colors = [];
       
       // Update the profile with both logo and colors
-      const { error } = await updateDocument('business_profiles', user.uid, {
+      const { error } = await updateDocument('businesses', user.uid, {
         logo_url: logoUrl,
         theme_colors: colors
       });
@@ -412,53 +625,15 @@ const BusinessProfile = () => {
 
   // Add logo fetching and saving logic
   useEffect(() => {
-    const fetchBusinessProfile = async () => {
-      if (!user) return;
-
-      setIsLoading(true);
-
-      try {
-        const { data, error } = await getDocument('business_profiles', user.uid);
-
-        if (error) {
-          setIsLoading(false);
-          return;
-        }
-
-        if (data) {
-          // Extract address fields from the address object
-          const addressData = data.address || {};
-
-          setProfileExists(true);
-          setProfile(data);
-
-          // Update form values with the extracted address fields, logo URL, and website summary
-          form.reset({
-            business_name: data.business_name || '',
-            industry_sector: data.industry_sector || '',
-            company_size: data.company_size || '',
-            company_number: data.company_number || '',
-            description: data.website_summary || '', // Use website summary as the business description
-            website: data.website || '',
-            address_line1: addressData.street || '',
-            city: addressData.city || '',
-            postal_code: addressData.postal_code || '',
-            country: addressData.country || 'United Kingdom',
-            incorporation_date: data.incorporation_date
-              ? new Date(data.incorporation_date).toISOString().split('T')[0]
-              : '',
-            logo_url: data.logo_url || '',
-          });
-        }
-      } catch (err) {
-        console.error('Error fetching profile:', err);
-        toast.error('Failed to load business profile');
-      } finally {
-        setIsLoading(false);
+    // This functionality is now handled in the first useEffect
+    const fetchAndSaveLogo = () => {
+      const website = form.getValues('website');
+      if (website) {
+        fetchWebsiteLogo(website);
       }
     };
 
-    fetchBusinessProfile();
+    // No need to call fetchBusinessProfile here as it's handled elsewhere
   }, [user, form]);
 
   const fetchAndSaveLogo = async (website: string) => {
@@ -614,11 +789,15 @@ const BusinessProfile = () => {
                         <FormLabel>Business Description</FormLabel>
                         <FormControl>
                           <Textarea 
+                            value={field.value || ''}
+                            onChange={field.onChange}
                             placeholder="Briefly describe your business activities and services" 
-                            className="resize-none"
-                            {...field} 
+                            className="resize-none min-h-[100px]"
                           />
                         </FormControl>
+                        <FormDescription>
+                          Provide a clear description of your business activities
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -800,38 +979,6 @@ const BusinessProfile = () => {
                               <div className="flex">
                                 <PhoneIcon className="w-4 h-4 text-muted-foreground absolute mt-2.5 ml-2.5" />
                                 <Input className="pl-8" type="tel" placeholder="+44" {...field} />
-                              </div>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="vat_number"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>VAT Number</FormLabel>
-                            <FormControl>
-                              <Input placeholder="GB123456789" {...field} />
-                            </FormControl>
-                            <FormDescription>If your business is VAT registered</FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="annual_revenue"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Annual Revenue</FormLabel>
-                            <FormControl>
-                              <div className="flex">
-                                <BadgePoundSterling className="w-4 h-4 text-muted-foreground absolute mt-2.5 ml-2.5" />
-                                <Input className="pl-8" placeholder="100000" {...field} />
                               </div>
                             </FormControl>
                             <FormMessage />
