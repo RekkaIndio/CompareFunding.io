@@ -2,6 +2,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { getDocument, expressInterestInApplication } from '@/firebase';
+import { consolidateBusinessData, normalizeCreditScoreData } from '@/services';
+import { collection, query, orderBy, getDocs, getFirestore, doc, getDoc, where, setDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { toast } from 'sonner';
 import PageLayout from '@/components/PageLayout';
 import { Button } from '@/components/ui/button';
@@ -10,6 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   ArrowLeft,
   Building2,
@@ -29,10 +32,13 @@ import {
   Shield,
   CheckCircle,
   ThumbsUp,
-  Star
+  Star,
+  Download,
+  Eye
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import FinancialsTable from '@/pages/Business/Documents/FinancialsTable';
 
 const BusinessDetail = () => {
   const { id } = useParams();
@@ -41,16 +47,7 @@ const BusinessDetail = () => {
   const queryClient = useQueryClient();
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Update isAlreadyMatched function to use correct data structure
-  const isAlreadyMatched = () => {
-    if (!applicationData?.application) return false;
-    const isInMatchedLenders = applicationData.application.matched_lenders?.includes(user?.uid);
-    const hasExpressedInterest = applicationData.application.interested_lenders?.some(
-      l => l.lender_id === user?.uid && (l.status === 'accepted' || l.status === 'pending')
-    );
-    return isInMatchedLenders || hasExpressedInterest;
-  };
+  const db = getFirestore();
 
   // Add lender profile query
   const { data: lenderProfile } = useQuery({
@@ -67,6 +64,442 @@ const BusinessDetail = () => {
     },
     enabled: !!user?.uid,
   });
+
+  // Fetch application and associated business data first
+  const { data: applicationData, isLoading, error } = useQuery({
+    queryKey: ['businessDetail', id],
+    queryFn: async () => {
+      if (!id || !user) throw new Error('Invalid request');
+
+      try {
+        // Try to get application details first
+        const { data: application, error: appError } = await getDocument('applications', id);
+        
+        // If we found an application, get the business details through the application
+        if (!appError && application) {
+          console.log('[DEBUG Business ID] Found application:', application);
+          console.log('[DEBUG Business ID] Application business_id:', application.business_id);
+          console.log('[DEBUG Business ID] Application user_id:', application.user_id);
+          
+          // If no business_id, fall back to using the application owner's ID
+          const businessId = application.business_id || application.user_id;
+          if (!businessId) {
+            console.error('[DEBUG Business ID] Application missing both business_id and user_id');
+            throw new Error('Could not determine business reference');
+          }
+
+          console.log('[DEBUG Business ID] Trying to fetch business profile with ID:', businessId);
+
+          // Get business profile using business_id or user_id from the application
+          const { data: business, error: businessError } = await getDocument(
+            'businesses',
+            businessId
+          );
+          
+          if (businessError) {
+            console.error('[DEBUG Business ID] Error fetching business profile:', businessError);
+            // If business profile doesn't exist, create a basic business object
+            console.warn('[DEBUG Business ID] Business profile not found, using basic application data');
+            return {
+              application,
+              business: {
+                business_name: `Application #${application.application_number || id?.substring(0, 8)}`,
+                industry_sector: 'Not specified',
+                description: 'Business profile not available'
+              },
+              accounting: null,
+              creditScore: null
+            };
+          }
+
+          if (!business) {
+            console.warn('Business profile is null, using basic application data');
+            return {
+              application,
+              business: {
+                business_name: `Application #${application.application_number || id?.substring(0, 8)}`,
+                industry_sector: 'Not specified',
+                description: 'Business profile not available'
+              },
+              accounting: null,
+              creditScore: null
+            };
+          }
+
+          // Get accounting data if connected
+          const { data: accounting } = await getDocument(
+            'accounting_integrations',
+            businessId
+          );
+
+          // Get credit score data - UPDATED TO CHECK BOTH LOCATIONS
+          let creditScore = null;
+          
+          // First check businesses (current location)
+          if (business && business.credit_info) {
+            console.log('[DEBUG] Found credit score in businesses:', business.credit_info);
+            creditScore = business.credit_info;
+          } else {
+            // If not found, try the businesses collection
+            try {
+              const businessDoc = await getDoc(doc(db, "businesses", businessId));
+              if (businessDoc.exists() && businessDoc.data().credit_info) {
+                console.log('[DEBUG] Found credit score in businesses collection:', businessDoc.data().credit_info);
+                creditScore = businessDoc.data().credit_info;
+              }
+            } catch (err) {
+              console.error('[DEBUG] Error fetching credit score from businesses collection:', err);
+            }
+            
+            // If still not found, try dedicated credit_scores collection as a fallback
+            if (!creditScore) {
+              const { data: creditScoreData } = await getDocument(
+                'credit_scores',
+                businessId
+              );
+              if (creditScoreData) {
+                console.log('[DEBUG] Found credit score in credit_scores collection:', creditScoreData);
+                creditScore = creditScoreData;
+              }
+            }
+          }
+
+          // Normalize credit score data before returning
+          const normalizedCreditScore = normalizeCreditScoreData(creditScore);
+          
+          return {
+            application,
+            business,
+            accounting,
+            creditScore: normalizedCreditScore
+          };
+        } 
+        
+        // If no application found, try direct business profile lookup
+        console.log('No application found, trying direct business lookup with ID:', id);
+        const { data: business, error: businessError } = await getDocument('businesses', id);
+        
+        if (businessError) {
+          console.error('Error fetching business profile:', businessError);
+          throw new Error(`Could not find business profile: ${businessError.message || 'Unknown error'}`);
+        }
+        
+        if (!business) {
+          console.error('Business profile not found for ID:', id);
+          throw new Error('Business profile not found');
+        }
+
+        // Get accounting data if available
+        const { data: accounting } = await getDocument(
+          'accounting_integrations',
+          id
+        );
+
+        // Get credit score data if available
+        const { data: creditScore } = await getDocument(
+          'credit_scores',
+          id
+        );
+
+        return {
+          business,
+          application: null,
+          accounting,
+          creditScore
+        };
+      } catch (err) {
+        console.error('Error in businessDetail query:', err);
+        throw err;
+      }
+    },
+    enabled: !!id && !!user?.uid,
+    retry: 1
+  });
+
+  // Fetch financial data from the businesses/{businessId}/financials collection
+  const { data: financialData } = useQuery({
+    queryKey: ['businessFinancials', id, applicationData?.application?.business_id, applicationData?.application?.user_id],
+    queryFn: async () => {
+      if (!id || !applicationData) return {};
+
+      try {
+        // Get business ID from various possible locations
+        let businessId = null;
+        
+        // Check if it's directly in the application
+        if (applicationData.application?.business_id) {
+          businessId = applicationData.application.business_id;
+          console.log('[DEBUG] Found business_id in application:', businessId);
+        }
+        
+        // If not in application, check if it's in the business object
+        else if (applicationData.business?.id) {
+          businessId = applicationData.business.id;
+          console.log('[DEBUG] Found business ID in business object:', businessId);
+        }
+        
+        // Fall back to user_id if no business_id is available
+        else if (applicationData.application?.user_id) {
+          // In this case, we need to first get the businessId from the user document
+          const userRef = doc(db, "users", applicationData.application.user_id);
+          const userSnap = await getDoc(userRef);
+          
+          if (userSnap.exists() && userSnap.data().businessId) {
+            businessId = userSnap.data().businessId;
+            console.log('[DEBUG] Found businessId from user document:', businessId);
+          } else {
+            // Final fallback to the user_id itself
+            businessId = applicationData.application.user_id;
+            console.log('[DEBUG] Falling back to user_id as business ID:', businessId);
+          }
+        }
+        
+        // Last resort fallback to the application ID
+        if (!businessId) {
+          businessId = id;
+          console.log('[DEBUG] Using application ID as fallback business ID:', businessId);
+        }
+        
+        console.log('[DEBUG] Using business ID for financials:', businessId);
+        
+        let financials = {};
+        
+        // Try direct approach first - check if the business doc itself contains financial data
+        try {
+          const businessDocRef = doc(db, "businesses", businessId);
+          const businessDoc = await getDoc(businessDocRef);
+          
+          if (businessDoc.exists()) {
+            console.log('[DEBUG] Found business document:', businessId);
+            // If the business document has direct financial data fields
+            const data = businessDoc.data();
+            if (data.financials || data.financial_data) {
+              console.log('[DEBUG] Found embedded financial data in business document');
+              financials = data.financials || data.financial_data || {};
+            }
+          }
+        } catch (e) {
+          console.error('[DEBUG] Error fetching business document:', e);
+        }
+        
+        // If we didn't find embedded financials, try the subcollection
+        if (Object.keys(financials).length === 0) {
+          console.log('[DEBUG] Trying financials subcollection');
+          const financialsCollection = collection(db, "businesses", businessId, "financials");
+          const querySnapshot = await getDocs(query(financialsCollection, orderBy("createdAt", "desc")));
+          
+          console.log(`[DEBUG] Financial documents found: ${querySnapshot.size} for business ID: ${businessId}`);
+          
+          querySnapshot.forEach((doc) => {
+            const data = doc.data();
+            console.log('[DEBUG] Financial document:', doc.id, data);
+            
+            let docKey = "";
+            
+            // Map document types to keys matching the tabs
+            if (data.documentType?.toLowerCase().includes("profit") || 
+                data.documentType?.toLowerCase().includes("loss") || 
+                data.documentType === "pl") {
+              docKey = "profitLoss";
+            } else if (data.documentType?.toLowerCase().includes("balance") || 
+                      data.documentType === "bs") {
+              docKey = "balanceSheet";
+            } else if (data.documentType?.toLowerCase().includes("trial") || 
+                      data.documentType === "tb") {
+              docKey = "trialBalance";
+            } else if (data.documentType?.toLowerCase().includes("payable") || 
+                      data.documentType === "ap") {
+              docKey = "agedPayables";
+            } else if (data.documentType?.toLowerCase().includes("receivable") || 
+                      data.documentType === "ar") {
+              docKey = "agedReceivables";
+            }
+            
+            if (docKey) {
+              console.log(`[DEBUG] Mapping document type '${data.documentType}' to tab key: ${docKey}`);
+              financials[docKey] = {
+                id: doc.id,
+                ...data,
+                // Ensure we have the data field, which might be in different places
+                data: data.data || data.financialData || data.extractedData || data.json || {}
+              };
+            }
+          });
+        }
+        
+        // Also check the business_financials collection as a fallback
+        if (Object.keys(financials).length === 0) {
+          console.log('[DEBUG] Trying business_financials collection');
+          try {
+            const altFinancialsQuery = query(
+              collection(db, "business_financials"),
+              where("business_id", "==", businessId),
+              orderBy("createdAt", "desc")
+            );
+            const altQuerySnapshot = await getDocs(altFinancialsQuery);
+            console.log(`[DEBUG] Found ${altQuerySnapshot.size} documents in business_financials collection`);
+            
+            // Process documents if found
+            if (!altQuerySnapshot.empty) {
+              altQuerySnapshot.forEach((doc) => {
+                const data = doc.data();
+                // Similar processing to above...
+                // Map document types to keys matching the tabs
+                let docKey = "";
+                if (data.documentType?.toLowerCase().includes("profit") || 
+                    data.documentType?.toLowerCase().includes("loss") || 
+                    data.documentType === "pl") {
+                  docKey = "profitLoss";
+                } else if (data.documentType?.toLowerCase().includes("balance") || 
+                          data.documentType === "bs") {
+                  docKey = "balanceSheet";
+                } else if (data.documentType?.toLowerCase().includes("trial") || 
+                          data.documentType === "tb") {
+                  docKey = "trialBalance";
+                } else if (data.documentType?.toLowerCase().includes("payable") || 
+                          data.documentType === "ap") {
+                  docKey = "agedPayables";
+                } else if (data.documentType?.toLowerCase().includes("receivable") || 
+                          data.documentType === "ar") {
+                  docKey = "agedReceivables";
+                }
+                
+                if (docKey) {
+                  financials[docKey] = {
+                    id: doc.id,
+                    ...data,
+                    data: data.data || data.financialData || data.extractedData || data.json || {}
+                  };
+                }
+              });
+            }
+          } catch (e) {
+            console.error('[DEBUG] Error querying business_financials collection:', e);
+          }
+        }
+        
+        console.log('[DEBUG] Final financials object keys:', Object.keys(financials));
+        
+        // If we still have no data, check the financial_documents collection
+        if (Object.keys(financials).length === 0) {
+          try {
+            console.log('[DEBUG] Trying financial_documents collection');
+            const financialDocsQuery = query(
+              collection(db, "financial_documents"),
+              where("business_id", "==", businessId),
+              orderBy("createdAt", "desc")
+            );
+            const docsSnapshot = await getDocs(financialDocsQuery);
+            console.log(`[DEBUG] Found ${docsSnapshot.size} documents in financial_documents collection`);
+            
+            // Process if found
+            if (!docsSnapshot.empty) {
+              // Similar processing as above
+            }
+          } catch (e) {
+            console.error('[DEBUG] Error querying financial_documents collection:', e);
+          }
+        }
+
+        // Add a direct document check function to examine what's in the financials collection
+        const checkSpecificFinancialDocument = async (businessId: string) => {
+          if (!businessId) return null;
+          
+          try {
+            // Get a reference to the financials subcollection
+            const financialsCollection = collection(db, "businesses", businessId, "financials");
+            const financialsSnapshot = await getDocs(financialsCollection);
+            
+            console.log(`[DEBUG] Found ${financialsSnapshot.size} documents in financials collection`);
+            
+            // Log each document's structure
+            financialsSnapshot.forEach(doc => {
+              const data = doc.data();
+              console.log(`[DEBUG] Document ID: ${doc.id}`);
+              console.log(`[DEBUG] Document Data:`, data);
+              
+              // Check if document has nested data
+              if (data.data) {
+                console.log(`[DEBUG] Document has nested data field:`, typeof data.data);
+                if (typeof data.data === 'string') {
+                  try {
+                    // Try to parse if it's stringified JSON
+                    const parsedData = JSON.parse(data.data);
+                    console.log(`[DEBUG] Parsed data:`, parsedData);
+                  } catch (e) {
+                    console.log(`[DEBUG] Could not parse data as JSON:`, e);
+                  }
+                }
+              }
+            });
+            
+            return financialsSnapshot.size > 0;
+          } catch (e) {
+            console.error(`[DEBUG] Error checking financial documents:`, e);
+            return null;
+          }
+        };
+
+        return financials;
+      } catch (error) {
+        console.error("[DEBUG] Error fetching financial data:", error);
+        return {};
+      }
+    },
+    enabled: !!id && !!applicationData,
+    retry: 1,
+  });
+
+  // Admin state for migration status
+  const [migrationStatus, setMigrationStatus] = useState({
+    isRunning: false,
+    results: null,
+    error: null
+  });
+
+  // Handle data migration
+  const handleDataMigration = async () => {
+    if (!id) return;
+    
+    setMigrationStatus({ isRunning: true, results: null, error: null });
+    
+    try {
+      // Get the correct business ID from applicationData
+      const businessId = 
+        applicationData?.business?.id || 
+        applicationData?.application?.business_id || 
+        applicationData?.application?.user_id || 
+        id;
+      
+      toast.info(`Starting data migration for business ${businessId}...`);
+      
+      // Use our new consolidated migration service
+      const results = await consolidateBusinessData(businessId);
+      
+      setMigrationStatus({ 
+        isRunning: false, 
+        results: results, 
+        error: null 
+      });
+      
+      if (results.success) {
+        toast.success(`Data migration complete. ${results.dataMigrated?.length || 0} items migrated.`);
+        // Refresh data
+        queryClient.invalidateQueries({ queryKey: ['businessDetail', id] });
+        queryClient.invalidateQueries({ queryKey: ['businessFinancials'] });
+      } else {
+        toast.error(`Migration issue: ${results.message}`);
+      }
+    } catch (error) {
+      console.error('[ADMIN] Error in data migration:', error);
+      setMigrationStatus({ 
+        isRunning: false, 
+        results: null, 
+        error: error.message 
+      });
+      toast.error(`Migration error: ${error.message}`);
+    }
+  };
 
   // Express interest mutation
   const expressInterestMutation = useMutation({
@@ -105,93 +538,46 @@ const BusinessDetail = () => {
     expressInterestMutation.mutate();
   };
 
-  // Fetch application and associated business data
-  const { data: applicationData, isLoading, error } = useQuery({
-    queryKey: ['businessDetail', id],
-    queryFn: async () => {
-      if (!id || !user) throw new Error('Invalid request');
+  // Update isAlreadyMatched function to use correct data structure
+  const isAlreadyMatched = () => {
+    if (!applicationData?.application) return false;
+    const isInMatchedLenders = applicationData.application.matched_lenders?.includes(user?.uid);
+    const hasExpressedInterest = applicationData.application.interested_lenders?.some(
+      l => l.lender_id === user?.uid && (l.status === 'accepted' || l.status === 'pending')
+    );
+    return isInMatchedLenders || hasExpressedInterest;
+  };
 
-      try {
-        // Try to get application details first
-        const { data: application, error: appError } = await getDocument('applications', id);
-        
-        // If we found an application, get the business details through the application
-        if (!appError && application) {
-          console.log('Found application:', application);
-          
-          // If no business_id, fall back to using the application owner's ID
-          const businessId = application.business_id || application.user_id;
-          if (!businessId) {
-            console.error('Application missing both business_id and user_id');
-            throw new Error('Could not determine business reference');
-          }
-
-          // Get business profile using business_id or user_id from the application
-          const { data: business, error: businessError } = await getDocument(
-            'business_profiles',
-            businessId
-          );
-          
-          if (businessError || !business) {
-            console.error('Error fetching business profile or profile not found:', businessError);
-            throw new Error('Could not load business profile');
-          }
-
-          // Get accounting data if connected
-          const { data: accounting } = await getDocument(
-            'accounting_integrations',
-            businessId
-          );
-
-          // Get credit score data if available
-          const { data: creditScore } = await getDocument(
-            'credit_scores',
-            businessId
-          );
-
-          return {
-            application,
-            business,
-            accounting,
-            creditScore
-          };
-        } 
-        
-        // If no application found, try direct business profile lookup
-        console.log('No application found, trying direct business lookup');
-        const { data: business, error: businessError } = await getDocument('business_profiles', id);
-        
-        if (businessError || !business) {
-          console.error('Error fetching business profile or profile not found:', businessError);
-          throw new Error('Could not find business profile');
-        }
-
-        // Get accounting data if available
-        const { data: accounting } = await getDocument(
-          'accounting_integrations',
-          id
-        );
-
-        // Get credit score data if available
-        const { data: creditScore } = await getDocument(
-          'credit_scores',
-          id
-        );
-
-        return {
-          business,
-          application: null,
-          accounting,
-          creditScore
-        };
-      } catch (err) {
-        console.error('Error in businessDetail query:', err);
-        throw err;
-      }
-    },
-    enabled: !!id && !!user?.uid,
-    retry: 1
-  });
+  // Check if lender has expressed interest or made an offer (can see business details)
+  const canSeeBusinessDetails = () => {
+    if (!applicationData?.application) {
+      console.log('[DEBUG Access] No application data available, cannot see business details');
+      return false;
+    }
+    
+    // Check if lender has expressed interest (any status except declined/rejected)
+    const hasExpressedInterest = applicationData.application.interested_lenders?.some(
+      l => l.lender_id === user?.uid && l.status !== 'rejected' && l.status !== 'declined'
+    );
+    
+    // Check if lender has made an offer
+    const hasMadeOffer = applicationData.application.offers?.some(o => o.lender_id === user?.uid);
+    
+    // Check if lender is in matched_lenders array
+    const isMatched = applicationData.application.matched_lenders?.includes(user?.uid);
+    
+    console.log('[DEBUG Access] Access control check:', { 
+      userId: user?.uid, 
+      hasExpressedInterest,
+      hasMadeOffer,
+      isMatched,
+      interestedLenders: applicationData.application.interested_lenders || [],
+      offers: applicationData.application.offers || [],
+      matchedLenders: applicationData.application.matched_lenders || []
+    });
+    
+    return hasExpressedInterest || hasMadeOffer || isMatched;
+  };
 
   // Add a function to check if lender is matched
   const isLenderMatched = () => {
@@ -206,7 +592,13 @@ const BusinessDetail = () => {
   // Add function to get display name based on match status
   const getDisplayName = () => {
     if (!applicationData?.application) return 'Application Not Found';
-    return applicationData?.business?.business_name || `Application #${applicationData.application.application_number || id?.substring(0, 8)}`;
+    
+    // Only show business name if lender can see business details
+    if (canSeeBusinessDetails() && applicationData?.business?.business_name) {
+      return applicationData.business.business_name;
+    }
+    
+    return `Application #${applicationData.application.application_number || id?.substring(0, 8)}`;
   };
 
   // Update document title based on match status
@@ -215,6 +607,37 @@ const BusinessDetail = () => {
       document.title = `${getDisplayName()} | FundHub`;
     }
   }, [applicationData]);
+
+  // Debug logs for visibility checks and financial data
+  useEffect(() => {
+    if (applicationData) {
+      console.log('Can see business details:', canSeeBusinessDetails());
+      console.log('Business data available:', !!applicationData?.business);
+      console.log('Application data available:', !!applicationData?.application);
+    }
+    
+    console.log('Financial data available:', !!financialData);
+    if (financialData) {
+      console.log('Available financial documents:', Object.keys(financialData).join(', '));
+    }
+  }, [applicationData, financialData]);
+
+  // Debug output for application data
+  useEffect(() => {
+    if (applicationData) {
+      console.log('[DEBUG] Application data loaded:', applicationData);
+      
+      // Log the business ID we're using
+      const businessId = applicationData.application?.business_id || 
+                       applicationData.business?.id || 
+                       applicationData.application?.user_id;
+                       
+      console.log('[DEBUG] Business ID for financials:', businessId);
+      
+      // Log financial data state
+      console.log('[DEBUG] Financial data state:', financialData);
+    }
+  }, [applicationData, financialData]);
 
   if (error) {
     console.error('BusinessDetail error:', error);
@@ -383,8 +806,8 @@ const BusinessDetail = () => {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  {isLenderMatched() ? (
-                    // Show full business details when matched
+                  {canSeeBusinessDetails() ? (
+                    // Show full business details when lender has expressed interest or made an offer
                     <>
                       <div>
                         <h3 className="font-medium mb-2">About</h3>
@@ -480,254 +903,281 @@ const BusinessDetail = () => {
                 </CardContent>
               </Card>
 
-              {/* Financial Data Card - Only show for matched lenders */}
-              {isLenderMatched() && (
-                <Card className="bg-white/90 backdrop-blur-sm border border-slate-200/50 shadow-xl hover:shadow-2xl transition-all duration-300">
+              {/* Financial Data Card with Tabs - Always visible */}
+                <Card className="bg-white/90 backdrop-blur-sm border border-slate-200/50 shadow-xl hover:shadow-2xl transition-all duration-300 mb-8">
                   <CardHeader className="bg-[#212936] text-white rounded-t-xl border-b-2 border-[#ff8000]">
-                    <CardTitle className="text-white">Financial Performance</CardTitle>
-                    <CardDescription className="text-gray-200">
-                      Recent financial data and key metrics
-                    </CardDescription>
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <CardTitle className="text-white">Financial Data</CardTitle>
+                        <CardDescription className="text-gray-200">
+                          Anonymous financial metrics extracted from business records
+                        </CardDescription>
+                      </div>
+                      {process.env.NODE_ENV === 'development' && (
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="border-slate-300 text-slate-100 hover:bg-[#212936]/80"
+                          onClick={() => {
+                            queryClient.invalidateQueries({ queryKey: ['businessFinancials'] });
+                            toast.success('Refreshing financial data...');
+                          }}
+                        >
+                          Refresh Data
+                        </Button>
+                      )}
+                    </div>
                   </CardHeader>
                   <CardContent className="p-0">
-                    {/* P&L Summary */}
-                    <div className="p-6">
-                      <h3 className="font-semibold mb-4 text-[#212936] flex items-center">
-                        <BarChart4 className="h-4 w-4 mr-2 text-[#ff8000]" /> 
-                        Profit & Loss Summary
-                      </h3>
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead>
-                            <tr className="bg-slate-50">
-                              <th className="text-left p-2">Item</th>
-                              <th className="text-right p-2">FY 2024</th>
-                              <th className="text-right p-2">FY 2023</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-100">
-                            <tr>
-                              <td className="p-2 font-medium">Revenue</td>
-                              <td className="text-right p-2">
-                                {getFinancialMetric(applicationData?.application?.financial_data?.profitAndLoss['2024']?.revenue || 0)}
-                              </td>
-                              <td className="text-right p-2">
-                                {getFinancialMetric(applicationData?.application?.financial_data?.profitAndLoss['2023']?.revenue || 0)}
-                              </td>
-                            </tr>
-                            <tr>
-                              <td className="p-2 font-medium">Cost of Sales</td>
-                              <td className="text-right p-2">
-                                {getFinancialMetric(applicationData?.application?.financial_data?.profitAndLoss['2024']?.costOfSales || 0)}
-                              </td>
-                              <td className="text-right p-2">
-                                {getFinancialMetric(applicationData?.application?.financial_data?.profitAndLoss['2023']?.costOfSales || 0)}
-                              </td>
-                            </tr>
-                            <tr className="font-medium">
-                              <td className="p-2">Gross Profit</td>
-                              <td className="text-right p-2">
-                                {getFinancialMetric(applicationData?.application?.financial_data?.profitAndLoss['2024']?.grossProfit || 0)}
-                              </td>
-                              <td className="text-right p-2">
-                                {getFinancialMetric(applicationData?.application?.financial_data?.profitAndLoss['2023']?.grossProfit || 0)}
-                              </td>
-                            </tr>
-                            <tr>
-                              <td className="p-2">Operating Expenses</td>
-                              <td className="text-right p-2">
-                                {getFinancialMetric(applicationData?.application?.financial_data?.profitAndLoss['2024']?.operatingExpenses || 0)}
-                              </td>
-                              <td className="text-right p-2">
-                                {getFinancialMetric(applicationData?.application?.financial_data?.profitAndLoss['2023']?.operatingExpenses || 0)}
-                              </td>
-                            </tr>
-                            <tr className="font-medium">
-                              <td className="p-2">Operating Profit</td>
-                              <td className="text-right p-2">
-                                {getFinancialMetric(applicationData?.application?.financial_data?.profitAndLoss['2024']?.operatingProfit || 0)}
-                              </td>
-                              <td className="text-right p-2">
-                                {getFinancialMetric(applicationData?.application?.financial_data?.profitAndLoss['2023']?.operatingProfit || 0)}
-                              </td>
-                            </tr>
-                            <tr>
-                              <td className="p-2">Net Profit</td>
-                              <td className="text-right p-2 font-bold">
-                                {getFinancialMetric(applicationData?.application?.financial_data?.profitAndLoss['2024']?.netProfit || 0)}
-                              </td>
-                              <td className="text-right p-2 font-bold">
-                                {getFinancialMetric(applicationData?.application?.financial_data?.profitAndLoss['2023']?.netProfit || 0)}
-                              </td>
-                            </tr>
-                          </tbody>
-                        </table>
+                    <Alert className="rounded-none border-x-0 border-t-0 bg-blue-50 text-blue-800 border-blue-100">
+                      <AlertDescription className="text-xs">
+                        These are anonymous financial metrics. Express interest to see full business details and company information.
+                      </AlertDescription>
+                    </Alert>
+                    <Tabs defaultValue="profitLoss" className="w-full">
+                      <TabsList className="grid grid-cols-5 w-full rounded-none border-b bg-slate-50">
+                        <TabsTrigger value="profitLoss" className="text-xs data-[state=active]:bg-[#212936] data-[state=active]:text-white">
+                          P&L
+                        </TabsTrigger>
+                        <TabsTrigger value="balanceSheet" className="text-xs data-[state=active]:bg-[#212936] data-[state=active]:text-white">
+                          Balance Sheet
+                        </TabsTrigger>
+                        <TabsTrigger value="trialBalance" className="text-xs data-[state=active]:bg-[#212936] data-[state=active]:text-white">
+                          Trial Balance
+                        </TabsTrigger>
+                        <TabsTrigger value="agedPayables" className="text-xs data-[state=active]:bg-[#212936] data-[state=active]:text-white">
+                          Aged Payables
+                        </TabsTrigger>
+                        <TabsTrigger value="agedReceivables" className="text-xs data-[state=active]:bg-[#212936] data-[state=active]:text-white">
+                          Aged Receivables
+                        </TabsTrigger>
+                      </TabsList>
+                      
+                      {/* Profit & Loss Tab */}
+                      <TabsContent value="profitLoss" className="p-6 m-0">
+                        {financialData?.profitLoss ? (
+                          <div>
+                            <div className="flex justify-between items-center mb-4">
+                              <h3 className="font-semibold text-[#212936] flex items-center">
+                                <TrendingUp className="h-4 w-4 mr-2 text-[#ff8000]" />
+                                Profit & Loss
+                              </h3>
+                              <Badge variant="secondary" className="text-xs">
+                                Last updated: {new Date(financialData.profitLoss.createdAt).toLocaleDateString()}
+                              </Badge>
+                            </div>
+                            
+                            {financialData.profitLoss.summary && (
+                              <div className="bg-slate-50 p-4 rounded-lg mb-4 border border-slate-100">
+                                <p className="text-sm text-slate-700">{financialData.profitLoss.summary}</p>
+                              </div>
+                            )}
+                            
+                            <FinancialsTable 
+                              data={financialData.profitLoss.data}
+                              summary={financialData.profitLoss.summary}
+                            />
+                          </div>
+                        ) : (
+                          <div className="text-center py-8">
+                            <FileText className="mx-auto h-12 w-12 text-slate-300 mb-3" />
+                            <h3 className="text-lg font-medium text-slate-700 mb-1">No Profit & Loss Data</h3>
+                            <p className="text-sm text-slate-500">This business hasn't uploaded a Profit & Loss statement yet.</p>
+                          </div>
+                        )}
+                      </TabsContent>
+                      
+                      {/* Balance Sheet Tab */}
+                      <TabsContent value="balanceSheet" className="p-6 m-0">
+                        {financialData?.balanceSheet ? (
+                          <div>
+                            <div className="flex justify-between items-center mb-4">
+                              <h3 className="font-semibold text-[#212936] flex items-center">
+                                <FileText className="h-4 w-4 mr-2 text-[#ff8000]" />
+                                Balance Sheet
+                              </h3>
+                              <Badge variant="secondary" className="text-xs">
+                                Last updated: {new Date(financialData.balanceSheet.createdAt).toLocaleDateString()}
+                              </Badge>
+                            </div>
+                            
+                            {financialData.balanceSheet.summary && (
+                              <div className="bg-slate-50 p-4 rounded-lg mb-4 border border-slate-100">
+                                <p className="text-sm text-slate-700">{financialData.balanceSheet.summary}</p>
+                              </div>
+                            )}
+                            
+                            <FinancialsTable 
+                              data={financialData.balanceSheet.data}
+                              summary={financialData.balanceSheet.summary}
+                            />
+                          </div>
+                        ) : (
+                          <div className="text-center py-8">
+                            <FileText className="mx-auto h-12 w-12 text-slate-300 mb-3" />
+                            <h3 className="text-lg font-medium text-slate-700 mb-1">No Balance Sheet Data</h3>
+                            <p className="text-sm text-slate-500">This business hasn't uploaded a Balance Sheet yet.</p>
+                          </div>
+                        )}
+                      </TabsContent>
+                      
+                      {/* Trial Balance Tab */}
+                      <TabsContent value="trialBalance" className="p-6 m-0">
+                        {financialData?.trialBalance ? (
+                          <div>
+                            <div className="flex justify-between items-center mb-4">
+                              <h3 className="font-semibold text-[#212936] flex items-center">
+                                <BarChart4 className="h-4 w-4 mr-2 text-[#ff8000]" />
+                                Trial Balance
+                              </h3>
+                              <Badge variant="secondary" className="text-xs">
+                                Last updated: {new Date(financialData.trialBalance.createdAt).toLocaleDateString()}
+                              </Badge>
+                            </div>
+                            
+                            {process.env.NODE_ENV === 'development' && (
+                              <div className="mb-4 p-2 bg-slate-50 border border-slate-200 rounded text-xs">
+                                <strong>Debug:</strong> Trial Balance data type: {typeof financialData.trialBalance.data}. 
+                                Keys: {typeof financialData.trialBalance.data === 'object' ? 
+                                  Object.keys(financialData.trialBalance.data || {}).join(', ') : 'Not an object'}
+                              </div>
+                            )}
+                            
+                            <FinancialsTable 
+                              data={financialData.trialBalance.data || {}}
+                              summary={financialData.trialBalance.summary}
+                            />
+                          </div>
+                        ) : (
+                          <div className="text-center py-8">
+                            <BarChart4 className="mx-auto h-12 w-12 text-slate-300 mb-3" />
+                            <h3 className="text-lg font-medium text-slate-700 mb-1">No Trial Balance Data</h3>
+                            <p className="text-sm text-slate-500">This business hasn't uploaded a Trial Balance yet.</p>
+                          </div>
+                        )}
+                      </TabsContent>
+                      
+                      {/* Aged Payables Tab */}
+                      <TabsContent value="agedPayables" className="p-6 m-0">
+                        {financialData?.agedPayables ? (
+                          <div>
+                            <div className="flex justify-between items-center mb-4">
+                              <h3 className="font-semibold text-[#212936] flex items-center">
+                                <Calendar className="h-4 w-4 mr-2 text-[#ff8000]" />
+                                Aged Payables
+                              </h3>
+                              <Badge variant="secondary" className="text-xs">
+                                Last updated: {new Date(financialData.agedPayables.createdAt).toLocaleDateString()}
+                              </Badge>
+                            </div>
+                            
+                            {process.env.NODE_ENV === 'development' && (
+                              <div className="mb-4 p-2 bg-slate-50 border border-slate-200 rounded text-xs">
+                                <strong>Debug:</strong> Aged Payables data type: {typeof financialData.agedPayables.data}. 
+                                Keys: {typeof financialData.agedPayables.data === 'object' ? 
+                                  Object.keys(financialData.agedPayables.data || {}).join(', ') : 'Not an object'}
+                              </div>
+                            )}
+                            
+                            <FinancialsTable 
+                              data={financialData.agedPayables.data || {}}
+                              summary={financialData.agedPayables.summary}
+                            />
+                          </div>
+                        ) : (
+                          <div className="text-center py-8">
+                            <Calendar className="mx-auto h-12 w-12 text-slate-300 mb-3" />
+                            <h3 className="text-lg font-medium text-slate-700 mb-1">No Aged Payables Data</h3>
+                            <p className="text-sm text-slate-500">This business hasn't uploaded Aged Payables data yet.</p>
+                          </div>
+                        )}
+                      </TabsContent>
+                      
+                      {/* Aged Receivables Tab */}
+                      <TabsContent value="agedReceivables" className="p-6 m-0">
+                        {financialData?.agedReceivables ? (
+                          <div>
+                            <div className="flex justify-between items-center mb-4">
+                              <h3 className="font-semibold text-[#212936] flex items-center">
+                                <TrendingUp className="h-4 w-4 mr-2 text-[#ff8000]" />
+                                Aged Receivables
+                              </h3>
+                              <Badge variant="secondary" className="text-xs">
+                                Last updated: {new Date(financialData.agedReceivables.createdAt).toLocaleDateString()}
+                              </Badge>
+                            </div>
+                            
+                            {process.env.NODE_ENV === 'development' && (
+                              <div className="mb-4 p-2 bg-slate-50 border border-slate-200 rounded text-xs">
+                                <strong>Debug:</strong> Aged Receivables data type: {typeof financialData.agedReceivables.data}. 
+                                Keys: {typeof financialData.agedReceivables.data === 'object' ? 
+                                  Object.keys(financialData.agedReceivables.data || {}).join(', ') : 'Not an object'}
+                              </div>
+                            )}
+                            
+                            <FinancialsTable 
+                              data={financialData.agedReceivables.data || {}}
+                              summary={financialData.agedReceivables.summary}
+                            />
+                          </div>
+                        ) : (
+                          <div className="text-center py-8">
+                            <TrendingUp className="mx-auto h-12 w-12 text-slate-300 mb-3" />
+                            <h3 className="text-lg font-medium text-slate-700 mb-1">No Aged Receivables Data</h3>
+                            <p className="text-sm text-slate-500">This business hasn't uploaded Aged Receivables data yet.</p>
+                          </div>
+                        )}
+                      </TabsContent>
+                    </Tabs>                  {/* Financial Tabs Debug (only in development) */}
+                  {process.env.NODE_ENV === 'development' && canSeeBusinessDetails() && (
+                    <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+                      <h3 className="text-sm font-medium text-yellow-800">Debug Information</h3>
+                      <div className="mt-2 text-xs">
+                        <p className="mb-1"><strong>Keys in financialData:</strong> {Object.keys(financialData || {}).join(', ') || 'None'}</p>
+                        
+                        {/* Check available financial data */}
+                        <p className="mb-1"><strong>Has profitLoss:</strong> {financialData?.profitLoss ? 'Yes' : 'No'}</p>
+                        <p className="mb-1"><strong>Has balanceSheet:</strong> {financialData?.balanceSheet ? 'Yes' : 'No'}</p>
+                        <p className="mb-1"><strong>Has trialBalance:</strong> {financialData?.trialBalance ? 'Yes' : 'No'}</p>
+                        <p className="mb-1"><strong>Has agedPayables:</strong> {financialData?.agedPayables ? 'Yes' : 'No'}</p>
+                        <p className="mb-1"><strong>Has agedReceivables:</strong> {financialData?.agedReceivables ? 'Yes' : 'No'}</p>
+                        
+                        {/* Debug structure of each document */}
+                        {financialData?.profitLoss && (
+                          <div className="mt-2">
+                            <p><strong>Profit & Loss structure:</strong></p>
+                            <ul className="list-disc ml-4">
+                              <li>Keys: {Object.keys(financialData.profitLoss).join(', ')}</li>
+                              <li>Has data: {financialData.profitLoss.data ? 'Yes' : 'No'}</li>
+                              {financialData.profitLoss.data && (
+                                <li>Data type: {typeof financialData.profitLoss.data}</li>
+                              )}
+                              {financialData.profitLoss.data && typeof financialData.profitLoss.data === 'object' && (
+                                <li>Data keys: {Object.keys(financialData.profitLoss.data).join(', ')}</li>
+                              )}
+                            </ul>
+                          </div>
+                        )}
+                        
+                        {/* IDs used for lookups */}
+                        <div className="mt-2 p-2 bg-white rounded">
+                          <p><strong>Business ID used:</strong> {applicationData.application?.business_id || applicationData.business?.id || 'Not available'}</p>
+                          <p><strong>User ID:</strong> {applicationData.application?.user_id || 'Not available'}</p>
+                          <p><strong>Application ID:</strong> {id || 'Not available'}</p>
+                        </div>
                       </div>
+                      
+                      {/* Button to force reload financial data */}
+                      <button 
+                        onClick={() => queryClient.invalidateQueries({ queryKey: ['businessFinancials'] })}
+                        className="mt-4 px-3 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600"
+                      >
+                        Reload Financial Data
+                      </button>
                     </div>
-
-                    <Separator />
-
-                    {/* Balance Sheet Summary */}
-                    <div className="p-6">
-                      <h3 className="font-semibold mb-4 text-[#212936] flex items-center">
-                        <FileText className="h-4 w-4 mr-2 text-[#ff8000]" />
-                        Balance Sheet Summary
-                      </h3>
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead>
-                            <tr className="bg-slate-50">
-                              <th className="text-left p-2">Item</th>
-                              <th className="text-right p-2">FY 2024</th>
-                              <th className="text-right p-2">FY 2023</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-100">
-                            <tr>
-                              <td className="p-2 font-medium" colSpan={3}>Assets</td>
-                            </tr>
-                            <tr>
-                              <td className="p-2 pl-6">Current Assets</td>
-                              <td className="text-right p-2">
-                                {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2024']?.currentAssets || 0)}
-                              </td>
-                              <td className="text-right p-2">
-                                {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2023']?.currentAssets || 0)}
-                              </td>
-                            </tr>
-                            <tr>
-                              <td className="p-2 pl-6">Non-Current Assets</td>
-                              <td className="text-right p-2">
-                                {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2024']?.nonCurrentAssets || 0)}
-                              </td>
-                              <td className="text-right p-2">
-                                {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2023']?.nonCurrentAssets || 0)}
-                              </td>
-                            </tr>
-                            <tr className="font-medium">
-                              <td className="p-2 pl-6">Total Assets</td>
-                              <td className="text-right p-2">
-                                {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2024']?.totalAssets || 0)}
-                              </td>
-                              <td className="text-right p-2">
-                                {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2023']?.totalAssets || 0)}
-                              </td>
-                            </tr>
-                            <tr>
-                              <td className="p-2 font-medium" colSpan={3}>Liabilities</td>
-                            </tr>
-                            <tr>
-                              <td className="p-2 pl-6">Current Liabilities</td>
-                              <td className="text-right p-2">
-                                {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2024']?.currentLiabilities || 0)}
-                              </td>
-                              <td className="text-right p-2">
-                                {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2023']?.currentLiabilities || 0)}
-                              </td>
-                            </tr>
-                            <tr>
-                              <td className="p-2 pl-6">Non-Current Liabilities</td>
-                              <td className="text-right p-2">
-                                {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2024']?.nonCurrentLiabilities || 0)}
-                              </td>
-                              <td className="text-right p-2">
-                                {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2023']?.nonCurrentLiabilities || 0)}
-                              </td>
-                            </tr>
-                            <tr className="font-medium">
-                              <td className="p-2">Net Assets</td>
-                              <td className="text-right p-2">
-                                {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2024']?.netAssets || 0)}
-                              </td>
-                              <td className="text-right p-2">
-                                {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2023']?.netAssets || 0)}
-                              </td>
-                            </tr>
-                            <tr>
-                              <td className="p-2 font-medium" colSpan={3}>Equity Shareholders Funds</td>
-                            </tr>
-                            <tr>
-                              <td className="p-2 pl-6">Share Capital</td>
-                              <td className="text-right p-2">
-                                {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2024']?.equityShareholdersFunds.shareCapital || 0)}
-                              </td>
-                              <td className="text-right p-2">
-                                {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2023']?.equityShareholdersFunds.shareCapital || 0)}
-                              </td>
-                            </tr>
-                            <tr>
-                              <td className="p-2 pl-6">Profit and Loss Account</td>
-                              <td className="text-right p-2">
-                                {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2024']?.equityShareholdersFunds.profitAndLossAccount || 0)}
-                              </td>
-                              <td className="text-right p-2">
-                                {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2023']?.equityShareholdersFunds.profitAndLossAccount || 0)}
-                              </td>
-                            </tr>
-                            <tr className="font-medium">
-                              <td className="p-2 pl-6">Total Shareholders Funds</td>
-                              <td className="text-right p-2">
-                                {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2024']?.equityShareholdersFunds.totalShareholdersFunds || 0)}
-                              </td>
-                              <td className="text-right p-2">
-                                {getFinancialMetric(applicationData?.application?.financial_data?.balanceSheet['2023']?.equityShareholdersFunds.totalShareholdersFunds || 0)}
-                              </td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-
-                    <Separator />
-
-                    {/* Key Financial Metrics */}
-                    <div className="p-6">
-                      <h3 className="font-semibold mb-4 text-[#212936] flex items-center">
-                        <TrendingUp className="h-4 w-4 mr-2 text-[#ff8000]" />
-                        Key Financial Metrics
-                      </h3>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                        <div>
-                          <div className="text-sm text-muted-foreground mb-1">Gross Profit Margin</div>
-                          <div className="text-2xl font-bold text-[#212936]">
-                            {applicationData?.application?.financial_metrics?.grossProfitMargin || 0}%
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-sm text-muted-foreground mb-1">Net Profit Margin</div>
-                          <div className="text-2xl font-bold text-[#212936]">
-                            {applicationData?.application?.financial_metrics?.netProfitMargin || 0}%
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-sm text-muted-foreground mb-1">Debt to Equity Ratio</div>
-                          <div className="text-2xl font-bold text-[#212936]">
-                            {applicationData?.application?.financial_metrics?.debtToEquityRatio || 0}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-sm text-muted-foreground mb-1">Current Ratio</div>
-                          <div className="text-2xl font-bold text-[#212936]">
-                            {applicationData?.application?.financial_metrics?.currentRatio || 0}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-sm text-muted-foreground mb-1">Quick Ratio</div>
-                          <div className="text-2xl font-bold text-[#212936]">
-                            {applicationData?.application?.financial_metrics?.quickRatio || 0}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-sm text-muted-foreground mb-1">Credit Limit</div>
-                          <div className="text-2xl font-bold text-[#212936]">
-                            {getFinancialMetric(applicationData?.application?.credit_limit || 0)}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                  )}
                   </CardContent>
                 </Card>
-              )}
             </div>
 
             {/* Right Column */}
@@ -779,22 +1229,39 @@ const BusinessDetail = () => {
                         </div>
                       </div>
                       <div className={`text-lg font-semibold ${getCreditScoreColor(applicationData.creditScore.score)}`}>
-                        {applicationData.creditScore.score >= 800 ? 'Excellent' :
-                         applicationData.creditScore.score >= 670 ? 'Good' :
-                         applicationData.creditScore.score >= 580 ? 'Fair' : 'Poor'}
+                        {applicationData.creditScore.risk_level ? applicationData.creditScore.risk_level : 
+                          applicationData.creditScore.score >= 800 ? 'Excellent' :
+                          applicationData.creditScore.score >= 670 ? 'Good' :
+                          applicationData.creditScore.score >= 580 ? 'Fair' : 'Poor'
+                        }
                       </div>
                       <p className="text-sm text-slate-500 text-center mt-2">
                         Last updated: {applicationData.creditScore.last_updated ?
                           new Date(applicationData.creditScore.last_updated).toLocaleDateString() :
                           'Not available'}
                       </p>
+                      
+                      {/* Show extra credit data if available in debug mode */}
+                      {process.env.NODE_ENV === 'development' && applicationData.creditScore.details && (
+                        <div className="mt-3 text-xs text-left bg-slate-50 p-2 rounded w-full">
+                          <p className="font-semibold mb-1">Debug - Additional Credit Data:</p>
+                          <ul className="list-disc ml-4">
+                            {Object.entries(applicationData.creditScore.details)
+                              .filter(([key]) => !['score', 'risk_level', 'last_updated'].includes(key))
+                              .slice(0, 3) // Limit to first 3 items
+                              .map(([key, value]) => (
+                                <li key={key}>{key}: {String(value)}</li>
+                              ))}
+                          </ul>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div className="text-center py-8">
                       <Shield className="mx-auto h-12 w-12 text-slate-300 mb-3" />
                       <h3 className="text-lg font-medium text-slate-700 mb-1">Credit Score Not Available</h3>
                       <p className="text-sm text-slate-500 max-w-xs mx-auto">
-                        {isLenderMatched() ? 
+                        {canSeeBusinessDetails() ? 
                           "This business hasn't connected their credit data yet." :
                           "Express interest to view the business's credit score information."}
                       </p>
@@ -846,10 +1313,185 @@ const BusinessDetail = () => {
                   </Button>
                 </CardFooter>
               </Card>
+
+              {/* Admin controls - only visible in development mode */}
+                      {process.env.NODE_ENV === 'development' && (
+                        <div className="mt-4 border-t pt-4">
+                          <h4 className="text-sm font-medium text-slate-700 mb-2">Admin Actions</h4>
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              onClick={() => {
+                                const businessId = applicationData.application?.business_id || applicationData.business?.id;
+                                if (businessId) {
+                                  toast.info(`Starting data consolidation for business ID: ${businessId}`);
+                                  consolidateBusinessData(businessId);
+                                } else {
+                                  toast.error('No business ID available for consolidation');
+                                }
+                              }}
+                              className="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded hover:bg-purple-200 border border-purple-200"
+                            >
+                              Consolidate Data
+                            </button>
+                            
+                            <button
+                              onClick={() => {
+                                queryClient.invalidateQueries({ queryKey: ['businessDetail', id] });
+                                toast.info('Refreshing all business data...');
+                              }}
+                              className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 border border-blue-200"
+                            >
+                              Refresh All Data
+                            </button>
+                          </div>
+                        </div>
+                      )}
             </div>
           </div>
         </div>
       </div>
+      
+      {/* Admin Panel - shown only in development mode */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="container mt-8 mb-12">
+          <Card className="bg-white/90 backdrop-blur-sm border border-slate-200/50 shadow-xl">
+            <CardHeader className="bg-purple-800 text-white rounded-t-xl border-b-2 border-purple-500">
+              <CardTitle className="text-white text-lg flex items-center">
+                <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded mr-3">ADMIN</span>
+                Data Migration and Debugging Tools
+              </CardTitle>
+              <CardDescription className="text-purple-100">
+                These tools help consolidate data across collections and fix inconsistencies.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h3 className="text-md font-semibold mb-2">Data Migration</h3>
+                  <p className="text-sm text-slate-600 mb-4">
+                    Consolidate data from multiple collections into the canonical data structure
+                    (credit_info in businesses collection and financials in a subcollection).
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      onClick={handleDataMigration}
+                      disabled={migrationStatus.isRunning}
+                      className="bg-purple-600 hover:bg-purple-700 text-white"
+                      size="sm"
+                    >
+                      {migrationStatus.isRunning ? 'Migrating...' : 'Run Data Migration'}
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        queryClient.invalidateQueries({ queryKey: ['businessDetail', id] });
+                        queryClient.invalidateQueries({ queryKey: ['businessFinancials'] });
+                        toast.info('Refreshing all business data...');
+                      }}
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                      size="sm"
+                    >
+                      Refresh Data
+                    </Button>
+                  </div>
+                  
+                  {/* Migration status */}
+                  {migrationStatus.results && (
+                    <div className="mt-4 p-4 bg-slate-50 rounded border text-xs font-mono overflow-auto max-h-60">
+                      <div className={`mb-2 font-bold ${migrationStatus.results.success ? 'text-green-600' : 'text-amber-600'}`}>
+                        {migrationStatus.results.message}
+                      </div>
+                      
+                      {migrationStatus.results.sourceFound && migrationStatus.results.sourceFound.length > 0 && (
+                        <div className="mb-2">
+                          <span className="font-bold">Sources found:</span> {migrationStatus.results.sourceFound.join(', ')}
+                        </div>
+                      )}
+                      
+                      {migrationStatus.results.dataMigrated && migrationStatus.results.dataMigrated.length > 0 && (
+                        <div className="mb-2">
+                          <span className="font-bold">Data migrated:</span> {migrationStatus.results.dataMigrated.join(', ')}
+                        </div>
+                      )}
+                      
+                      {migrationStatus.results.errors && migrationStatus.results.errors.length > 0 && (
+                        <div>
+                          <span className="font-bold text-red-600">Errors:</span>
+                          <ul className="list-disc list-inside text-red-600">
+                            {migrationStatus.results.errors.map((err, i) => (
+                              <li key={i}>{err}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {migrationStatus.error && (
+                    <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded text-xs text-red-700">
+                      <div className="font-bold">Error:</div>
+                      <div>{migrationStatus.error}</div>
+                    </div>
+                  )}
+                </div>
+                
+                <div>
+                  <h3 className="text-md font-semibold mb-2">Data Locations</h3>
+                  <p className="text-sm text-slate-600 mb-4">
+                    This shows where different data was found for this business.
+                  </p>
+                  
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="bg-slate-50 p-3 rounded border">
+                      <div className="font-semibold mb-1">Business Profile</div>
+                      <div className="text-slate-700">
+                        {applicationData?.business ? (
+                          <div>
+                            <div>ID: {applicationData.business.id || 'N/A'}</div>
+                            <div>Name: {applicationData.business.business_name || 'N/A'}</div>
+                            <div>Credit Info: {applicationData.business.credit_info ? '✅' : '❌'}</div>
+                          </div>
+                        ) : (
+                          <span className="text-amber-600">Not found</span>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="bg-slate-50 p-3 rounded border">
+                      <div className="font-semibold mb-1">Credit Score</div>
+                      <div className="text-slate-700">
+                        {applicationData?.creditScore ? (
+                          <div>
+                            <div>Score: {applicationData.creditScore.score || 'N/A'}</div>
+                            <div>Risk: {applicationData.creditScore.risk_level || 'N/A'}</div>
+                            <div>Updated: {applicationData.creditScore.last_updated ? 
+                              new Date(applicationData.creditScore.last_updated).toLocaleDateString() : 'N/A'}
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-amber-600">Not found</span>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="bg-slate-50 p-3 rounded border col-span-2">
+                      <div className="font-semibold mb-1">Financial Documents</div>
+                      <div className="text-slate-700">
+                        {financialData && Object.keys(financialData).length > 0 ? (
+                          <div>
+                            <div>Documents found: {Object.keys(financialData).join(', ')}</div>
+                          </div>
+                        ) : (
+                          <span className="text-amber-600">No financial documents found</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Confirmation Dialog */}
       <Dialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>

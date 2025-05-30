@@ -59,7 +59,7 @@ const LenderReviewDialog = ({
 
     try {
       // Get business profile to get the business name
-      const { data: businessProfile } = await getDocument('business_profiles', user.uid);
+      const { data: businessProfile } = await getDocument('businesses', user.uid);
       
       const reviewData = {
         lender_id: lenderId,

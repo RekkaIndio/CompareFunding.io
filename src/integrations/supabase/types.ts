@@ -70,7 +70,7 @@ export type Database = {
             foreignKeyName: "accounting_integrations_business_id_fkey"
             columns: ["business_id"]
             isOneToOne: false
-            referencedRelation: "business_profiles"
+            referencedRelation: "businessess"
             referencedColumns: ["id"]
           },
           {
@@ -176,7 +176,7 @@ export type Database = {
             foreignKeyName: "applications_business_id_fkey"
             columns: ["business_id"]
             isOneToOne: false
-            referencedRelation: "business_profiles"
+            referencedRelation: "businessess"
             referencedColumns: ["id"]
           },
           {
@@ -232,7 +232,7 @@ export type Database = {
           },
         ]
       }
-      business_profiles: {
+      businessess: {
         Row: {
           address: Json | null
           annual_profit: number | null
@@ -313,7 +313,7 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "business_profiles_id_fkey"
+            foreignKeyName: "businessess_id_fkey"
             columns: ["id"]
             isOneToOne: true
             referencedRelation: "profiles"
@@ -514,7 +514,7 @@ export type Database = {
             foreignKeyName: "financial_data_business_id_fkey"
             columns: ["business_id"]
             isOneToOne: false
-            referencedRelation: "business_profiles"
+            referencedRelation: "businessess"
             referencedColumns: ["id"]
           },
           {
@@ -944,7 +944,7 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "business_profiles_id_fkey"
+            foreignKeyName: "businessess_id_fkey"
             columns: ["business_id"]
             isOneToOne: true
             referencedRelation: "profiles"
@@ -973,7 +973,7 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "business_profiles_id_fkey"
+            foreignKeyName: "businessess_id_fkey"
             columns: ["business_id"]
             isOneToOne: true
             referencedRelation: "profiles"

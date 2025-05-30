@@ -209,7 +209,7 @@ const SignUp = () => {
           description: values.description,
         };
 
-        const profileResult = await createDocument('business_profiles', businessData, data.user.uid);
+        const profileResult = await createDocument('businesses', businessData, data.user.uid);
         console.log('Business profile creation result:', profileResult);
         
         if (profileResult.error) {

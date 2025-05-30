@@ -13,8 +13,10 @@ import SignUpSidebar from '@/components/SignUpSidebar';
 import cflogowhiteUrl from '@/assets/cflogowhite.png';
 import { Check } from 'lucide-react';
 import { fetchCreditData, summarizeWebsite, fetchWebsiteLogo } from '@/lib/businessDetailsUtils';
+import { normalizeCreditScoreData, createFinancialsCreditScoreDocument } from '@/lib/creditScoreUtils';
 import { saveFundingApplication, updateDocument, getDocument, createDocument } from '@/services/firebase'; // Import getDocument and createDocument
 import { useAuth } from '@/contexts/AuthContext'; // Import authentication context
+import { getFirestore, doc, setDoc, collection, serverTimestamp } from 'firebase/firestore';
 import OpenAI from "openai";
 import '../../styles/animations.css'; // Import animations
 
@@ -43,6 +45,8 @@ const companySizeOptions = [
 ];
 
 const openAIClient = new OpenAI({ apiKey: import.meta.env.VITE_OPEN_AI_API_KEY, dangerouslyAllowBrowser: true });
+
+// We're now using the imported normalizeCreditScoreData function from creditScoreUtils.ts
 
 const BusinessDetailsForm = () => {
   const { user } = useAuth(); // Get user from authentication context
@@ -142,6 +146,8 @@ const BusinessDetailsForm = () => {
           error: null
         };
       }
+      
+      console.log('Credit info prepared:', creditInfo);
 
       // Summarize website content using OpenAI
       let websiteSummary = '';
@@ -172,40 +178,58 @@ const BusinessDetailsForm = () => {
       
       // creditInfo is already defined above, no need to redefine it
 
-      // Include credit information in the business profile data
-      const businessProfileData = {
-        business_name: formData.companyName,
-        company_number: formData.companyNumber,
-        company_size: formData.companySize,
-        address: {
-          street: mainAddress.street || '',
-          house_number: mainAddress.houseNumber || '',
-          city: mainAddress.city || '',
-          postal_code: mainAddress.postalCode || '',
-          country: mainAddress.country || '',
-        },
-        website: formData.website,
-        logo_url: websiteLogo, // Include the logo URL
-        website_summary: websiteSummary, // Include the website summary
-        credit_info: creditInfo, // Include the credit information
+      // Prepare address data for storage
+      const addressData = {
+        street: mainAddress.street || '',
+        house_number: mainAddress.houseNumber || '',
+        city: mainAddress.city || '',
+        postal_code: mainAddress.postalCode || '',
+        country: mainAddress.country || '',
       };
 
-      // Log the businessProfileData to verify the address mapping
-      console.log('Business profile data to be saved:', businessProfileData);
+      // Log address data for debugging
+      console.log('Address data prepared:', addressData);
 
-      // Check if the document exists
-      console.log('Checking if business profile document exists for user ID:', userInfo.userId);
-      const existingProfile = await getDocument('business_profiles', userInfo.userId);
-      console.log('getDocument response for user ID:', userInfo.userId, existingProfile);
+      // Only save to businesses collection under the userId
+      const db = getFirestore();
+      try {
+        // Normalize credit info for consistent structure
+        const normalizedCreditInfo = normalizeCreditScoreData(creditInfo);
 
-      if (existingProfile && existingProfile.data) {
-        console.log('Existing business profile found:', existingProfile.data);
-        await updateDocument('business_profiles', userInfo.userId, businessProfileData);
-        console.log('Business profile updated successfully.');
-      } else {
-        console.log('No existing business profile found. Creating a new one.');
-        await createDocument('business_profiles', businessProfileData, userInfo.userId);
-        console.log('Business profile created successfully.');
+        // Create or update the main business document with all the business profile data
+        const businessDocRef = doc(db, "businesses", userInfo.userId);
+        await setDoc(businessDocRef, {
+          name: formData.companyName,
+          business_name: formData.companyName,
+          company_number: formData.companyNumber,
+          company_size: formData.companySize,
+          website: formData.website,
+          website_summary: websiteSummary,
+          logo_url: websiteLogo,
+          address: addressData,
+          credit_info: normalizedCreditInfo, // Embed normalized credit info directly in the document
+          user_id: userInfo.userId,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          active: true,
+          _dataVersion: '1.0'
+        }, { merge: true });
+        console.log('Business document updated successfully in businesses collection.');
+
+        // Save detailed credit score in the credit_score subcollection (not financials!)
+        const creditScoreDocRef = doc(db, "businesses", userInfo.userId, "credit_score", "latest");
+        await setDoc(creditScoreDocRef, {
+          ...normalizedCreditInfo,
+          raw_report: creditData.report || null,
+          company_name: formData.companyName,
+          company_number: formData.companyNumber,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+        console.log('Credit score data saved to businesses/{userId}/credit_score/latest document.');
+      } catch (error) {
+        console.error('Error saving to businesses collection:', error);
+        // Continue with the process even if this part fails
       }
 
       // Save a flag in sessionStorage to indicate we're coming from the business form

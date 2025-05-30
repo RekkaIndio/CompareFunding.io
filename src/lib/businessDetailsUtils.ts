@@ -69,8 +69,15 @@ export const fetchCreditData = async (companyName: string, countryCode: string =
 // Summarize website content using OpenAI
 export const summarizeWebsite = async (websiteUrl: string) => {
   try {
-    const response = await axios.post('https://api.openai.com/v1/chat/completions', {
-      model: 'gpt-4', // Updated to a supported model
+    // Initialize OpenAI client
+    const { default: OpenAI } = await import('openai');
+    const openAIClient = new OpenAI({ 
+      apiKey: import.meta.env.VITE_OPEN_AI_API_KEY,
+      dangerouslyAllowBrowser: true // Note: This is needed for browser environments but should be used carefully
+    });
+    
+    const completion = await openAIClient.chat.completions.create({
+      model: 'gpt-4o', // Updated to a supported model
       messages: [
         {
           role: 'system',
@@ -82,23 +89,9 @@ export const summarizeWebsite = async (websiteUrl: string) => {
         },
       ],
       max_tokens: 100,
-    }, {
-      headers: {
-        Authorization: `Bearer ${import.meta.env.VITE_OPEN_AI_API_KEY}`,
-      },
     });
 
-    // Define the expected response structure
-    type OpenAIResponse = {
-      choices: Array<{
-        message: {
-          content: string;
-        };
-      }>;
-    };
-
-    const data = response.data as OpenAIResponse;
-    return data.choices[0].message.content.trim();
+    return completion.choices[0].message.content.trim();
   } catch (error) {
     console.error('Error summarizing website:', error);
     throw error;

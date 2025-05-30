@@ -243,55 +243,42 @@ const BusinessDocuments: React.FC = () => {
     setSaveStatus((prev) => ({ ...prev, [key]: "Preparing data..." }));
     
     try {
-      // Ensure the user has a valid business profile
-      const businessId = await ensureBusinessProfile(user.uid);
-      
-      // Initialize storage reference
+      const userId = user.uid;
       const storage = getStorage();
       let documentUrl = null;
       
-      // Upload file to Firebase Storage if it exists
       if (files[key]) {
         setSaveStatus((prev) => ({ ...prev, [key]: "Uploading document..." }));
-        
         const file = files[key] as File;
         const fileExtension = file.name.split('.').pop() || '';
         const fileName = `${documentType.replace(/\s/g, '_')}_${Date.now()}.${fileExtension}`;
-        const storageRef = ref(storage, `businesses/${businessId}/documents/${fileName}`);
-        
-        // Upload the file to Firebase Storage
+        const storageRef = ref(storage, `businesses/${userId}/documents/${fileName}`);
         await uploadBytes(storageRef, file);
-        
-        // Get the download URL
         documentUrl = await getDownloadURL(storageRef);
-        console.log("Document uploaded successfully:", documentUrl);
       }
       
       setSaveStatus((prev) => ({ ...prev, [key]: "Saving financial data..." }));
       
-      // Save to Firestore
-      const financialsCollection = collection(db, "businesses", businessId, "financials");
+      const financialsCollection = collection(db, "businesses", userId, "financials");
       
-      // Ensure we have valid data to save
-      const financialData = result.json || {};
-      const summaryText = typeof result.summary === 'string' ? result.summary : 'No summary available';
-      
-      // Log what we're saving for debugging
-      console.log("Saving financial data:", {
-        documentType,
-        documentName: files[key]?.name,
-        dataKeys: Object.keys(financialData),
-        summaryLength: summaryText.length,
-        hasFileUrl: !!documentUrl
-      });
+      // Extract just the summary text from the result
+      let summaryText = '';
+      if (typeof result.summary === 'string') {
+        try {
+          const parsedSummary = JSON.parse(result.summary);
+          summaryText = parsedSummary.summary || '';
+        } catch {
+          summaryText = result.summary;
+        }
+      }
       
       const docRef = await addDoc(financialsCollection, {
         documentType,
         documentName: files[key]?.name || `${documentType} Document`,
-        data: financialData,
-        summary: summaryText,
-        fileUrl: documentUrl, // Store the document URL
-        extractedAt: new Date().toISOString(), // When the data was extracted
+        data: result.json || {},
+        summary: summaryText, // Store just the summary text
+        fileUrl: documentUrl,
+        extractedAt: new Date().toISOString(),
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         createdBy: user.uid,
@@ -307,39 +294,19 @@ const BusinessDocuments: React.FC = () => {
         }
       }));
       
-      const savedDataSummary = getSavedDataSummary(financialData, documentType);
       setSaveStatus((prev) => ({ ...prev, [key]: "Saved successfully!" }));
       
       toast({
         title: "Financial data saved",
-        description: `The ${documentType} data has been saved to your business profile. ${savedDataSummary}`,
+        description: `The ${documentType} data has been saved to your business profile.`,
         variant: "default"
       });
     } catch (error) {
       console.error("Error saving financial data:", error);
       setSaveStatus((prev) => ({ ...prev, [key]: "Error saving data" }));
-      
-      // Provide more detailed error messages for common issues
-      let errorMessage = "An unknown error occurred";
-      
-      if (error instanceof Error) {
-        errorMessage = error.message;
-        
-        // Handle specific error cases
-        if (errorMessage.includes("permission_denied")) {
-          errorMessage = "You don't have permission to save data. Please check your account settings.";
-        } else if (errorMessage.includes("not found")) {
-          errorMessage = "Could not find the correct location to save data. Please refresh and try again.";
-        } else if (errorMessage.includes("quota exceeded")) {
-          errorMessage = "Storage quota exceeded. Please contact support.";
-        } else if (errorMessage.includes("unauthenticated") || errorMessage.includes("unauthorized")) {
-          errorMessage = "Session expired. Please log in again and try saving.";
-        }
-      }
-      
       toast({
         title: "Error saving data",
-        description: errorMessage,
+        description: error instanceof Error ? error.message : "An unknown error occurred",
         variant: "destructive"
       });
     } finally {
@@ -357,18 +324,11 @@ const BusinessDocuments: React.FC = () => {
       try {
         setLoadingSaved(true);
         
-        // Get the user's business ID
-        const userDocRef = doc(db, "users", currentUser.uid);
-        const userDoc = await getDoc(userDocRef);
-        const businessId = userDoc.data()?.businessId;
-        
-        if (!businessId) {
-          console.log("No business ID found for user");
-          return;
-        }
+        // Use the user ID directly instead of getting a separate business ID
+        const userId = currentUser.uid;
 
-        // Query the financials collection for this business
-        const financialsCollection = collection(db, "businesses", businessId, "financials");
+        // Query the financials collection for this user
+        const financialsCollection = collection(db, "businesses", userId, "financials");
         const financialsQuery = query(
           financialsCollection, 
           orderBy("createdAt", "desc")
@@ -380,38 +340,34 @@ const BusinessDocuments: React.FC = () => {
         
         querySnapshot.forEach((doc) => {
           const data = doc.data();
-          // Map document types to our keys
-          let docKey = "";
+          // Map document types to their corresponding keys
+          const docTypeToKey: { [key: string]: string } = {
+            'Profit and Loss': 'pl',
+            'Balance Sheet': 'bs',
+            'Trial Balance': 'tb',
+            'Aged Payables': 'ap',
+            'Aged Receivables': 'ar'
+          };
           
-          if (data.documentType.toLowerCase().includes("profit") || data.documentType.toLowerCase().includes("loss")) {
-            docKey = "pl";
-          } else if (data.documentType.toLowerCase().includes("balance")) {
-            docKey = "bs";
-          } else if (data.documentType.toLowerCase().includes("trial")) {
-            docKey = "tb";
-          } else if (data.documentType.toLowerCase().includes("payable")) {
-            docKey = "ap";
-          } else if (data.documentType.toLowerCase().includes("receivable")) {
-            docKey = "ar";
-          } else {
-            // Use the document type as key if no match
-            docKey = data.documentType.toLowerCase().replace(/\s+/g, '_');
-          }
-          
-          // Save document URL and name
-          if (data.fileUrl) {
-            savedFinancials[docKey] = {
-              url: data.fileUrl,
-              name: data.documentName || "Financial Document"
-            };
-          }
-          
-          // Save financial data and summary
-          if (data.data) {
-            savedResults[docKey] = {
-              json: data.data,
-              summary: data.summary || ""
-            };
+          const key = docTypeToKey[data.documentType];
+          if (key) {
+            // Only store if we don't already have a document for this type
+            // or if this document is more recent
+            if (!savedFinancials[key] || 
+                (data.createdAt && data.createdAt.toDate() > new Date(savedFinancials[key].createdAt))) {
+              savedFinancials[key] = {
+                url: data.fileUrl || '',
+                name: data.documentName || ''
+              };
+              
+              // Store the extracted data in savedResults
+              if (data.data) {
+                savedResults[key] = {
+                  json: data.data,
+                  summary: data.summary || ''
+                };
+              }
+            }
           }
         });
         
@@ -420,11 +376,8 @@ const BusinessDocuments: React.FC = () => {
         
         // Only set AI results for documents that aren't already being processed
         Object.entries(savedResults).forEach(([key, result]) => {
-          if (!aiLoading[key] && !aiResults[key]) {
-            setAiResults(prev => ({
-              ...prev,
-              [key]: result
-            }));
+          if (!aiLoading[key]) {
+            setAiResults(prev => ({ ...prev, [key]: result }));
           }
         });
         
@@ -581,7 +534,7 @@ const BusinessDocuments: React.FC = () => {
                   </div>
                 )}
                 {/* Display ONLY the summary text, not the full JSON */}
-                {aiResults[step.key] && (
+                {aiResults[step.key]?.summary && (
                   <div className="text-left bg-white border border-gray-100 rounded-lg p-4 mt-4 mb-4 whitespace-pre-line shadow-sm">
                     <div className="flex items-center mb-2">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600 mr-2" viewBox="0 0 20 20" fill="currentColor">
@@ -594,8 +547,44 @@ const BusinessDocuments: React.FC = () => {
                         // Extract the actual summary text from the complex string
                         const summaryContent = aiResults[step.key]?.summary;
                         
-                        if (typeof summaryContent !== 'string') {
+                        if (typeof summaryContent !== 'string' || !summaryContent.trim()) {
                           return "No summary available";
+                        }
+
+                        // Special handling for Trial Balance documents
+                        if (step.key === 'tb') {
+                          // Look for a "summary" field in the JSON
+                          try {
+                            // Try to find a summary property specifically for Trial Balance
+                            const jsonData = aiResults[step.key]?.json;
+                            if (jsonData && jsonData.summary && typeof jsonData.summary === 'string') {
+                              return jsonData.summary;
+                            }
+                            
+                            // Look for summary directly in the content
+                            if (summaryContent.includes('"summary"')) {
+                              const match = summaryContent.match(/"summary"\s*:\s*"([^"]+)"/);
+                              if (match && match[1]) {
+                                return match[1].replace(/\\n/g, ' ')
+                                              .replace(/\\"/g, '"')
+                                              .trim();
+                              }
+                            }
+                          } catch (e) {
+                            console.error("Failed to extract Trial Balance summary:", e);
+                          }
+                        }
+                        
+                        // Check if the summary content is actually JSON
+                        if (summaryContent.startsWith('{') && summaryContent.endsWith('}')) {
+                          try {
+                            const parsedSummary = JSON.parse(summaryContent);
+                            if (parsedSummary.summary && typeof parsedSummary.summary === 'string') {
+                              return parsedSummary.summary;
+                            }
+                          } catch (e) {
+                            console.error("Failed to parse summary as JSON:", e);
+                          }
                         }
                         
                         // If it contains markdown JSON with a nested summary field, extract that
@@ -614,7 +603,34 @@ const BusinessDocuments: React.FC = () => {
                           }
                         }
                         
+                        // For Trial Balance, if we still haven't found a good summary, try to extract from the JSON
+                        if (step.key === 'tb' && typeof summaryContent === 'string') {
+                          // The summary field might contain the entire JSON response, let's try to extract just the summary
+                          const summaryMatch = summaryContent.match(/"summary"\s*:\s*"([^"]+)"/);
+                          if (summaryMatch && summaryMatch[1]) {
+                            return summaryMatch[1].replace(/\\n/g, ' ')
+                                                 .replace(/\\"/g, '"')
+                                                 .trim();
+                          }
+                        }
+                        
                         // If we couldn't extract a nested summary, just return the original
+                        // But for Trial Balance, return a generic summary if everything else fails
+                        if (step.key === 'tb') {
+                          // Get the total debits/credits if available
+                          try {
+                            const jsonData = aiResults[step.key]?.json;
+                            if (jsonData?.totals?.totalDebit || jsonData?.totals?.totalCredit) {
+                              const totalDebit = jsonData.totals.totalDebit;
+                              return `Trial Balance summary showing total debits and credits of ${totalDebit}.`;
+                            }
+                          } catch (e) {
+                            console.error("Failed to create fallback Trial Balance summary:", e);
+                          }
+                          
+                          return "Trial Balance summary showing accounts with their debit and credit balances.";
+                        }
+                        
                         return summaryContent;
                       })()}
                     </div>
@@ -715,7 +731,7 @@ const BusinessDocuments: React.FC = () => {
                         // Deep clone the object to avoid modifying the original
                         cleanData = JSON.parse(JSON.stringify(cleanData));
                         
-                        // Recursive function to remove summary fields at all levels
+                        // Recursive function to remove summary and description fields at all levels
                         const removeSummaryFields = (obj: any): any => {
                           if (typeof obj !== 'object' || obj === null) return obj;
                           
@@ -724,14 +740,15 @@ const BusinessDocuments: React.FC = () => {
                           } else {
                             const result = {...obj};
                             
-                            // Remove summary fields with various possible names
-                            ['summary', 'Summary', 'financialSummary', 'businessSummary', 'companySummary'].forEach(key => {
+                            // Remove summary and description fields with various possible names
+                            ['summary', 'Summary', 'financialSummary', 'businessSummary', 'companySummary', 
+                             'description', 'Description', 'financialDescription', 'businessDescription'].forEach(key => {
                               if (key in result) delete result[key];
                             });
                             
-                            // Check for keys containing "summary"
+                            // Check for keys containing "summary" or "description"
                             Object.keys(result).forEach(key => {
-                              if (key.toLowerCase().includes('summary')) {
+                              if (key.toLowerCase().includes('summary') || key.toLowerCase().includes('description')) {
                                 delete result[key];
                               } else if (typeof result[key] === 'object' && result[key] !== null) {
                                 result[key] = removeSummaryFields(result[key]);

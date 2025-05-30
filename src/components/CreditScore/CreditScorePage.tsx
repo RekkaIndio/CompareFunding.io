@@ -8,6 +8,8 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { CheckCircle2, Info, AlertCircle } from "lucide-react";
 import { updateDocument, getDocument, createDocument } from '@/services/firebase';
 import { useAuth } from '@/contexts/AuthContext';
+import { getFirestore, doc, collection, setDoc, serverTimestamp } from 'firebase/firestore';
+import { normalizeCreditScoreData, createFinancialsCreditScoreDocument } from '@/lib/creditScoreUtils';
 
 // Import components from the CreditScore folder
 import CompanySearch from './CompanySearch';
@@ -128,35 +130,38 @@ const CreditScorePage: React.FC = () => {
       try {
         console.log(`Attempting to load saved credit report for user ${user.uid}`);
         setIsLoading(true);
-        const userProfile = await getDocument('business_profiles', user.uid);
-        console.log('User profile data:', userProfile?.data);
         
-        if (userProfile?.data?.credit_info && Object.keys(userProfile.data.credit_info).length > 0) {
-          console.log("Found saved credit report data:", userProfile.data.credit_info);
+        // First try to get data from the credit_score subcollection
+        const creditScoreDoc = await getDocument('businesses', `${user.uid}/credit_score/latest`);
+        console.log('Credit score subcollection data:', creditScoreDoc?.data);
+        
+        // If we found data in the subcollection, use that
+        if (creditScoreDoc?.data && Object.keys(creditScoreDoc.data).length > 0) {
+          console.log("Found saved credit report data in subcollection:", creditScoreDoc.data);
           setReportSaved(true);
           
           // Create a company object from the saved data
           const savedCompany: Company = {
-            name: userProfile.data.credit_info.company_name || userProfile.data.business_name || '',
-            registrationNumber: userProfile.data.credit_info.company_number || userProfile.data.company_number || '',
-            status: userProfile.data.credit_info.company_status || '',
+            name: creditScoreDoc.data.company_name || '',
+            registrationNumber: creditScoreDoc.data.company_number || '',
+            status: creditScoreDoc.data.company_status || '',
             // If we have a connect ID, save that too for potential future API calls
-            connectId: userProfile.data.credit_info.connect_id
+            connectId: creditScoreDoc.data.connect_id
           };
           
           // Create a credit report object from the saved data
           const savedReport: CreditReport = {
-            report: {
+            report: creditScoreDoc.data.raw_report || {
               companyIdentification: {
                 basicInformation: {
                   businessName: savedCompany.name,
                   companyRegistrationNumber: savedCompany.registrationNumber,
-                  companyRegistrationDate: userProfile.data.credit_info.registration_date || userProfile.data.credit_info.incorporation_date,
+                  companyRegistrationDate: creditScoreDoc.data.registration_date || creditScoreDoc.data.incorporation_date,
                   companyStatus: { 
-                    description: userProfile.data.credit_info.status || userProfile.data.credit_info.company_status || ''
+                    description: creditScoreDoc.data.status || creditScoreDoc.data.company_status || ''
                   },
                   legalForm: {
-                    description: userProfile.data.credit_info.legal_form || userProfile.data.credit_info.company_type || ''
+                    description: creditScoreDoc.data.legal_form || creditScoreDoc.data.company_type || ''
                   }
                 }
               },
@@ -164,38 +169,38 @@ const CreditScorePage: React.FC = () => {
                 businessName: savedCompany.name,
                 companyRegistrationNumber: savedCompany.registrationNumber,
                 companyStatus: { 
-                  description: userProfile.data.credit_info.status || '' 
+                  description: creditScoreDoc.data.status || '' 
                 }
               },
               creditScore: {
                 currentCreditRating: {
                   providerValue: { 
-                    value: userProfile.data.credit_info.credit_score
+                    value: creditScoreDoc.data.credit_score
                   },
-                  commonValue: userProfile.data.credit_info.common_value,
-                  commonDescription: userProfile.data.credit_info.common_description || userProfile.data.credit_info.risk,
+                  commonValue: creditScoreDoc.data.common_value,
+                  commonDescription: creditScoreDoc.data.common_description || creditScoreDoc.data.risk,
                   internationalScore: {
-                    value: userProfile.data.credit_info.international_score,
-                    description: userProfile.data.credit_info.international_score_description
+                    value: creditScoreDoc.data.international_score,
+                    description: creditScoreDoc.data.international_score_description
                   },
                   creditLimit: {
-                    value: userProfile.data.credit_info.credit_limit
+                    value: creditScoreDoc.data.credit_limit
                   }
                 },
                 previousCreditRating: {
-                  commonValue: userProfile.data.credit_info.previous_rating,
-                  commonDescription: userProfile.data.credit_info.previous_rating_description
+                  commonValue: creditScoreDoc.data.previous_rating,
+                  commonDescription: creditScoreDoc.data.previous_rating_description
                 },
-                latestRatingChangeDate: userProfile.data.credit_info.latest_rating_change
+                latestRatingChangeDate: creditScoreDoc.data.latest_rating_change
               },
               additionalInformation: {
-                negativeInformation: userProfile.data.credit_info.negative_information
+                negativeInformation: creditScoreDoc.data.negative_information
               },
               contactInformation: {
                 mainAddress: {
-                  simpleValue: userProfile.data.credit_info.contact_address || 
-                    (userProfile.data.address ? 
-                      `${userProfile.data.address.street || ''} ${userProfile.data.address.house_number || ''}, ${userProfile.data.address.city || ''}, ${userProfile.data.address.postal_code || ''}` : 
+                  simpleValue: creditScoreDoc.data.contact_address || 
+                    (creditScoreDoc.data.address ? 
+                      `${creditScoreDoc.data.address.street || ''} ${creditScoreDoc.data.address.house_number || ''}, ${creditScoreDoc.data.address.city || ''}, ${creditScoreDoc.data.address.postal_code || ''}` : 
                       '')
                 }
               }
@@ -206,8 +211,82 @@ const CreditScorePage: React.FC = () => {
           setSelectedCompany(savedCompany);
           setCreditReport(savedReport);
           return true;
+        } else {
+          // Fallback to the old method - try to get data from the main business document
+          const userProfile = await getDocument('businesses', user.uid);
+          console.log('Fallback - Main business document data:', userProfile?.data);
+          
+          if (userProfile?.data?.credit_info && Object.keys(userProfile.data.credit_info).length > 0) {
+            console.log("Found saved credit report data in main document:", userProfile.data.credit_info);
+            setReportSaved(true);
+            
+            // Create a company object from the saved data
+            const savedCompany: Company = {
+              name: userProfile.data.credit_info.company_name || userProfile.data.business_name || '',
+              registrationNumber: userProfile.data.credit_info.company_number || userProfile.data.company_number || '',
+              status: userProfile.data.credit_info.company_status || '',
+              connectId: userProfile.data.credit_info.connect_id
+            };
+            
+            // Create a credit report object from the saved data
+            const savedReport: CreditReport = {
+              report: {
+                companyIdentification: {
+                  basicInformation: {
+                    businessName: savedCompany.name,
+                    companyRegistrationNumber: savedCompany.registrationNumber,
+                    companyRegistrationDate: userProfile.data.credit_info.registration_date || userProfile.data.credit_info.incorporation_date,
+                    companyStatus: { 
+                      description: userProfile.data.credit_info.status || userProfile.data.credit_info.company_status || ''
+                    },
+                    legalForm: {
+                      description: userProfile.data.credit_info.legal_form || userProfile.data.credit_info.company_type || ''
+                    }
+                  }
+                },
+                companySummary: {
+                  businessName: savedCompany.name,
+                  companyRegistrationNumber: savedCompany.registrationNumber,
+                  companyStatus: { 
+                    description: userProfile.data.credit_info.status || '' 
+                  }
+                },
+                creditScore: {
+                  currentCreditRating: {
+                    providerValue: { 
+                      value: userProfile.data.credit_info.credit_score
+                    },
+                    commonValue: userProfile.data.credit_info.common_value,
+                    commonDescription: userProfile.data.credit_info.common_description || userProfile.data.credit_info.risk
+                  }
+                }
+              }
+            };
+            
+            setSelectedCompany(savedCompany);
+            setCreditReport(savedReport);
+            
+            // Also migrate this data to the new subcollection structure for future use
+            console.log("Migrating credit info to subcollection structure...");
+            try {
+              await createDocument('businesses', {
+                ...userProfile.data.credit_info,
+                raw_report: null,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                migrated_from_main_doc: true
+              }, `${user.uid}/credit_score/latest`);
+              
+              console.log("Successfully migrated credit info to subcollection");
+            } catch (migrationError) {
+              console.error("Error migrating credit info to subcollection:", migrationError);
+            }
+            
+            return true;
+          }
+          
+          return false;
         }
-        return false;
       } catch (error) {
         console.error("Error loading saved credit report:", error);
         return false;
@@ -342,25 +421,37 @@ const CreditScorePage: React.FC = () => {
           };
 
           // Check if the user has a business profile document
-          const userProfile = await getDocument('business_profiles', user.uid);
+          const userProfile = await getDocument('businesses', user.uid);
           
+          // Save detailed credit score in the credit_score subcollection
+          await createDocument('businesses', {
+            ...creditInfo,
+            raw_report: report.report || null,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          }, `${user.uid}/credit_score/latest`);
+          
+          console.log("Saved credit score to subcollection: businesses/" + user.uid + "/credit_score/latest");
+          
+          // Also update the main business document if it exists, but only with basic info
           if (userProfile && userProfile.data) {
-            // Update the existing profile with credit info
-            await updateDocument('business_profiles', user.uid, {
-              credit_info: creditInfo,
-              last_updated: new Date().toISOString()
+            // Update the existing profile with minimal credit info
+            await updateDocument('businesses', user.uid, {
+              business_name: creditInfo.company_name,
+              company_number: creditInfo.company_number,
+              credit_score_updated_at: new Date().toISOString()
             });
-            console.log("Updated existing profile with credit info");
+            console.log("Updated existing profile with basic credit info reference");
           } else {
-            // Create a new business profile document with credit info
-            await createDocument('business_profiles', {
-              credit_info: creditInfo,
+            // Create a new business profile document with basic info
+            await createDocument('businesses', {
               created_at: new Date().toISOString(),
               last_updated: new Date().toISOString(),
               business_name: creditInfo.company_name,
-              company_number: creditInfo.company_number
+              company_number: creditInfo.company_number,
+              credit_score_updated_at: new Date().toISOString()
             }, user.uid);
-            console.log("Created new business profile with credit info");
+            console.log("Created new business profile with credit score reference");
           }
           
           // If we came from the business form, clear the flag after saving
@@ -368,6 +459,36 @@ const CreditScorePage: React.FC = () => {
             sessionStorage.removeItem('from_business_form');
           }
           
+          // Only save to businesses collection for data consolidation
+          const db = getFirestore();
+          try {
+            // Normalize credit info for consistent structure
+            const normalizedCreditInfo = normalizeCreditScoreData(creditInfo);
+            
+            // First, ensure the business document exists
+            const businessRef = doc(db, "businesses", user.uid);
+            await setDoc(businessRef, {
+              name: creditInfo.company_name,
+              business_name: creditInfo.company_name,
+              company_number: creditInfo.company_number,
+              credit_info: normalizedCreditInfo,
+              updatedAt: serverTimestamp(),
+              active: true
+            }, { merge: true });
+            
+            // Then save detailed credit score to financials subcollection as credit_score document
+            const creditScoreRef = doc(collection(db, "businesses", user.uid, "financials"), "credit_score");
+            await setDoc(creditScoreRef, createFinancialsCreditScoreDocument(
+              creditInfo,
+              creditInfo.company_name,
+              creditInfo.company_number,
+              report.report
+            ));
+            console.log("Credit score data saved to businesses collection and subcollection");
+          } catch (error) {
+            console.error("Error saving to businesses collection:", error);
+          }
+
           // Indicate that the report was saved successfully
           setReportSaved(true);
           console.log("Credit report saved to user profile successfully!");

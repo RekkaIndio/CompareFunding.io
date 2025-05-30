@@ -99,9 +99,10 @@ const renderRows = (obj: Record<string, any>, parentKey = "", level = 0) => {
   }
 
   return Object.entries(obj).map(([key, value]) => {
-    // Improved filtering: Skip these specific keys that are metadata or should be displayed elsewhere
-    if (['summary', 'metadata', 'json'].includes(key) || 
-        key.toLowerCase().includes('summary') || 
+    // Enhanced filtering: Skip summary, metadata and any fields that should be displayed elsewhere
+    if (['summary', 'metadata', 'json', 'description'].includes(key) || 
+        key.toLowerCase().includes('summary') ||
+        key.toLowerCase().includes('description') ||
         parentKey.toLowerCase().includes('summary')) {
       return null;
     }

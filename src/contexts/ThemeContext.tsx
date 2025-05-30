@@ -29,7 +29,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
       // Try to load from both business and lender profiles
       const [businessProfile, lenderProfile] = await Promise.all([
-        getDocument('business_profiles', user.uid),
+        getDocument('businesses', user.uid),
         getDocument('lender_profiles', user.uid)
       ]);
 

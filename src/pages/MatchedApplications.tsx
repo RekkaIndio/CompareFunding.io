@@ -113,7 +113,7 @@ const MatchedApplications = () => {
 
         // Always try to get business data using user_id
         if (app.user_id) {
-          const { data: businessData } = await getDocument('business_profiles', app.user_id);
+          const { data: businessData } = await getDocument('businesses', app.user_id);
           if (businessData) {
             return {
               ...enhancedApp,
@@ -197,6 +197,22 @@ const MatchedApplications = () => {
     }
   });
 
+  // Check if lender has expressed interest or made an offer (can see business details)
+  const canSeeBusinessDetails = (app) => {
+    // Check if lender has expressed interest (any status except declined/rejected)
+    const hasExpressedInterest = app.interested_lenders?.some(
+      l => l.lender_id === user?.uid && l.status !== 'rejected' && l.status !== 'declined'
+    );
+    
+    // Check if lender has made an offer
+    const hasMadeOffer = app.offers?.some(o => o.lender_id === user?.uid);
+    
+    // Check if lender is in matched_lenders array
+    const isMatched = app.matched_lenders?.includes(user?.uid);
+    
+    return hasExpressedInterest || hasMadeOffer || isMatched;
+  };
+
   // Separate matched from available applications
   const matchedApplications = lenderApplications?.filter(app => {
     // Check both matched_lenders array and interested_lenders with accepted status
@@ -243,7 +259,7 @@ const MatchedApplications = () => {
       l.lender_id === user?.uid)?.status?.toLowerCase() === 'rejected';
     
     const matchesSearch = searchQuery === '' || 
-      (!isDeclined && app.business_name?.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (!isDeclined && canSeeBusinessDetails(app) && app.business_name?.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (!isDeclined && app.purpose?.toLowerCase().includes(searchQuery.toLowerCase())) ||
       app.loan_amount?.toString().includes(searchQuery) ||
       app.id?.toLowerCase().includes(searchQuery.toLowerCase());
@@ -701,7 +717,9 @@ const MatchedApplications = () => {
                                 <div className="w-14 h-14 rounded-md bg-white border border-slate-100 shadow-sm flex items-center justify-center p-1">
                                   <img
                                     src={app.business.logo_url}
-                                    alt={`${app.business.business_name} logo`}
+                                    alt={`${canSeeBusinessDetails(app) && app.business?.business_name 
+                                      ? app.business.business_name 
+                                      : 'Business'} logo`}
                                     className="max-w-full max-h-full object-contain"
                                   />
                                 </div>
@@ -713,7 +731,9 @@ const MatchedApplications = () => {
                               <div>
                                 <div className="flex items-center gap-2">
                                   <h3 className="font-semibold text-lg text-[#212936]">
-                                    {app.business?.business_name || `Application #${app.application_number || app.id?.substring(0, 8)}`}
+                                    {canSeeBusinessDetails(app) && app.business?.business_name 
+                                      ? app.business.business_name 
+                                      : `Application #${app.application_number || app.id?.substring(0, 8)}`}
                                   </h3>
                                   <StatusBadge status={app.status} />
                                 </div>
@@ -727,7 +747,7 @@ const MatchedApplications = () => {
                             
                             {/* Industry and Details */}
                             <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
-                              {app.business?.industry_sector && !isApplicationDeclined(app) && (
+                              {canSeeBusinessDetails(app) && app.business?.industry_sector && !isApplicationDeclined(app) && (
                                 <div className="flex items-center gap-1.5">
                                   <Briefcase className="h-3.5 w-3.5 text-slate-500" />
                                   <span className="text-slate-700">{app.business.industry_sector}</span>
@@ -741,7 +761,7 @@ const MatchedApplications = () => {
                                 </div>
                               )}
                               
-                              {app.location && !isApplicationDeclined(app) && (
+                              {canSeeBusinessDetails(app) && app.location && !isApplicationDeclined(app) && (
                                 <div className="flex items-center gap-1.5">
                                   <MapPin className="h-3.5 w-3.5 text-slate-500" />
                                   <span className="text-slate-700">{app.location}</span>

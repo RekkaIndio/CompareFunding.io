@@ -34,7 +34,7 @@ import LenderBilling from "./pages/Lender/LenderBilling";
 import LearnPage from "./pages/Learn";
 import HelpPage from "./pages/Help";
 import MatchedApplications from "./pages/MatchedApplications";
-import ApplicationDetail from "./pages/ApplicationDetail";
+import ApplicationDetail from "./pages/Applications/ApplicationDetail";
 import CreateOffer from "./pages/CreateOffer";
 import Settings from "./pages/Settings";
 import Notifications from "./pages/Notifications";

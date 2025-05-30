@@ -76,7 +76,7 @@ const OfferDetails = () => {
       // Get business details if we're the lender viewing our offer
       let businessData = null;
       if (isLender && applicationData && applicationData.business_id) {
-        const { data: busData } = await getDocument('business_profiles', applicationData.business_id);
+        const { data: busData } = await getDocument('businesses', applicationData.business_id);
         if (busData) {
           businessData = busData;
         }

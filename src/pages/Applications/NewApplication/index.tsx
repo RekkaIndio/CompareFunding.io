@@ -62,7 +62,23 @@ const NewApplication = () => {
       setIsLoading(true);
       
       try {
-        const { data: profileData, error: profileError } = await getDocument('business_profiles', user.uid);
+        // Try to fetch from businesses collection first
+        let profileData = null;
+        let profileError = null;
+        
+        // First check the businesses collection where BusinessDetailsForm.tsx saves data
+        const businessesResult = await getDocument('businesses', user.uid);
+        
+        if (businessesResult.error || !businessesResult.data) {
+          // If not found, check business_profiles collection as fallback
+          const profilesResult = await getDocument('business_profiles', user.uid);
+          profileData = profilesResult.data;
+          profileError = profilesResult.error;
+        } else {
+          // We found business data in the businesses collection
+          profileData = businessesResult.data;
+          profileError = businessesResult.error;
+        }
           
         if (profileError) {
           console.error('Error fetching business profile:', profileError);
@@ -88,6 +104,16 @@ const NewApplication = () => {
     
     fetchBusinessInfo();
   }, [user]);
+  
+  // Add debugging log to help identify if a profile is found
+  useEffect(() => {
+    if (businessProfile) {
+      console.log('Business profile found:', businessProfile);
+      console.log('Profile source:', businessProfile._source || 'unknown');
+    } else if (!isLoading) {
+      console.log('No business profile found after loading completed');
+    }
+  }, [businessProfile, isLoading]);
   
   const onSubmit = async (values: ApplicationFormValues) => {
     if (!user) return;
@@ -148,6 +174,7 @@ const NewApplication = () => {
           <div className="flex flex-col items-center gap-2">
             <Loader2 className="h-8 w-8 animate-spin text-fundhub-blue" />
             <p className="text-muted-foreground">Loading application form...</p>
+            <p className="text-sm text-gray-400">Checking for your business profile data...</p>
           </div>
         </div>
       </PageLayout>
@@ -170,6 +197,15 @@ const NewApplication = () => {
                 <p className="mb-6">
                   To provide lenders with the necessary information for evaluating your application,
                   please complete your business profile with essential details about your company.
+                </p>
+                <Alert className="mb-4">
+                  <AlertDescription className="text-sm">
+                    We couldn't find your business profile in our system. If you've already completed
+                    your profile, there might be an issue with accessing your data.
+                  </AlertDescription>
+                </Alert>
+                <p className="text-sm text-gray-500 mb-4">
+                  User ID: {user?.uid || 'Not available'}
                 </p>
               </CardContent>
               <CardFooter>
