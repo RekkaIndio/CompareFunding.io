@@ -31,18 +31,59 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!currentUser) return null;
     
     try {
+      // First check in users collection
       const userRef = doc(firestore, "users", currentUser.uid);
       const userSnap = await getDoc(userRef);
       
       if (userSnap.exists()) {
         const userData = userSnap.data();
-        // Enhance user object with role
+        if (userData.role) {
+          console.log("Found role in users collection:", userData.role);
+          // Enhance user object with role
+          const enhancedUser = {
+            ...currentUser,
+            role: userData.role as 'business' | 'lender'
+          };
+          return enhancedUser;
+        }
+      }
+      
+      // If no role in users, check lender_profiles
+      const lenderRef = doc(firestore, "lender_profiles", currentUser.uid);
+      const lenderSnap = await getDoc(lenderRef);
+      
+      if (lenderSnap.exists()) {
+        console.log("Found user in lender_profiles, assigning lender role");
+        // Enhance user object with lender role
         const enhancedUser = {
           ...currentUser,
-          role: userData.role as 'business' | 'lender'
+          role: 'lender' as const
         };
+        
+        // Update the users collection with the role
+        await setDoc(userRef, { role: 'lender' }, { merge: true });
+        
         return enhancedUser;
       }
+      
+      // Check business_profiles or businesses
+      const businessRef = doc(firestore, "business_profiles", currentUser.uid);
+      const businessSnap = await getDoc(businessRef);
+      
+      if (businessSnap.exists() || (await getDoc(doc(firestore, "businesses", currentUser.uid))).exists()) {
+        console.log("Found user in business profiles, assigning business role");
+        // Enhance user object with business role
+        const enhancedUser = {
+          ...currentUser,
+          role: 'business' as const
+        };
+        
+        // Update the users collection with the role
+        await setDoc(userRef, { role: 'business' }, { merge: true });
+        
+        return enhancedUser;
+      }
+      
       return currentUser;
     } catch (error) {
       console.error("Error fetching user role:", error);

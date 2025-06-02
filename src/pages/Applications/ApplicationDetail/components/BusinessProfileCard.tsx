@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from '@/components/ui/badge';
 import { Building2 } from 'lucide-react';
+import { formatAddress } from '@/lib/formatters';
 
 interface BusinessProfileCardProps {
   application: any;
@@ -66,10 +67,7 @@ const BusinessProfileCard: React.FC<BusinessProfileCardProps> = ({ application }
               <div className="text-sm text-slate-600">
                 <div className="font-medium text-slate-700">Business Address:</div>
                 <p>
-                  {application.business.address.line1 || application.business.address.street || ''}
-                  {application.business.address.city ? `, ${application.business.address.city}` : ''}
-                  {application.business.address.postal_code ? `, ${application.business.address.postal_code}` : ''}
-                  {application.business.address.country ? `, ${application.business.address.country}` : ''}
+                  {formatAddress(application.business.address)}
                 </p>
               </div>
             )}

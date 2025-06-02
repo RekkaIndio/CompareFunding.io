@@ -17,7 +17,7 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import PageLayout from '@/components/PageLayout';
-import { getDoc, doc } from 'firebase/firestore';
+import { getDoc, doc, setDoc } from 'firebase/firestore';
 import { firestore } from '@/firebase';
 
 const loginSchema = z.object({
@@ -96,6 +96,17 @@ const Login = () => {
       
       // Validate user role and redirect accordingly
       const { role, valid } = await validateUserRole(userId);
+      
+      // Update the user document with the role if it was found
+      if (valid && role) {
+        // Update users collection with role
+        const userRef = doc(firestore, "users", userId);
+        await setDoc(userRef, { role }, { merge: true });
+        
+        // Force reload the page to ensure AuthContext picks up the role changes
+        window.location.href = role === 'lender' ? '/lender/dashboard' : '/business/dashboard';
+        return;
+      }
       
       if (valid) {
         console.log("User role found:", role);

@@ -247,13 +247,6 @@ export const FinancialsTable: React.FC<FinancialsTableProps> = ({ data, title, s
         <tbody>
           {renderRows(displayData)}
         </tbody>
-        <tfoot>
-          <tr>
-            <td colSpan={2} className="py-2 px-4 text-xs text-gray-500 italic border-t">
-              Data extracted and processed via OpenAI
-            </td>
-          </tr>
-        </tfoot>
       </table>
     </div>
   );

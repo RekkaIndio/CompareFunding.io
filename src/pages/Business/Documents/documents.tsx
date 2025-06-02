@@ -6,7 +6,7 @@ import FinancialsTable from "@/pages/Business/Documents/FinancialsTable";
 import { Button } from "@/components/ui/button";
 import { 
   collection, addDoc, serverTimestamp, doc, getDoc, updateDoc,
-  query, orderBy, getDocs, where, limit
+  query, orderBy, getDocs, where, limit, deleteDoc
 } from 'firebase/firestore';
 import { getFirestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
@@ -55,12 +55,12 @@ const DOCUMENT_STEPS = [
   {
     key: "pl",
     label: "Profit and Loss",
-    description: "A summary of your business’s revenues, costs, and expenses over a period. Shows net profit or loss."
+    description: "A summary of your business's revenues, costs, and expenses over a period. Shows net profit or loss."
   },
   {
     key: "bs",
     label: "Balance Sheet",
-    description: "A snapshot of your business’s assets, liabilities, and equity at a specific point in time."
+    description: "A snapshot of your business's assets, liabilities, and equity at a specific point in time."
   },
   {
     key: "tb",
@@ -79,7 +79,7 @@ const DOCUMENT_STEPS = [
   },
 ];
 
-const BusinessDocuments: React.FC = () => {
+const BusinessDocuments: React.FC = (): JSX.Element => {
   const [files, setFiles] = useState<{ [key: string]: File | null }>({});
   // Modal state for each logo
   const [modal, setModal] = useState<null | "freeagent" | "sage" | "xero">(null);
@@ -95,12 +95,39 @@ const BusinessDocuments: React.FC = () => {
   const [aiError, setAiError] = useState<{ [key: string]: string | null }>({});
   const [saving, setSaving] = useState<{ [key: string]: boolean }>({});
   const [saveStatus, setSaveStatus] = useState<{ [key: string]: string }>({});
-  const [savedDocs, setSavedDocs] = useState<{ [key: string]: { url: string; name: string } }>({});
+  const [savedDocs, setSavedDocs] = useState<{ [key: string]: { url: string; name: string; createdAt?: Date; docId?: string } }>({});
+
+  // Sequential upload control
+  const [currentUploadStep, setCurrentUploadStep] = useState<number>(0); // Index of the current document being uploaded
+  const [completedUploads, setCompletedUploads] = useState<string[]>([]); // Keys of completed document uploads
+  const [replacementMode, setReplacementMode] = useState<boolean>(false); // Whether we're in replacement mode
+  const [replacingDocKey, setReplacingDocKey] = useState<string | null>(null); // Key of the document being replaced
 
   const db = getFirestore();
   const auth = getAuth();
+  const storage = getStorage();
 
   const handleExtracted = (key: string) => async (result: ExtractedFile) => {
+    // Check if we're not in replacement mode and this is not the current step
+    if (!replacementMode && DOCUMENT_STEPS[currentUploadStep].key !== key) {
+      toast({
+        title: "Upload in sequence",
+        description: `Please upload ${DOCUMENT_STEPS[currentUploadStep].label} first.`,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // If in replacement mode, check if we're replacing the right document
+    if (replacementMode && replacingDocKey !== key) {
+      toast({
+        title: "Invalid action",
+        description: `You are currently replacing ${DOCUMENT_STEPS.find(s => s.key === replacingDocKey)?.label}.`,
+        variant: "destructive"
+      });
+      return;
+    }
+
     setFiles((prev) => ({ ...prev, [key]: result.file }));
     setExtracted((prev) => ({ ...prev, [key]: result }));
     setAiLoading((prev) => ({ ...prev, [key]: true }));
@@ -244,7 +271,6 @@ const BusinessDocuments: React.FC = () => {
     
     try {
       const userId = user.uid;
-      const storage = getStorage();
       let documentUrl = null;
       
       if (files[key]) {
@@ -258,6 +284,33 @@ const BusinessDocuments: React.FC = () => {
       }
       
       setSaveStatus((prev) => ({ ...prev, [key]: "Saving financial data..." }));
+      
+      // Archive existing document if in replacement mode
+      if (replacementMode && savedDocs[key]?.docId) {
+        const docId = savedDocs[key].docId;
+        const existingDocRef = doc(db, "businesses", userId, "financials", docId);
+        const existingDocSnapshot = await getDoc(existingDocRef);
+        
+        if (existingDocSnapshot.exists()) {
+          const existingDocData = existingDocSnapshot.data();
+          
+          // Create archive collection if it doesn't exist
+          const archiveCollection = collection(db, "businesses", userId, "previous_financials");
+          
+          // Add the existing document to the archive
+          await addDoc(archiveCollection, {
+            ...existingDocData,
+            archivedAt: serverTimestamp(),
+            replacedBy: user.uid,
+            originalDocId: docId
+          });
+          
+          // Delete the existing document
+          await deleteDoc(existingDocRef);
+          
+          console.log(`Archived document ${docId} for ${documentType}`);
+        }
+      }
       
       const financialsCollection = collection(db, "businesses", userId, "financials");
       
@@ -290,9 +343,28 @@ const BusinessDocuments: React.FC = () => {
         ...prev,
         [key]: {
           url: documentUrl || '', 
-          name: files[key]?.name || `${documentType} Document`
+          name: files[key]?.name || `${documentType} Document`,
+          createdAt: new Date(),
+          docId: docRef.id // Store the document ID for future reference
         }
       }));
+      
+      // Update completed uploads if not in replacement mode
+      if (!replacementMode) {
+        setCompletedUploads(prev => {
+          if (!prev.includes(key)) return [...prev, key];
+          return prev;
+        });
+        
+        // Move to next step if available
+        if (currentUploadStep < DOCUMENT_STEPS.length - 1) {
+          setCurrentUploadStep(currentUploadStep + 1);
+        }
+      } else {
+        // Reset replacement mode after successful save
+        setReplacementMode(false);
+        setReplacingDocKey(null);
+      }
       
       setSaveStatus((prev) => ({ ...prev, [key]: "Saved successfully!" }));
       
@@ -335,8 +407,9 @@ const BusinessDocuments: React.FC = () => {
         );
 
         const querySnapshot = await getDocs(financialsQuery);
-        const savedFinancials: { [key: string]: { url: string; name: string } } = {};
+        const savedFinancials: { [key: string]: { url: string; name: string; createdAt?: Date; docId?: string } } = {};
         const savedResults: { [key: string]: OpenAIExtractResult } = {};
+        const completedDocKeys: string[] = [];
         
         querySnapshot.forEach((doc) => {
           const data = doc.data();
@@ -354,10 +427,12 @@ const BusinessDocuments: React.FC = () => {
             // Only store if we don't already have a document for this type
             // or if this document is more recent
             if (!savedFinancials[key] || 
-                (data.createdAt && data.createdAt.toDate() > new Date(savedFinancials[key].createdAt))) {
+                (data.createdAt && data.createdAt.toDate() > new Date(savedFinancials[key]?.createdAt || 0))) {
               savedFinancials[key] = {
                 url: data.fileUrl || '',
-                name: data.documentName || ''
+                name: data.documentName || '',
+                createdAt: data.createdAt ? data.createdAt.toDate() : undefined,
+                docId: doc.id // Store the document ID for future reference
               };
               
               // Store the extracted data in savedResults
@@ -366,6 +441,11 @@ const BusinessDocuments: React.FC = () => {
                   json: data.data,
                   summary: data.summary || ''
                 };
+              }
+              
+              // Add to completed uploads
+              if (!completedDocKeys.includes(key)) {
+                completedDocKeys.push(key);
               }
             }
           }
@@ -381,7 +461,26 @@ const BusinessDocuments: React.FC = () => {
           }
         });
         
+        // Update completedUploads state
+        setCompletedUploads(completedDocKeys);
+        
+        // Set the current upload step based on completed uploads
+        // If all steps are complete, set to the last step
+        // If some are complete, set to the next incomplete step
+        if (completedDocKeys.length === DOCUMENT_STEPS.length) {
+          setCurrentUploadStep(DOCUMENT_STEPS.length - 1);
+        } else {
+          // Find the first step that isn't completed
+          const nextStepIndex = DOCUMENT_STEPS.findIndex(step => !completedDocKeys.includes(step.key));
+          if (nextStepIndex !== -1) {
+            setCurrentUploadStep(nextStepIndex);
+          }
+        }
+        
         console.log("Loaded saved documents:", Object.keys(savedFinancials));
+        // Find the first step that isn't completed
+        const nextStepIndex = DOCUMENT_STEPS.findIndex(step => !completedDocKeys.includes(step.key));
+        console.log("Current upload step set to:", nextStepIndex !== -1 ? nextStepIndex : 'last step');
       } catch (error) {
         console.error("Error fetching saved documents:", error);
       } finally {
@@ -419,6 +518,143 @@ const BusinessDocuments: React.FC = () => {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
           </svg>
         </a>
+      </div>
+    );
+  };
+
+  // Handle initiating document replacement
+  const handleReplaceDocument = (key: string) => {
+    // Only allow replacement if all documents are uploaded
+    if (completedUploads.length < DOCUMENT_STEPS.length) {
+      toast({
+        title: "Complete all uploads first",
+        description: "Please upload all required documents before replacing any.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setReplacementMode(true);
+    setReplacingDocKey(key);
+    
+    toast({
+      title: "Replacement mode",
+      description: `You can now upload a new ${DOCUMENT_STEPS.find(s => s.key === key)?.label} document.`,
+      variant: "default"
+    });
+  };
+
+  // Document card component to handle the various states of each card
+  const DocumentCard = ({ step, index }: { step: typeof DOCUMENT_STEPS[0], index: number }) => {
+    const key = step.key;
+    const isCompleted = completedUploads.includes(key);
+    const isCurrent = currentUploadStep === index;
+    const isReplacing = replacementMode && replacingDocKey === key;
+    const isDisabled = !isCurrent && !isReplacing && !isCompleted;
+    
+    return (
+      <div 
+        key={key} 
+        className={`
+          bg-white rounded-lg shadow p-6 flex-1 min-w-[180px] max-w-[220px] 
+          flex flex-col mx-auto relative
+          ${isDisabled ? 'opacity-60 bg-gray-50' : 'bg-white'}
+          ${isCompleted ? 'border-2 border-green-500' : ''}
+          ${isCurrent ? 'border-2 border-blue-500' : ''}
+          ${isReplacing ? 'border-2 border-orange-500' : ''}
+          ${isDisabled && !isReplacing && !isCompleted ? 'pointer-events-none' : ''}
+        `}
+      >
+        {/* Success badge for completed documents */}
+        {isCompleted && !isReplacing && (
+          <div className="absolute -top-3 -right-3 bg-green-500 text-white rounded-full p-1">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+        )}
+        
+        {/* Current badge */}
+        {isCurrent && !isCompleted && (
+          <div className="absolute -top-3 -right-3 bg-blue-500 text-white rounded-full p-1">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4M4 17h12m0 0l-4-4m4 4l-4 4" />
+            </svg>
+          </div>
+        )}
+        
+        {/* Replacing badge */}
+        {isReplacing && (
+          <div className="absolute -top-3 -right-3 bg-orange-500 text-white rounded-full p-1">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </div>
+        )}
+        
+        <h2 className="text-lg font-semibold mb-2 text-center">{step.label}</h2>
+        <p className="text-sm text-slate-500 mb-2 text-center">Upload your {step.label} document here.</p>
+        
+        {/* Show saved document info if completed */}
+        {isCompleted && savedDocs[key] && !isReplacing && (
+          <div className="bg-green-50 rounded p-2 mb-3 text-sm">
+            <p className="text-green-700 font-medium text-center">{savedDocs[key].name}</p>
+            
+            {/* Replace button - only shown when all documents are uploaded */}
+            {completedUploads.length === DOCUMENT_STEPS.length && (
+              <button
+                onClick={(e) => { 
+                  e.preventDefault();
+                  handleReplaceDocument(key);
+                }}
+                className="mt-2 w-full px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded hover:bg-orange-200 transition"
+              >
+                Replace Document
+              </button>
+            )}
+          </div>
+        )}
+        
+        {/* Upload button - disabled if not current step and not in replacing mode */}
+        {(!isCompleted || isReplacing) && (
+          <>
+            {/* Render disabled button UI when the card is disabled */}
+            {isDisabled && !isReplacing ? (
+              <span
+                className="inline-block w-full px-4 py-2 font-semibold rounded text-center bg-gray-300 text-gray-500 opacity-70 cursor-not-allowed pointer-events-none"
+              >
+                Upload
+              </span>
+            ) : (
+              /* Render active FileExtractor when the card is active */
+              <FileExtractor
+                accept="application/pdf,.csv,.xlsx,.xls,.doc,.docx,image/*"
+                onExtracted={handleExtracted(key)}
+                className="mb-2 block"
+              >
+                <span
+                  className="inline-block w-full px-4 py-2 font-semibold rounded text-center cursor-pointer transition-colors bg-[#ff8000] text-white hover:bg-orange-600"
+                >
+                  {isReplacing ? 'Replace' : 'Upload'}
+                </span>
+              </FileExtractor>
+            )}
+            
+            {files[key] && (
+              <div className="text-green-700 text-sm text-center">Selected: {files[key]?.name}</div>
+            )}
+          </>
+        )}
+        
+        {/* Loading indicator */}
+        {aiLoading[key] && (
+          <div className="flex items-center justify-center mt-2">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-700 mr-2"></div>
+            <span className="text-xs text-blue-700">Processing...</span>
+          </div>
+        )}
+        
+        <div className="text-xs text-slate-400 mt-2 text-center">{step.description}</div>
       </div>
     );
   };
@@ -474,28 +710,49 @@ const BusinessDocuments: React.FC = () => {
           alt="Xero"
         />
 
+        {/* Upload status indicator - Display which document should be uploaded next */}
+        <div className="bg-blue-50 p-4 rounded-lg mb-6">
+          <div className="font-medium text-blue-700 mb-2 flex items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+            </svg>
+            Upload Instructions
+          </div>
+          {replacementMode ? (
+            <p className="text-sm text-blue-600">
+              You are replacing your {DOCUMENT_STEPS.find(s => s.key === replacingDocKey)?.label} document. Your old document will be archived.
+            </p>
+          ) : completedUploads.length === DOCUMENT_STEPS.length ? (
+            <p className="text-sm text-blue-600">
+              All required documents have been uploaded. You can replace any document if needed.
+            </p>
+          ) : (
+            <p className="text-sm text-blue-600">
+              Please upload your documents in sequence. Current document to upload: 
+              <span className="font-bold"> {DOCUMENT_STEPS[currentUploadStep].label}</span>
+            </p>
+          )}
+          <div className="mt-2 flex">
+            {DOCUMENT_STEPS.map((step, idx) => (
+              <div 
+                key={step.key} 
+                className={`h-2 flex-1 mr-1 rounded ${
+                  replacementMode && replacingDocKey === step.key
+                    ? 'bg-orange-500' 
+                    : completedUploads.includes(step.key) 
+                      ? 'bg-green-500' 
+                      : currentUploadStep === idx 
+                        ? 'bg-blue-500' 
+                        : 'bg-gray-300'
+                }`}
+              />
+            ))}
+          </div>
+        </div>
+
         <div className="flex gap-6 flex-col md:flex-row md:justify-evenly">
-          {DOCUMENT_STEPS.map((step) => (
-            <div key={step.key} className="bg-white rounded-lg shadow p-6 flex-1 min-w-[180px] max-w-[220px] flex flex-col mx-auto">
-              <h2 className="text-lg font-semibold mb-2 text-center">{step.label}</h2>
-              <p className="text-sm text-slate-500 mb-2 text-center">Upload your {step.label} document here.</p>
-              <FileExtractor
-                accept="application/pdf,.csv,.xlsx,.xls,.doc,.docx,image/*"
-                onExtracted={handleExtracted(step.key)}
-                className="mb-2 block"
-              >
-                <span
-                  className="inline-block w-full px-4 py-2 text-white font-semibold rounded bg-[#ff8000] text-center cursor-pointer hover:bg-orange-600 transition-colors"
-                >
-                  Upload
-                </span>
-              </FileExtractor>
-              {files[step.key] && (
-                <div className="text-green-700 text-sm text-center">Selected: {files[step.key]?.name}</div>
-              )}
-              {/* No extracted text preview here; only in the tab below */}
-              <div className="text-xs text-slate-400 mt-2 text-center">{step.description}</div>
-            </div>
+          {DOCUMENT_STEPS.map((step, index) => (
+            <DocumentCard key={step.key} step={step} index={index} />
           ))}
         </div>
 

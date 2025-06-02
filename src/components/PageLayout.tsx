@@ -34,7 +34,6 @@ const PageLayout = ({
         {/* Render sidebar if user is logged in */}
         {shouldShowSidebar && (
           <Sidebar 
-            className="sticky left-0 top-16 h-[calc(100vh-4rem)] z-40" 
             role={user?.role as 'business' | 'lender'}
           />
         )}
@@ -42,12 +41,11 @@ const PageLayout = ({
         <main
           className={cn(
             "flex-1 transition-all duration-300 ease-in-out",
-            // Only add margin if sidebar is visible
-            shouldShowSidebar ? "ml-[3rem]" : "",
+            // Add padding for the sidebar when it's visible
+            shouldShowSidebar ? "ml-[var(--sidebar-width-collapsed)]" : "",
             "min-h-[calc(100vh-4rem)]", // Adjust for navbar height
             className
           )}
-          style={{ width: '100vw', maxWidth: '100vw' }}
         >
           <div className="w-full h-full">
             {children}

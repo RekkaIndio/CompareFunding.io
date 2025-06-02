@@ -108,3 +108,48 @@ export const fetchWebsiteLogo = async (websiteUrl: string) => {
     throw error;
   }
 };
+
+// New function to search companies for autocomplete
+export const searchCompanies = async (searchTerm: string, countryCode: string = 'GB'): Promise<{ 
+  companies: Array<{ 
+    name: string; 
+    connectId?: string;
+    id?: string;
+    registrationNumber?: string;
+    address?: { simpleValue?: string } 
+  }> 
+}> => {
+  try {
+    if (!searchTerm || searchTerm.length < 3) {
+      return { companies: [] }; // Return empty results if search term is too short
+    }
+
+    const { searchCompanyByNameDirect } = await import('@/components/CreditScore/api');
+    const searchResults = await searchCompanyByNameDirect(searchTerm, countryCode);
+    
+    // Safely type the search results and ensure all companies have required properties
+    type SearchResultType = { companies?: Array<CompanySearchResult> };
+    const typedResults = searchResults as SearchResultType;
+    
+    if (typedResults?.companies && Array.isArray(typedResults.companies)) {
+      const formattedCompanies = typedResults.companies
+        .filter(company => company.name) // Only include companies that have a name
+        .slice(0, 10) // Limit to 10 results
+        .map(company => ({
+          name: company.name || "", // Ensure name is always a string, default to empty if undefined
+          connectId: company.connectId || company.id || 
+            (company.identification && (company.identification.connectId || company.identification.id)),
+          id: company.id,
+          registrationNumber: company.registrationNumber,
+          address: company.address
+        }));
+      
+      return { companies: formattedCompanies };
+    }
+    
+    return { companies: [] };
+  } catch (error) {
+    console.error('Error searching companies for autocomplete:', error);
+    return { companies: [] }; // Return empty result on error
+  }
+};

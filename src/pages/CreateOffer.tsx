@@ -47,6 +47,8 @@ const offerFormSchema = z.object({
   expiry_days: z.coerce.number().min(1, "Expiry must be at least 1 day")
 });
 
+const formInputStyles = "bg-white/90 border-slate-200 focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50";
+
 const CreateOffer = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -54,22 +56,27 @@ const CreateOffer = () => {
   const [conditions, setConditions] = useState(['']);
   
   // Fetch application data using Firebase
-  const { data: application, isLoading } = useQuery({
+  const { data: application, isLoading, error: applicationError } = useQuery({
     queryKey: ['applicationForOffer', id],
     queryFn: async () => {
       if (!id) {
         throw new Error('Application ID is missing');
       }
       
+      console.log('Fetching application with ID:', id);
+      
       // Get application data
       const { data: appData, error: appError } = await getDocument('applications', id);
       
       if (appError) {
+        console.error('Error fetching application:', appError);
         toast.error('Failed to load application details');
         throw appError;
       }
       
       if (!appData) {
+        console.error('Application not found with ID:', id);
+        toast.error('Application not found');
         throw new Error('Application not found');
       }
       
@@ -235,7 +242,7 @@ const CreateOffer = () => {
     },
     onSuccess: (data) => {
       toast.success('Offer submitted successfully!');
-      navigate('/lender/dashboard');
+      navigate('/matched-applications');
     },
     onError: (error) => {
       console.error('Error submitting offer:', error);
@@ -255,66 +262,75 @@ const CreateOffer = () => {
 
   return (
     <PageLayout>
-      <div className="container py-8">
-        <Button
-          variant="ghost"
-          className="mb-6"
-          onClick={() => navigate(`/lender/applications/${id}`)}
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Application
-        </Button>
-        
-        <div className="max-w-4xl mx-auto">
+      <div className="bg-gradient-to-br from-slate-50 to-blue-50 min-h-screen">
+        <div className="container py-8">
+          <Button
+            variant="ghost"
+            className="mb-6 flex items-center hover:bg-[#212936]/10 text-[#212936]"
+            onClick={() => navigate(`/business/${id}`)}
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Application
+          </Button>
           <h1 className="text-3xl font-bold mb-2">Create Financing Offer</h1>
-          <p className="text-muted-foreground mb-8">
+          <p className="text-slate-800 mb-8">
             Design a tailored financing proposal for {application?.businesses?.business_name || 'this business'}
           </p>
           
           {isLoading ? (
             <div className="space-y-6 animate-pulse">
-              <div className="h-8 bg-gray-100 rounded w-3/4"></div>
-              <div className="h-4 bg-gray-100 rounded w-1/2"></div>
-              <div className="h-[300px] bg-gray-100 rounded"></div>
+              <div className="h-8 bg-white/50 rounded w-3/4"></div>
+              <div className="h-4 bg-white/50 rounded w-1/2"></div>
+              <div className="h-[600px] bg-white/50 rounded-xl shadow"></div>
             </div>
+          ) : applicationError ? (
+            <Alert variant="destructive" className="mb-6 bg-red-50 border-red-200 text-red-900">
+              <AlertTriangle className="h-4 w-4 text-red-700" />
+              <AlertTitle className="font-medium">Error</AlertTitle>
+              <AlertDescription className="text-red-900">
+                {applicationError instanceof Error 
+                  ? applicationError.message 
+                  : 'An error occurred while loading the application details. Please try again.'}
+              </AlertDescription>
+            </Alert>
           ) : (
             <>
-              <Card className="mb-6">
-                <CardHeader>
+              <Card className="mb-6 bg-white/90 backdrop-blur-sm border border-slate-200/50 shadow-lg">
+                <CardHeader className="bg-[#212936] text-white rounded-t-lg">
                   <CardTitle className="text-lg">Application Summary</CardTitle>
-                  <CardDescription>
+                  <CardDescription className="text-gray-200">
                     Review the business's financing request
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
-                      <div className="text-sm text-muted-foreground">Business</div>
-                      <div className="font-medium">
+                      <div className="text-sm text-slate-700">Business</div>
+                      <div className="font-medium text-slate-900">
                         {application?.businesses?.business_name || 'Unknown business'}
                       </div>
-                      <div className="text-xs text-muted-foreground">
+                      <div className="text-xs text-slate-700">
                         {application?.businesses?.industry_sector || 'Industry not specified'}
                       </div>
                     </div>
                     <div>
-                      <div className="text-sm text-muted-foreground">Requested Amount</div>
-                      <div className="font-medium flex items-center">
-                        <PoundSterling className="h-4 w-4 text-muted-foreground" />
+                      <div className="text-sm text-slate-700">Requested Amount</div>
+                      <div className="font-medium flex items-center text-slate-900">
+                        <PoundSterling className="h-4 w-4 text-slate-600 mr-1" />
                         £{application?.loan_amount?.toLocaleString() || 'Not specified'}
                       </div>
                     </div>
                     <div>
-                      <div className="text-sm text-muted-foreground">Requested Term</div>
-                      <div className="font-medium flex items-center">
-                        <CalendarDays className="h-4 w-4 text-muted-foreground mr-1" />
+                      <div className="text-sm text-slate-700">Requested Term</div>
+                      <div className="font-medium flex items-center text-slate-900">
+                        <CalendarDays className="h-4 w-4 text-slate-600 mr-1" />
                         {application?.loan_term_months || 'Not specified'} months
                       </div>
                     </div>
                   </div>
                   <div>
-                    <div className="text-sm text-muted-foreground">Purpose</div>
-                    <div className="font-medium">
+                    <div className="text-sm text-slate-700">Purpose</div>
+                    <div className="font-medium text-slate-900">
                       {application?.purpose || 'Not specified'}
                     </div>
                   </div>
@@ -322,11 +338,11 @@ const CreateOffer = () => {
               </Card>
               
               <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-                  <Card>
-                    <CardHeader>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 [&_input]:bg-white/90 [&_input]:border-slate-200 [&_input]:text-slate-800 [&_input]:focus:border-blue-300 [&_input]:focus:ring [&_input]:focus:ring-blue-200 [&_input]:focus:ring-opacity-50 [&_textarea]:bg-white/90 [&_textarea]:border-slate-200 [&_textarea]:text-slate-800 [&_textarea]:focus:border-blue-300 [&_textarea]:focus:ring [&_textarea]:focus:ring-blue-200 [&_textarea]:focus:ring-opacity-50 [&_label]:text-slate-800 [&_.text-muted-foreground]:text-slate-600">
+                  <Card className="bg-white/90 backdrop-blur-sm border border-slate-200/50 shadow-lg">
+                    <CardHeader className="bg-[#212936] text-white rounded-t-lg">
                       <CardTitle className="text-lg">Offer Details</CardTitle>
-                      <CardDescription>
+                      <CardDescription className="text-gray-200">
                         Configure your financing terms
                       </CardDescription>
                     </CardHeader>
@@ -431,8 +447,8 @@ const CreateOffer = () => {
                                   Calc
                                 </Button>
                               </div>
-                              <FormDescription className="flex items-center gap-1 text-xs">
-                                <InfoIcon className="h-3 w-3" />
+                              <FormDescription className="flex items-center gap-1 text-xs text-slate-700">
+                                <InfoIcon className="h-3 w-3 text-slate-600" />
                                 Annual Percentage Rate including all fees
                               </FormDescription>
                               <FormMessage />
@@ -449,7 +465,7 @@ const CreateOffer = () => {
                               <FormControl>
                                 <Input type="number" step="0.1" {...field} />
                               </FormControl>
-                              <FormDescription className="text-xs">
+                              <FormDescription className="text-xs text-slate-700">
                                 One-time fee charged at loan origination
                               </FormDescription>
                               <FormMessage />
@@ -561,7 +577,7 @@ const CreateOffer = () => {
                             variant="outline"
                             size="sm"
                             onClick={addCondition}
-                            className="flex items-center gap-1"
+                            className="flex items-center gap-1 bg-blue-100 border-blue-300 text-blue-800 hover:bg-blue-200 hover:text-blue-900"
                           >
                             <PlusCircle className="h-3.5 w-3.5" />
                             Add Condition
@@ -595,7 +611,7 @@ const CreateOffer = () => {
                               <FormControl>
                                 <Input type="number" min="1" max="30" {...field} />
                               </FormControl>
-                              <FormDescription className="text-xs">
+                              <FormDescription className="text-xs text-slate-700">
                                 Number of days this offer will remain valid
                               </FormDescription>
                               <FormMessage />
@@ -606,15 +622,15 @@ const CreateOffer = () => {
                     </CardContent>
                   </Card>
                   
-                  <Card>
-                    <CardHeader>
+                  <Card className="bg-white/90 backdrop-blur-sm border border-slate-200/50 shadow-lg">
+                    <CardHeader className="bg-[#212936] text-white rounded-t-lg">
                       <CardTitle className="text-lg">Payment Summary</CardTitle>
-                      <CardDescription>
+                      <CardDescription className="text-gray-200">
                         Estimated payments based on your offer terms
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      <div className="bg-gray-50 p-4 rounded-lg">
+                      <div className="bg-blue-100/80 border border-blue-200 p-4 rounded-lg shadow-sm">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           <div>
                             <div className="text-sm text-muted-foreground">Monthly Payment</div>
@@ -646,25 +662,26 @@ const CreateOffer = () => {
                         </div>
                       </div>
                       
-                      <Alert>
-                        <InfoIcon className="h-4 w-4" />
-                        <AlertTitle>Important</AlertTitle>
-                        <AlertDescription>
+                      <Alert className="bg-blue-50 border-blue-200 text-blue-900">
+                        <InfoIcon className="h-4 w-4 text-blue-700" />
+                        <AlertTitle className="font-medium">Important</AlertTitle>
+                        <AlertDescription className="text-blue-900">
                           Once submitted, this offer will be visible to the business. They may accept, reject, or request modifications.
                         </AlertDescription>
                       </Alert>
                     </CardContent>
-                    <CardFooter className="flex justify-between">
+                    <CardFooter className="flex justify-between gap-4 bg-slate-50/50 border-t border-slate-100">
                       <Button 
                         type="button" 
                         variant="outline"
-                        onClick={() => navigate(`/lender/applications/${id}`)}
+                        className="hover:bg-slate-100 border-slate-200"
+                        onClick={() => navigate(`/business/${id}`)}
                       >
                         Cancel
                       </Button>
                       <Button 
                         type="submit" 
-                        className="bg-fundhub-blue hover:bg-fundhub-blue/90"
+                        className="bg-[#ff8000] hover:bg-[#ff8000]/90 text-white shadow-lg hover:scale-105 transition-transform"
                         disabled={submitOffer.isPending}
                       >
                         {submitOffer.isPending ? 'Submitting...' : 'Submit Offer'}
