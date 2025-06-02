@@ -16,6 +16,16 @@ import { useAuth } from '@/contexts/AuthContext';
 // Add Firestore imports for fetching financial documents
 import { getFirestore, collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 
+// Interface for financial document structure
+interface FinancialDocument {
+  id: string;
+  documentType?: string;
+  documentName?: string;
+  data?: any;
+  summary?: string;
+  [key: string]: any; // Allow for additional properties
+}
+
 // Document types that can be uploaded
 const DOCUMENT_TYPES = [
   { key: "pl", label: "Profit and Loss", description: "Revenue and expense summary" },
@@ -32,7 +42,7 @@ const ApplicationReview = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const queryClient = useQueryClient();
-  const [financialDocs, setFinancialDocs] = useState<any[]>([]);
+  const [financialDocs, setFinancialDocs] = useState<FinancialDocument[]>([]);
   
   // Log the ID parameter to help with debugging
   useEffect(() => {
@@ -149,14 +159,14 @@ const ApplicationReview = () => {
   });
 
   // Fetch financial documents
-  const { data: financialsData, isLoading: isLoadingFinancials } = useQuery({
+  const { data: financialsData, isLoading: isLoadingFinancials } = useQuery<FinancialDocument[]>({
     queryKey: ['financialDocuments', user?.uid, application?.business_id, application?.id],
     queryFn: async () => {
       // If application already has financial documents, use those
       if (application?.financialDocuments) {
         console.log('Using financial documents from application:', Object.keys(application.financialDocuments || {}));
-        setFinancialDocs(Object.values(application.financialDocuments || {}));
-        return Object.values(application.financialDocuments || {});
+        setFinancialDocs(Object.values(application.financialDocuments || {}) as FinancialDocument[]);
+        return Object.values(application.financialDocuments || {}) as FinancialDocument[];
       }
       
       // Determine the business ID to use for fetching documents
@@ -192,7 +202,7 @@ const ApplicationReview = () => {
         const financialsCollection = collection(db, "businesses", businessId, "financials");
         const querySnapshot = await getDocs(financialsCollection);
         
-        const financialDocs = querySnapshot.docs.map(doc => ({
+        const financialDocs: FinancialDocument[] = querySnapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
         }));
@@ -203,7 +213,7 @@ const ApplicationReview = () => {
         let processedFinancialDocs = {};
         let financialSummaries = {};
 
-        financialDocs.forEach(doc => {
+        financialDocs.forEach((doc: FinancialDocument) => {
           const key = doc.documentType?.toLowerCase()?.includes('profit') ? 'pl'
             : doc.documentType?.toLowerCase()?.includes('balance') && !doc.documentType?.toLowerCase()?.includes('trial') ? 'bs'
             : doc.documentType?.toLowerCase()?.includes('trial') ? 'tb'
@@ -254,7 +264,7 @@ const ApplicationReview = () => {
         return financialDocs;
       } catch (error) {
         console.error('Error fetching financial documents:', error);
-        return [];
+        return [] as FinancialDocument[];
       }
     },
     enabled: !!(application) && (!application.financialDocuments || Object.keys(application.financialDocuments || {}).length === 0),
@@ -428,13 +438,102 @@ const ApplicationReview = () => {
         throw error;
       }
       
+      // Prepare business profile data (simplified version for lenders)
+      const businessProfileData = businessProfile ? {
+        business_name: businessProfile.business_name,
+        company_number: businessProfile.company_number,
+        industry: businessProfile.industry,
+        company_size: businessProfile.company_size || businessProfile.size,
+        year_established: businessProfile.year_established,
+        website: businessProfile.website,
+        address: businessProfile.address,
+        contact_email: businessProfile.contact_email,
+        contact_phone: businessProfile.contact_phone,
+        director_name: businessProfile.director_name,
+        // Add any other relevant business fields here
+      } : null;
+      
+      // Prepare credit info data
+      const creditInfoData = businessProfile?.credit_info || application?.business?.credit_info || null;
+      
+      // Prepare financial documents data
+      let financialDocumentsData = {};
+      let documentSummaries = {};
+      
+      // First check for already processed documents in application
+      if (application?.financialDocuments) {
+        financialDocumentsData = application.financialDocuments;
+      }
+      
+      if (application?.financialSummaries) {
+        documentSummaries = application.financialSummaries;
+      }
+      
+      // If we have fetched financial docs, process them
+      if (financialDocs && financialDocs.length > 0) {
+        console.log("Processing fetched financial documents for application submission");
+        
+        // Group documents by type
+        financialDocs.forEach(doc => {
+          const key = doc.documentType?.toLowerCase()?.includes('profit') ? 'pl'
+            : doc.documentType?.toLowerCase()?.includes('balance') && !doc.documentType?.toLowerCase()?.includes('trial') ? 'bs'
+            : doc.documentType?.toLowerCase()?.includes('trial') ? 'tb'
+            : doc.documentType?.toLowerCase()?.includes('payable') ? 'ap'
+            : doc.documentType?.toLowerCase()?.includes('receivable') ? 'ar'
+            : null;
+
+          if (key) {
+            // Process the data with extra handling for Trial Balance and Balance Sheet
+            let processedData = doc.data || {};
+            
+            // Sometimes the data is a string that needs to be parsed
+            if (typeof processedData === 'string') {
+              try {
+                processedData = JSON.parse(processedData);
+              } catch (e) {
+                console.error(`Failed to parse ${key} data as JSON:`, e);
+              }
+            }
+            
+            // Special handling for Trial Balance
+            if (key === 'tb' && (!processedData || Object.keys(processedData).length === 0)) {
+              try {
+                if (doc.summary && typeof doc.summary === 'string') {
+                  const summaryJson = JSON.parse(doc.summary);
+                  if (summaryJson.json && Object.keys(summaryJson.json).length > 0) {
+                    processedData = summaryJson.json;
+                  }
+                }
+              } catch (e) {
+                console.error('Failed to extract Trial Balance data from summary:', e);
+              }
+            }
+            
+            financialDocumentsData[key] = processedData;
+            documentSummaries[key] = doc.summary || '';
+          }
+        });
+      }
+      
+      // Comprehensive update data for the application
       const updateData = { 
         status: 'submitted',
         status_updated_at: new Date().toISOString(),
-        application_date: application?.application_date || new Date().toISOString() // Ensure application_date exists
+        application_date: application?.application_date || new Date().toISOString(),
+        completeness_percentage: 100,
+        
+        // Include consolidated data
+        business_profile: businessProfileData,
+        credit_info: creditInfoData,
+        financialDocuments: financialDocumentsData,
+        financialSummaries: documentSummaries,
+        
+        // Flag to indicate this application has all data consolidated
+        data_consolidated: true,
+        consolidated_at: new Date().toISOString()
       };
       
-      console.log("Updating document with data:", updateData);
+      console.log("Updating application with consolidated data:", updateData);
       
       const { data, error } = await updateDocument('applications', id, updateData);
       
@@ -448,7 +547,7 @@ const ApplicationReview = () => {
       queryClient.invalidateQueries({ queryKey: ['application', id] });
       queryClient.invalidateQueries({ queryKey: ['applications'] });
       
-      console.log("Application submitted successfully:", data);
+      console.log("Application submitted successfully with consolidated data:", data);
       toast.success('Application submitted successfully');
       navigate('/applications');
     } catch (err) {
@@ -706,7 +805,7 @@ const ApplicationReview = () => {
                 </div>
 
                 {/* Information Cards Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                   {/* Business Profile Card */}
                   <Card className="bg-white/90 backdrop-blur-sm border border-slate-200/50 shadow-lg hover:shadow-xl transition-all duration-300">
                     <CardHeader className="bg-[#212936] text-white rounded-t-lg">
@@ -723,7 +822,7 @@ const ApplicationReview = () => {
                         Your business information - shared only after lender connection
                       </CardDescription>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="max-h-[240px] overflow-y-auto">
                       {businessProfile ? (
                         <div className="space-y-4">
                           <div className="space-y-3">
@@ -780,7 +879,7 @@ const ApplicationReview = () => {
                         Credit strength indicator - details shared only when connected
                       </CardDescription>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="max-h-[240px] overflow-y-auto">
                       {(businessProfile?.credit_info?.credit_score || 
                         application?.business?.credit_info?.credit_score || 
                         application?.business?.credit_info?.score ||
@@ -847,10 +946,10 @@ const ApplicationReview = () => {
                         Document verification status - full documents shared only when connected
                       </CardDescription>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="max-h-[240px] overflow-y-auto">
                       <div className="space-y-2 mb-4">
-                        {DOCUMENT_TYPES.slice(0, 3).map(docType => {
-                          const hasDocumentInFinancialDocs = financialDocs?.some(doc => 
+                        {DOCUMENT_TYPES.map(docType => {
+                          const hasDocumentInFinancialDocs = financialDocs?.some((doc: FinancialDocument) => 
                             (doc.documentType?.toLowerCase().includes(docType.label.toLowerCase()) || 
                              doc.documentName?.toLowerCase().includes(docType.key) || 
                              doc.documentName?.toLowerCase().includes(docType.label.toLowerCase()))
@@ -872,17 +971,17 @@ const ApplicationReview = () => {
                                             hasDocumentInTraditionalFormat;
                           
                           return (
-                            <div key={docType.key} className="flex items-center justify-between bg-slate-50/70 rounded-lg p-2 border border-slate-100">
+                            <div key={docType.key} className="flex items-center justify-between bg-slate-50/70 rounded-lg p-1.5 border border-slate-100">
                               <div className="flex items-center space-x-2">
                                 <FileText className="h-3 w-3 text-slate-500" />
-                                <span className="text-sm font-medium text-slate-900">{docType.label}</span>
+                                <span className="text-xs font-medium text-slate-900">{docType.label}</span>
                               </div>
                               <Badge 
                                 variant={hasDocument ? "default" : "secondary"} 
                                 className={
                                   hasDocument 
-                                    ? "bg-green-600 text-white shadow-sm" 
-                                    : "bg-slate-200 text-slate-600"
+                                    ? "bg-green-600 text-white shadow-sm text-xs h-5" 
+                                    : "bg-slate-200 text-slate-600 text-xs h-5"
                                 }
                               >
                                 {hasDocument ? "✓" : "—"}
@@ -890,9 +989,7 @@ const ApplicationReview = () => {
                             </div>
                           );
                         })}
-                        {DOCUMENT_TYPES.length > 3 && (
-                          <p className="text-xs text-slate-500 text-center">+{DOCUMENT_TYPES.length - 3} more document types</p>
-                        )}
+
                       </div>
                       {(!hasFinancialDocs) && (
                         <div className="text-center">

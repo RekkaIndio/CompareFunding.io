@@ -215,7 +215,7 @@ const ApplicationDetail = () => {
                 )}
 
                 {/* Application Overview Section */}
-                <ApplicationOverview application={application} />
+                <ApplicationOverview application={application} refetchApplication={refetchApplication} />
 
                 {/* Grid for strength cards and business info */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">

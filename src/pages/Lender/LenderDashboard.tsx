@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import PageLayout from '@/components/PageLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { BarChart, CreditCard, Users, DollarSign, ArrowUp, ArrowDown, Loader2, MessageCircle } from 'lucide-react';
+import { formatAddress, getBusinessDisplayName } from '@/lib/formatters';
 
 const LenderDashboard = () => {
   const { user } = useAuth();
@@ -112,7 +113,12 @@ const LenderDashboard = () => {
       console.log('Fetching accepted offers for user:', user?.uid);
       const { data, error } = await getDocuments('offers', [
         { field: 'lender_id', operator: '==', value: user?.uid },
-        { field: 'status', operator: '==', value: 'accepted' }
+        { 
+          field: 'status', 
+          operator: 'in', 
+          value: ['accepted', 'completed'] // Include both accepted and completed statuses
+        },
+        { field: 'is_active', operator: '==', value: true }
       ]);
       
       if (error) {
@@ -127,15 +133,40 @@ const LenderDashboard = () => {
       if (data && data.length > 0) {
         const offersWithBusinesses = await Promise.all(
           data.map(async (offer) => {
-            const appResponse = await getDocument('applications', offer.application_id);
-            const businessId = appResponse.data?.business_id;
-            console.log(`Offer ${offer.id} - Application ${offer.application_id} - Business ID: ${businessId}`);
-            // You can add any logic here if you want to do something when businessId exists
-            // For now, just return the offer with the application data
-            return {
-              ...offer,
-              application: appResponse.data
-            };
+            try {
+              // Get application data
+              const appResponse = await getDocument('applications', offer.application_id);
+              const applicationData = appResponse.data;
+              const businessId = applicationData?.business_id || applicationData?.user_id;
+              
+              console.log(`Offer ${offer.id} - Application ${offer.application_id} - Business ID: ${businessId}`);
+              
+              let businessData = null;
+              // If we have a business ID, fetch the business details
+              if (businessId) {
+                const businessResponse = await getDocument('businesses', businessId);
+                businessData = businessResponse.data;
+                console.log(`Fetched business data for ${businessId}:`, businessData?.business_name || 'No name');
+              }
+              
+              // Return combined data
+              return {
+                ...offer,
+                application: {
+                  ...applicationData,
+                  // Add business name to application for easy access
+                  business_name: businessData?.business_name || 
+                                businessData?.company_name || 
+                                applicationData?.business_name ||
+                                'Business'
+                },
+                business: businessData
+              };
+            } catch (err) {
+              console.error(`Error fetching data for offer ${offer.id}:`, err);
+              // Return the offer with whatever data we have
+              return offer;
+            }
           })
         );
         
@@ -313,10 +344,16 @@ const LenderDashboard = () => {
     totalApplicationsAvailable: availableApplications?.length || 0,
     activeApplications: matchedApplications?.filter(app => app.status === 'matched').length || 0,
     offersExtended: lenderOffers?.length || 0,
-    offersAccepted: lenderOffers?.filter(offer => offer.status === 'accepted').length || 0,
+    offersAccepted: lenderOffers?.filter(offer => 
+      offer.status === 'accepted' || 
+      (offer.status === 'completed' && offer.is_active)
+    ).length || 0,
     prospects: availableApplications?.filter(app => !app.isViewed).length || 0,
     conversionRate: lenderOffers?.length 
-      ? Math.round((lenderOffers.filter(offer => offer.status === 'accepted').length / lenderOffers.length) * 100) 
+      ? Math.round((lenderOffers.filter(offer => 
+          offer.status === 'accepted' || 
+          (offer.status === 'completed' && offer.is_active)
+        ).length / lenderOffers.length) * 100) 
       : 0,
     totalLoanAmount: lenderOffers
       ?.filter(offer => offer.status === 'accepted')
@@ -378,8 +415,9 @@ const LenderDashboard = () => {
           <div className="bg-white rounded-lg shadow p-5 border border-gray-200">
             <div className="text-sm text-gray-500 mb-1">Offers Extended</div>
             <div className="text-2xl font-bold">{stats.offersExtended}</div>
-            <div className="mt-2 text-xs text-gray-400">
-              {stats.offersAccepted} accepted
+            <div className="mt-2 text-xs">
+              <span className="text-green-600 font-medium">{stats.offersAccepted} accepted</span>
+              <span className="text-gray-400 ml-1">({stats.offersExtended - stats.offersAccepted} pending)</span>
             </div>
           </div>
           
@@ -431,8 +469,57 @@ const LenderDashboard = () => {
         {/* Tab Content */}
         {activeTab === 'overview' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Recent Applications */}
+            {/* Accepted Offers */}
             <div className="lg:col-span-2">
+              <div className="bg-white rounded-lg shadow border border-gray-200 mb-6">
+                <div className="px-6 py-5 border-b border-gray-200">
+                  <h2 className="font-semibold">Accepted Offers</h2>
+                  <p className="text-sm text-slate-500">Applications with accepted funding offers</p>
+                </div>
+                <div className="p-6">
+                  {acceptedOffersLoading ? (
+                    <div className="text-center py-4 text-gray-500">Loading accepted offers...</div>
+                  ) : acceptedOffers && acceptedOffers.length > 0 ? (
+                    <div className="space-y-4">
+                      {acceptedOffers.map(offer => (
+                        <div 
+                          key={offer.id}
+                          className="p-4 border border-green-100 rounded-lg bg-green-50/50 hover:bg-green-50 cursor-pointer transition-colors"
+                          onClick={() => navigate(`/business/${offer.application_id}`)}
+                        >
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <div className="font-medium text-slate-900">
+                                {getBusinessDisplayName(offer.application, offer.business)}
+                              </div>
+                              <div className="text-sm text-slate-600 mt-1">
+                                Offer Amount: {new Intl.NumberFormat('en-GB', {
+                                  style: 'currency',
+                                  currency: 'GBP'
+                                }).format(offer.offered_amount || 0)}
+                              </div>
+                              <div className="text-xs text-slate-500 mt-1">
+                                Accepted on {new Date(offer.accepted_at).toLocaleDateString()}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">
+                                Accepted
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-6 text-gray-500">
+                      No accepted offers yet
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Recent Applications */}
               <div className="bg-white rounded-lg shadow border border-gray-200">
                 <div className="px-6 py-5 border-b border-gray-200 flex justify-between items-center">
                   <h2 className="font-semibold">Recent Applications</h2>

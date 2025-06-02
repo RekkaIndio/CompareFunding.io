@@ -33,7 +33,8 @@ import LenderDashboard from "./pages/Lender/LenderDashboard";
 import LenderBilling from "./pages/Lender/LenderBilling";
 import LearnPage from "./pages/Learn";
 import HelpPage from "./pages/Help";
-import MatchedApplications from "./pages/MatchedApplications";
+import MatchedApplicationsRedirect from "./pages/MatchedApplications";
+import LenderMatchedApplications from "./pages/Lender/MatchedApplications";
 import ApplicationDetail from "./pages/Applications/ApplicationDetail";
 import CreateOffer from "./pages/CreateOffer";
 import Settings from "./pages/Settings";
@@ -115,8 +116,9 @@ const App = () => (
                   <Route path="/lender/profile" element={<LenderProfile />} />
                   <Route path="/lender/dashboard" element={<LenderDashboard />} />
                   <Route path="/lender/billing" element={<LenderBilling />} />
-                  <Route path="/lender/applications" element={<MatchedApplications />} />
-                  <Route path="/matched-applications" element={<MatchedApplications />} />
+                  <Route path="/lender/applications" element={<MatchedApplicationsRedirect />} />
+                  <Route path="/matched-applications" element={<MatchedApplicationsRedirect />} />
+                  <Route path="/lender/matched-applications" element={<LenderMatchedApplications />} />
                   <Route path="/business/:id" element={<BusinessDetail />} />
                   <Route path="/lender/applications/:id" element={<ApplicationDetail />} />
                   <Route path="/lender/applications/:id/offer" element={<CreateOffer />} />

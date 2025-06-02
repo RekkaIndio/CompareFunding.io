@@ -9,9 +9,11 @@ interface ProfileLogoProps {
   className?: string;
 }
 
-const ProfileLogo: React.FC<ProfileLogoProps> = ({ role, isCollapsed, className }) => {
+const ProfileLogo: React.FC<ProfileLogoProps> = ({ role: propRole, isCollapsed, className }) => {
   const { user } = useAuth();
   const [profile, setProfile] = useState<any>(null);
+  // Use the user's role from the auth context if available, otherwise use the prop
+  const role = user?.role || propRole;
 
   useEffect(() => {
     const fetchProfile = async () => {

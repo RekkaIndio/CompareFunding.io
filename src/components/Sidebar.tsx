@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { BookOpen, Briefcase, MessageSquare, LineChart, BarChart, User, Users, HelpCircle, Link as LinkIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '../lib/utils';
 import ProfileLogo from './ProfileLogo';
+import { useAuth } from '../contexts/AuthContext';
 
 interface SidebarProps {
   className?: string;
@@ -71,8 +72,13 @@ const lenderMenuItems = [
 //   { to: "/advisor/messages", icon: <BookOpen size={22} />, label: "Messages" },
 // ]
 
-export const Sidebar: React.FC<SidebarProps> = ({ className, role = 'business' }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ className, role: propRole }) => {
   const [isCollapsed, setIsCollapsed] = useState(true); // Start collapsed
+  const { user } = useAuth();
+  // Use the user's role from the auth context if available, otherwise use the prop (fallback)
+  const role = user?.role || propRole || 'business';
+  console.log("Current user:", user);
+  console.log("Sidebar using role:", role);
   const menuItems = role === 'lender' ? lenderMenuItems : businessMenuItems;
   const location = useLocation();
 
@@ -105,18 +111,23 @@ export const Sidebar: React.FC<SidebarProps> = ({ className, role = 'business' }
   return (
     <div
       className={cn(
-        "bg-[#212936] text-white flex flex-col h-full transition-all duration-300 ease-in-out shrink-0",
+        "bg-[#212936] text-white flex flex-col fixed left-0 z-40 transition-all duration-300 ease-in-out",
         isCollapsed ? "w-[var(--sidebar-width-collapsed)]" : "w-[var(--sidebar-width)]",
         className
       )}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
+      style={{
+        position: 'fixed',
+        top: '64px', // Move down to account for navbar height (16 tailwind units = 64px)
+        height: 'calc(100vh - 64px)', // Adjust height to account for navbar
+        overflowY: 'auto'
+      }}
     >
-      <div className={cn("flex items-center justify-between", isCollapsed ? "p-1" : "p-4")}>
+      <div className={cn("flex items-center justify-between pt-2", isCollapsed ? "p-1" : "p-4")}>
         <div className={cn("transition-all duration-300 overflow-hidden", isCollapsed ? "w-8" : "w-full")}>
           <ProfileLogo role={role} isCollapsed={isCollapsed} />
         </div>
-        {/* Button no longer has onClick, icon reflects hover state */}
         <div className={cn("rounded-lg", isCollapsed ? "p-1" : "p-2")} aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}>
           {isCollapsed ? (
             <ChevronRight size={16} className="text-gray-300 pointer-events-none" />
@@ -126,7 +137,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ className, role = 'business' }
         </div>
       </div>
 
-      <nav className={cn("flex-1 mt-4 space-y-4", isCollapsed ? "px-0" : "px-2")}>
+      <nav className={cn("flex-1 mt-4 space-y-4 overflow-y-auto", isCollapsed ? "px-0" : "px-2")}>
         {menuItems.map((item) => (
           <NavItem
             key={item.to}

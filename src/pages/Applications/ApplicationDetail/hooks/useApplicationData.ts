@@ -109,6 +109,40 @@ export const useApplicationData = (id?: string | null, user?: User | null) => {
         businessData = businessResponse.data;
       }
       
+      // Check if data has already been consolidated (submitted application)
+      if (data.data_consolidated) {
+        console.log('Using consolidated application data:', data);
+        
+        // Use the consolidated business profile data
+        if (data.business_profile) {
+          businessData = data.business_profile;
+        }
+        
+        // Use consolidated credit info
+        if (data.credit_info) {
+          creditInfo = data.credit_info;
+          // Also add to businessData for consistency with existing code
+          if (businessData) {
+            businessData.credit_info = creditInfo;
+          }
+        }
+        
+        // Use consolidated financial documents and summaries
+        const appData = {
+          ...data,
+          business: businessData,
+          financialDocuments: data.financialDocuments || {},
+          financialSummaries: data.financialSummaries || {},
+          isOwner,
+          isLender: !isOwner
+        };
+        
+        // Calculate application completeness
+        calculateCompleteness(appData);
+        return appData;
+      }
+      
+      // If not consolidated, fetch data from different collections
       // Fetch latest credit score from subcollection if businessData exists
       if (businessData) {
         try {
@@ -215,20 +249,49 @@ export const useApplicationData = (id?: string | null, user?: User | null) => {
   const calculateCompleteness = (app) => {
     if (!app) return { percentage: 0, completed: 0, total: 4, missing: [] };
     
-    // Check if financial documents are available in either format
+    // If the app already has a completeness percentage and it's 100%, use that
+    if (app.data_consolidated === true || app.completeness_percentage === 100) {
+      console.log('Using pre-calculated completeness percentage:', app.completeness_percentage);
+      return {
+        percentage: 100,
+        completed: 4,
+        total: 4,
+        missing: []
+      };
+    }
+    
+    // Check if financial documents are available in any format
     const hasFinancialDocs = 
       // Check in the traditional format
       (app.financial_documents && app.financial_documents.length > 0) ||
       // Check in the financialDocuments object format
-      (app.financialDocuments && Object.keys(app.financialDocuments).some(key => 
-        app.financialDocuments[key] && Object.keys(app.financialDocuments[key]).length > 0));
+      (app.financialDocuments && Object.keys(app.financialDocuments || {}).some(key => 
+        app.financialDocuments[key] && Object.keys(app.financialDocuments[key]).length > 0)) ||
+      // Check in direct consolidated data
+      (app.business_profile && app.business_profile.financial_documents);
+    
+    // Check for business profile in both consolidated and traditional formats
+    const hasBusinessProfile = 
+      app.business_profile || // Consolidated format
+      app.business; // Traditional format
+    
+    // Check for credit score in any format
+    const hasCreditScore = 
+      // Consolidated format
+      (app.credit_info && (app.credit_info.credit_score || app.credit_info.score)) ||
+      // Traditional format - in business
+      (app.business?.credit_info?.credit_score) ||
+      // Alternative credit score format
+      (app.business?.credit_info?.score);
     
     const checks = [
-      { name: 'Business profile', value: app.business ? true : false },
-      { name: 'Credit score', value: app.business?.credit_info?.credit_score ? true : false },
+      { name: 'Business profile', value: hasBusinessProfile ? true : false },
+      { name: 'Credit score', value: hasCreditScore ? true : false },
       { name: 'Financial documents', value: hasFinancialDocs },
       { name: 'Application details', value: app.loan_amount && app.loan_term_months && app.purpose ? true : false }
     ];
+    
+    console.log('Application completeness checks:', checks);
     
     const completed = checks.filter(check => check.value).length;
     const missing = checks.filter(check => !check.value).map(check => check.name);
