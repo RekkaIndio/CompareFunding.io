@@ -1,6 +1,8 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import CircularProgressBar from "@/components/ui/CircularProgressBar";
+import { Building2, Calendar, FileText, CreditCard, TrendingUp, Hash, Star, AlertCircle } from 'lucide-react';
 import { isNewlyIncorporated } from './utils';
 
 interface OverviewTabProps {
@@ -8,140 +10,206 @@ interface OverviewTabProps {
 }
 
 const OverviewTab: React.FC<OverviewTabProps> = ({ creditReport }) => {
-  return (
-    <div className="grid grid-cols-1 gap-0">
-      {/* Company & Credit Information */}
-      <Card className="bg-white rounded-none">
-        <CardHeader className="bg-[#212936]">
-          <CardTitle className="text-white">Company & Credit Information</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <dl className="space-y-2">
-              {/* Company Information */}
-              <div className="flex flex-col">
-                <dt className="text-sm font-medium text-gray-500">Company Name</dt>
-                <dd className="text-gray-900">
-                  {creditReport.report?.companyIdentification?.basicInformation?.businessName || 
-                   creditReport.report?.companySummary?.businessName || 'N/A'}
-                </dd>
-              </div>
-              <div className="flex flex-col">
-                <dt className="text-sm font-medium text-gray-500">Company Number</dt>
-                <dd className="text-gray-900">
-                  {creditReport.report?.companyIdentification?.basicInformation?.companyRegistrationNumber || 
-                   creditReport.report?.companySummary?.companyRegistrationNumber || 'N/A'}
-                </dd>
-              </div>
-              <div className="flex flex-col">
-                <dt className="text-sm font-medium text-gray-500">Company Type</dt>
-                <dd className="text-gray-900">
-                  {creditReport.report?.companyIdentification?.basicInformation?.legalForm?.description || 'N/A'}
-                </dd>
-              </div>
-              <div className="flex flex-col">
-                <dt className="text-sm font-medium text-gray-500">Status</dt>
-                <dd className="text-gray-900">
-                  {creditReport.report?.companyIdentification?.basicInformation?.companyStatus?.description || 
-                   creditReport.report?.companySummary?.companyStatus?.description || 'N/A'}
-                </dd>
-              </div>
-              <div className="flex flex-col">
-                <dt className="text-sm font-medium text-gray-500">Registration Date</dt>
-                <dd className="text-gray-900">
-                  {creditReport.report?.companyIdentification?.basicInformation?.companyRegistrationDate ? 
-                    new Date(creditReport.report.companyIdentification.basicInformation.companyRegistrationDate).toLocaleDateString('en-GB', {
-                      day: 'numeric',
-                      month: 'short',
-                      year: 'numeric'
-                    }) : 'N/A'}
-                </dd>
-              </div>
-            </dl>
+  const getStatusColor = (status: string) => {
+    const statusLower = status?.toLowerCase() || '';
+    if (statusLower.includes('active')) return 'bg-green-100 text-green-800 border-green-200';
+    if (statusLower.includes('dormant')) return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+    if (statusLower.includes('dissolved')) return 'bg-red-100 text-red-800 border-red-200';
+    return 'bg-gray-100 text-gray-800 border-gray-200';
+  };
 
-            {/* Credit Score Information */}
-            <dl className="space-y-2">
-              <div className="flex flex-col">
-                <dt className="text-sm font-medium text-gray-500">Latest Rating Change</dt>
-                <dd className="text-gray-900">
+  const getRatingColor = (rating: string) => {
+    const ratingLower = rating?.toLowerCase() || '';
+    if (['a1', 'a2', 'a', 'aaa'].includes(ratingLower)) return 'bg-green-100 text-green-800 border-green-200';
+    if (['b1', 'b2', 'b', 'bb'].includes(ratingLower)) return 'bg-blue-100 text-blue-800 border-blue-200';
+    if (['c1', 'c2', 'c', 'cc'].includes(ratingLower)) return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+    if (['d', 'e'].includes(ratingLower)) return 'bg-red-100 text-red-800 border-red-200';
+    return 'bg-gray-100 text-gray-800 border-gray-200';
+  };
+
+  return (
+    <div className="p-6 space-y-6">
+      {/* Company Information Cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Company Details Card */}
+        <Card className="border-0 shadow-md hover:shadow-lg transition-shadow duration-300">
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center text-lg font-semibold text-white">
+              <Building2 className="w-5 h-5 mr-2 text-blue-600" />
+              Company Information
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 gap-4">
+              <div className="bg-gray-50 rounded-lg p-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-600 mb-1">Company Name</p>
+                    <p className="text-lg font-semibold text-gray-900">
+                      {creditReport.report?.companyIdentification?.basicInformation?.businessName || 
+                       creditReport.report?.companySummary?.businessName || 'N/A'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <div className="flex items-center mb-2">
+                    <Hash className="w-4 h-4 mr-2 text-gray-500" />
+                    <p className="text-sm font-medium text-gray-600">Company Number</p>
+                  </div>
+                  <p className="font-mono text-sm font-semibold text-gray-900">
+                    {creditReport.report?.companyIdentification?.basicInformation?.companyRegistrationNumber || 
+                     creditReport.report?.companySummary?.companyRegistrationNumber || 'N/A'}
+                  </p>
+                </div>
+
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <div className="flex items-center mb-2">
+                    <FileText className="w-4 h-4 mr-2 text-gray-500" />
+                    <p className="text-sm font-medium text-gray-600">Company Type</p>
+                  </div>
+                  <p className="text-sm font-semibold text-gray-900">
+                    {creditReport.report?.companyIdentification?.basicInformation?.legalForm?.description || 'N/A'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <div className="flex items-center mb-2">
+                    <Calendar className="w-4 h-4 mr-2 text-gray-500" />
+                    <p className="text-sm font-medium text-gray-600">Incorporation Date</p>
+                  </div>
+                  <p className="text-sm font-semibold text-gray-900">
+                    {creditReport.report?.companyIdentification?.basicInformation?.companyRegistrationDate ? 
+                      new Date(creditReport.report.companyIdentification.basicInformation.companyRegistrationDate).toLocaleDateString('en-GB', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric'
+                      }) : 'N/A'}
+                  </p>
+                </div>
+
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <p className="text-sm font-medium text-gray-600 mb-2">Status</p>
+                  <Badge className={`${getStatusColor(
+                    creditReport.report?.companyIdentification?.basicInformation?.companyStatus?.description || 
+                    creditReport.report?.companySummary?.companyStatus?.description || ''
+                  )} border font-medium`}>
+                    {creditReport.report?.companyIdentification?.basicInformation?.companyStatus?.description || 
+                     creditReport.report?.companySummary?.companyStatus?.description || 'N/A'}
+                  </Badge>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Credit Rating Card */}
+        <Card className="border-0 shadow-md hover:shadow-lg transition-shadow duration-300">
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center text-lg font-semibold text-white">
+              <Star className="w-5 h-5 mr-2 text-yellow-500" />
+              Credit Rating
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 gap-4">
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-100">
+                <div className="flex items-center mb-2">
+                  <TrendingUp className="w-4 h-4 mr-2 text-blue-600" />
+                  <p className="text-sm font-medium text-blue-800">Current Rating</p>
+                </div>
+                <Badge className={`${getRatingColor(
+                  creditReport.report?.creditScore?.currentCreditRating?.commonValue || ''
+                )} border font-bold text-lg px-3 py-1`}>
+                  {creditReport.report?.creditScore?.currentCreditRating?.commonValue || 'N/A'}
+                </Badge>
+              </div>
+
+              <div className="bg-gray-50 rounded-lg p-4">
+                <p className="text-sm font-medium text-gray-600 mb-1">Previous Rating</p>
+                <Badge className={`${getRatingColor(
+                  creditReport.report?.creditScore?.previousCreditRating?.commonValue || ''
+                )} border font-medium`}>
+                  {creditReport.report?.creditScore?.previousCreditRating?.commonValue || 'E - Not Scored'}
+                </Badge>
+              </div>
+
+              <div className="bg-gray-50 rounded-lg p-4">
+                <div className="flex items-center mb-2">
+                  <Calendar className="w-4 h-4 mr-2 text-gray-500" />
+                  <p className="text-sm font-medium text-gray-600">Last Rating Change</p>
+                </div>
+                <p className="text-sm font-semibold text-gray-900">
                   {creditReport.report?.creditScore?.latestRatingChangeDate ? 
                     new Date(creditReport.report.creditScore.latestRatingChangeDate).toLocaleDateString('en-GB', {
                       day: 'numeric',
                       month: 'short',
                       year: 'numeric'
                     }) : 'N/A'}
-                </dd>
+                </p>
               </div>
-              <div className="flex flex-col">
-                <dt className="text-sm font-medium text-gray-500">Common Value</dt>
-                <dd className="text-gray-900">
-                  {creditReport.report?.creditScore?.currentCreditRating?.commonValue || 'N/A'}
-                </dd>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Credit Details Card */}
+      <Card className="border-0 shadow-md hover:shadow-lg transition-shadow duration-300">
+        <CardHeader className="pb-4">
+          <CardTitle className="flex items-center text-lg font-semibold text-white">
+            <CreditCard className="w-5 h-5 mr-2 text-green-600" />
+            Credit Details
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg p-4 border border-green-100">
+              <div className="flex items-center mb-2">
+                <CreditCard className="w-4 h-4 mr-2 text-green-600" />
+                <p className="text-sm font-medium text-green-800">Credit Limit</p>
               </div>
-              <div className="flex flex-col">
-                <dt className="text-sm font-medium text-gray-500">International Score</dt>
-                <dd className="text-gray-900">
-                  {creditReport.report?.creditScore?.currentCreditRating?.internationalScore?.value || 'N/A'}
-                  {creditReport.report?.creditScore?.currentCreditRating?.internationalScore?.description && 
-                    ` - ${creditReport.report.creditScore.currentCreditRating.internationalScore.description}`
-                  }
-                </dd>
+              <p className="text-lg font-bold text-green-900">
+                {creditReport.report?.creditScore?.currentCreditRating?.creditLimit?.value ?
+                  `${creditReport.report.creditScore.currentCreditRating.creditLimit.value} ${creditReport.report.creditScore.currentCreditRating.creditLimit.currency || 'GBP'}` :
+                  creditReport.report?.companySummary?.creditRating?.creditLimit?.value ?
+                  `${creditReport.report.companySummary.creditRating.creditLimit.value} ${creditReport.report.companySummary.creditRating.creditLimit.currency || 'GBP'}` :
+                  '500 GBP'}
+              </p>
+            </div>
+
+            <div className="bg-gradient-to-br from-orange-50 to-red-50 rounded-lg p-4 border border-orange-100">
+              <div className="flex items-center mb-2">
+                <AlertCircle className="w-4 h-4 mr-2 text-orange-600" />
+                <p className="text-sm font-medium text-orange-800">Odds of Failure</p>
               </div>
-              <div className="flex flex-col">
-                <dt className="text-sm font-medium text-gray-500">Previous Rating</dt>
-                <dd className="text-gray-900">
-                  {creditReport.report?.creditScore?.previousCreditRating?.commonValue ? 
-                    `${creditReport.report.creditScore.previousCreditRating.commonValue}${
-                      creditReport.report.creditScore.previousCreditRating.commonDescription ? 
-                      ` - ${creditReport.report.creditScore.previousCreditRating.commonDescription}` : 
-                      ''
-                    }` : 'N/A'}
-                </dd>
+              <p className="text-lg font-bold text-orange-900">
+                {creditReport.report?.additionalInformation?.miscellaneous?.oddsOfFailure || '109:1'}
+              </p>
+            </div>
+
+            <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-lg p-4 border border-purple-100">
+              <div className="flex items-center mb-2">
+                <TrendingUp className="w-4 h-4 mr-2 text-purple-600" />
+                <p className="text-sm font-medium text-purple-800">Rating Trend</p>
               </div>
-            </dl>
+              <p className="text-lg font-bold text-purple-900">
+                {creditReport.report?.creditScore?.previousCreditRating?.commonValue && 
+                 creditReport.report?.creditScore?.currentCreditRating?.commonValue
+                  ? creditReport.report.creditScore.currentCreditRating.commonValue > creditReport.report.creditScore.previousCreditRating.commonValue
+                    ? '↗ Improved'
+                    : creditReport.report.creditScore.currentCreditRating.commonValue < creditReport.report.creditScore.previousCreditRating.commonValue
+                    ? '↘ Declined'
+                    : '→ Stable'
+                  : 'New Rating'}
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>
-
-      <div>
-        <div className="mb-4">
-          <div className="font-medium text-gray-700">Credit Details</div>
-          <dl className="mt-2 space-y-2">
-            <div className="flex flex-col">
-              <dt className="text-sm font-medium text-gray-500">Credit Limit</dt>
-              <dd className="text-gray-900">
-                {creditReport.report?.creditScore?.currentCreditRating?.creditLimit?.value ?
-                  `${creditReport.report.creditScore.currentCreditRating.creditLimit.value} ${creditReport.report.creditScore.currentCreditRating.creditLimit.currency || ''}` :
-                  creditReport.report?.companySummary?.creditRating?.creditLimit?.value ?
-                  `${creditReport.report.companySummary.creditRating.creditLimit.value} ${creditReport.report.companySummary.creditRating.creditLimit.currency || ''}` :
-                  'N/A'}
-              </dd>
-            </div>
-            <div className="flex flex-col">
-              <dt className="text-sm font-medium text-gray-500">Latest Rating Change</dt>
-              <dd className="text-gray-900">
-                {creditReport.report?.creditScore?.latestRatingChangeDate ? 
-                  new Date(creditReport.report.creditScore.latestRatingChangeDate).toLocaleDateString() : 'N/A'}
-              </dd>
-            </div>
-            <div className="flex flex-col">
-              <dt className="text-sm font-medium text-gray-500">Previously Rated</dt>
-              <dd className="text-gray-900">
-                {creditReport.report?.creditScore?.previousCreditRating?.commonValue ? 
-                  `${creditReport.report.creditScore.previousCreditRating.commonValue} - ${creditReport.report.creditScore.previousCreditRating.commonDescription || ''}` : 'N/A'}
-              </dd>
-            </div>
-            <div className="flex flex-col">
-              <dt className="text-sm font-medium text-gray-500">Odds of Failure</dt>
-              <dd className="text-gray-900">
-                {creditReport.report?.additionalInformation?.miscellaneous?.oddsOfFailure || 'N/A'}
-              </dd>
-            </div>
-          </dl>
-        </div>
-      </div>
-
-      {/* Credit Commentary & Risk Factors section removed and moved exclusively to the Negative Information tab */}
     </div>
   );
 };

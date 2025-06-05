@@ -14,7 +14,7 @@ import * as z from 'zod';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import PageLayout from '@/components/PageLayout';
-import { Building2, Image as ImageIcon, Loader2, ChevronRight, BadgePoundSterling, MailIcon, PhoneIcon } from 'lucide-react';
+import { Building2, Image as ImageIcon, Loader2, ChevronRight, BadgePoundSterling, MailIcon, PhoneIcon, Mail, Phone } from 'lucide-react';
 
 // Add window type definition for logo fetch timer
 declare global {
@@ -98,16 +98,16 @@ const getDefaultLogoForService = (domain: string): string | null => {
 // Helper function to generate a letter-based logo
 const generateLetterLogo = (name: string): string => {
   if (!name) return '';
-  
+
   const initials = name.trim().substring(0, 2).toUpperCase();
   const colors = [
     '#3498db', '#2ecc71', '#e74c3c', '#f39c12', '#9b59b6',
     '#1abc9c', '#d35400', '#34495e', '#16a085', '#c0392b'
   ];
-  
+
   const colorIndex = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % colors.length;
   const bgColor = colors[colorIndex];
-  
+
   const svgTemplate = `
     <svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
       <rect width="128" height="128" fill="${bgColor}"/>
@@ -117,7 +117,7 @@ const generateLetterLogo = (name: string): string => {
       </text>
     </svg>
   `;
-  
+
   return `data:image/svg+xml;base64,${btoa(svgTemplate)}`;
 };
 
@@ -160,34 +160,34 @@ const BusinessProfile = () => {
   useEffect(() => {
     const fetchBusinessProfile = async () => {
       if (!user) return;
-      
+
       setIsLoading(true);
-      
+
       try {
         // First try to fetch from 'businesses' collection (which is where BusinessDetailsForm.tsx saves data)
         let { data, error } = await getDocument('businesses', user.uid);
-        
+
         // If no data in businesses, try the business_profiles collection as fallback
         if (error || !data) {
           const businessProfilesResult = await getDocument('business_profiles', user.uid);
           data = businessProfilesResult.data;
           error = businessProfilesResult.error;
         }
-          
+
         if (error) {
           // Not an error if document doesn't exist yet
           setIsLoading(false);
           return;
         }
-        
+
         if (data) {
           // Extract address fields from the address object
           const addressData = data.address || {};
           const tradingAddressData = data.trading_address || {};
-          
+
           setProfileExists(true);
           setProfile(data);
-          
+
           // Update form values with the extracted address fields, logo URL, and website summary
           form.reset({
             business_name: data.business_name || data.name || '',
@@ -222,38 +222,38 @@ const BusinessProfile = () => {
         setIsLoading(false);
       }
     };
-    
+
     // Fetch profile data when component mounts
     const fetchProfile = async () => {
       if (!user) return;
-      
+
       setIsLoading(true);
-      
+
       try {
         // First try to fetch from 'businesses' collection (which is where BusinessDetailsForm.tsx saves data)
         let { data, error } = await getDocument('businesses', user.uid);
-        
+
         // If no data in businesses, try the business_profiles collection as fallback
         if (error || !data) {
           const businessProfilesResult = await getDocument('businesses', user.uid);
           data = businessProfilesResult.data;
           error = businessProfilesResult.error;
         }
-          
+
         if (error) {
           // Not an error if document doesn't exist yet
           setIsLoading(false);
           return;
         }
-        
+
         if (data) {
           // Extract address fields from the address object
           const addressData = data.address || {};
           const tradingAddressData = data.trading_address || {};
-          
+
           setProfileExists(true);
           setProfile(data);
-          
+
           // Update form values with the extracted address fields, logo URL, and website summary
           form.reset({
             business_name: data.business_name || data.name || '',
@@ -288,7 +288,7 @@ const BusinessProfile = () => {
         setIsLoading(false);
       }
     };
-    
+
     fetchProfile();
   }, [user, form]);
 
@@ -298,71 +298,71 @@ const BusinessProfile = () => {
       updateFormWithBusinessData();
     }
   }, [user, isLoading]);    // Add a function to update form values with business data
-    const updateFormWithBusinessData = async () => {
+  const updateFormWithBusinessData = async () => {
     if (!user) return;
-    
+
     try {
       // First check the businesses collection
       const { data: businessData, error: businessError } = await getDocument('businesses', user.uid);
-      
+
       if (businessData) {
-        console.log('Found business data in businesses collection:', businessData);
-        
+
+
         // Get current form values
         const currentValues = form.getValues();
-        
+
         // Extract relevant fields
         const websiteSummary = businessData.website_summary || '';
         const businessDescription = businessData.businessDescription || '';
         const logoUrl = businessData.logo_url || '';
         const addressData = businessData.address || {};
-        
+
         // Update form if the field is currently empty
         if (!currentValues.description) {
           form.setValue('description', businessDescription || websiteSummary);
         }
-        
+
         if (!currentValues.logo_url && logoUrl) {
           form.setValue('logo_url', logoUrl);
         }
-        
+
         if (!currentValues.business_name && businessData.business_name) {
           form.setValue('business_name', businessData.business_name);
         }
-        
+
         if (!currentValues.company_number && businessData.company_number) {
           form.setValue('company_number', businessData.company_number);
         }
-        
+
         if (!currentValues.industry_sector && businessData.industry) {
           form.setValue('industry_sector', businessData.industry);
         }
-        
+
         if (!currentValues.company_size && businessData.company_size) {
           form.setValue('company_size', businessData.company_size);
         }
-        
+
         if (!currentValues.website && businessData.website) {
           form.setValue('website', businessData.website);
         }
-        
+
         // Update address fields if they're empty
         if (!currentValues.address_line1 && addressData.street) {
           form.setValue('address_line1', addressData.street);
         }
-        
+
         if (!currentValues.city && addressData.city) {
           form.setValue('city', addressData.city);
         }
-        
+
         if (!currentValues.postal_code && addressData.postal_code) {
           form.setValue('postal_code', addressData.postal_code);
         }
-        
+
         if (addressData.country && !currentValues.country) {
           form.setValue('country', addressData.country);
         }
-        
+
         toast.success('Loaded business details from your profile');
       }
     } catch (err) {
@@ -372,15 +372,15 @@ const BusinessProfile = () => {
 
   const onSubmit = async (values: BusinessProfileFormValues) => {
     if (!user) return;
-    
+
     setIsSubmitting(true);
-    
+
     try {
       console.log('Form values:', values); // Debug log
-      
+
       // Format incorporation date
       const incorporationDate = values.incorporation_date ? new Date(values.incorporation_date).toISOString() : null;
-      
+
       // Create a complete address object
       const address = {
         line1: values.address_line1,
@@ -398,7 +398,7 @@ const BusinessProfile = () => {
         postal_code: values.trading_address_postal_code,
         country: values.trading_address_country || 'United Kingdom',
       } : null;
-      
+
       // Utility to remove undefined values (Firestore does not allow undefined)
       function cleanObject(obj: any) {
         if (obj === undefined) return null;
@@ -435,7 +435,7 @@ const BusinessProfile = () => {
         updatedAt: new Date(),
       };
       const profileData = cleanObject(profileDataRaw);
-      
+
       // Save to businesses collection
       let businessProfilesResult;
       if (profileExists) {
@@ -445,19 +445,19 @@ const BusinessProfile = () => {
         // Insert new profile
         businessProfilesResult = await createDocument('businesses', profileData, user.uid);
       }
-      
+
       // Also save to businesses collection for consistency
       const businessesResult = await updateDocument('businesses', user.uid, {
         ...profileData,
         updatedAt: new Date()
       });
-      
+
       if (businessProfilesResult.error && businessesResult.error) {
         console.error('Error saving business profile:', businessProfilesResult.error);
         toast.error('Failed to save business profile');
         return;
       }
-      
+
       toast.success('Business profile saved successfully');
     } catch (err) {
       console.error('Error saving profile:', err);
@@ -473,11 +473,11 @@ const BusinessProfile = () => {
 
     try {
       let domain = websiteUrl;
-      
+
       if (!domain.startsWith('http://') && !domain.startsWith('https://')) {
         domain = 'https://' + domain;
       }
-      
+
       try {
         const url = new URL(domain);
         domain = url.hostname;
@@ -488,13 +488,13 @@ const BusinessProfile = () => {
       }
 
       if (!domain) return;
-      
-      const isHostingService = 
-        domain.includes('firebaseapp.com') || 
-        domain.includes('netlify.app') || 
+
+      const isHostingService =
+        domain.includes('firebaseapp.com') ||
+        domain.includes('netlify.app') ||
         domain.includes('vercel.app') ||
         domain.includes('github.io');
-        
+
       if (isHostingService) {
         const logoUrl = getDefaultLogoForService(domain);
         if (logoUrl) {
@@ -507,18 +507,18 @@ const BusinessProfile = () => {
 
       // Try direct favicon
       const directFaviconUrl = `https://${domain}/favicon.ico`;
-      
+
       const directImg = new Image();
       directImg.onload = () => {
         form.setValue('logo_url', directFaviconUrl);
         toast.success('Logo fetched successfully');
         saveLogo(directFaviconUrl);
       };
-      
+
       directImg.onerror = () => {
         // Try Google's service
         const googleLogoUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
-        
+
         const googleImg = new Image();
         googleImg.onload = () => {
           checkIfDefaultFavicon(googleLogoUrl, (isDefault) => {
@@ -531,36 +531,36 @@ const BusinessProfile = () => {
             }
           });
         };
-        
+
         googleImg.onerror = tryDuckDuckGoFavicon;
         googleImg.src = googleLogoUrl;
       };
-      
+
       function tryDuckDuckGoFavicon() {
         const ddgLogoUrl = `https://icons.duckduckgo.com/ip3/${domain}.ico`;
-        
+
         const ddgImg = new Image();
         ddgImg.onload = () => {
           form.setValue('logo_url', ddgLogoUrl);
           toast.success('Logo fetched successfully');
           saveLogo(ddgLogoUrl);
         };
-        
+
         ddgImg.onerror = () => {
           const letterLogo = generateLetterLogo(form.getValues('business_name') || domain);
           form.setValue('logo_url', letterLogo);
           toast.info('Generated a placeholder logo for your business');
           saveLogo(letterLogo);
         };
-        
+
         ddgImg.src = ddgLogoUrl;
       }
-      
+
       directImg.src = directFaviconUrl;
     } catch (error) {
       console.error('Error fetching logo:', error);
       toast.error('Failed to fetch logo');
-      
+
       if (form.getValues('business_name')) {
         const letterLogo = generateLetterLogo(form.getValues('business_name'));
         form.setValue('logo_url', letterLogo);
@@ -572,27 +572,27 @@ const BusinessProfile = () => {
   // Function to save logo URL and extract colors
   const saveLogo = async (logoUrl: string) => {
     if (!user?.uid) return;
-    
+
     try {
       // Extract colors from the logo
       // No longer extracting colors from logo
       const colors = [];
-      
+
       // Update the profile with both logo and colors
       const { error } = await updateDocument('businesses', user.uid, {
         logo_url: logoUrl,
         theme_colors: colors
       });
-      
+
       if (error) {
         console.error('Error saving logo:', error);
         toast.error('Failed to save logo');
         return false;
       }
-      
+
       // Store colors in localStorage
       localStorage.setItem('theme_colors', JSON.stringify(colors));
-      
+
       toast.success('Logo and theme colors saved successfully');
       return true;
     } catch (err) {
@@ -606,11 +606,11 @@ const BusinessProfile = () => {
   const handleWebsiteChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newWebsite = e.target.value;
     form.setValue('website', newWebsite);
-    
+
     if (window.logoFetchTimer) {
       clearTimeout(window.logoFetchTimer);
     }
-    
+
     window.logoFetchTimer = window.setTimeout(() => {
       if (newWebsite) {
         fetchWebsiteLogo(newWebsite);
@@ -671,24 +671,34 @@ const BusinessProfile = () => {
 
   return (
     <PageLayout showSidebar={true}>
-      <div className="container py-8">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-3xl font-bold mb-2">Business Profile</h1>
-          <p className="text-muted-foreground mb-8">
-            Complete your business profile to help lenders understand your financing needs
-          </p>
+      <div className="bg-gradient-to-br from-slate-50 to-slate-100 min-h-screen">
+        {/* Professional Header */}
+        <header className="bg-white/95 backdrop-blur-sm border-b border-slate-200 shadow-sm">
+          <div className="max-w-screen-2xl mx-auto px-4 md:px-6 lg:px-8 py-6">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <div>
+                <h1 className="text-2xl md:text-3xl font-bold text-slate-900">Business Profile</h1>
+                <p className="text-slate-600 mt-1">Complete your business profile to help lenders understand your financing needs</p>
+              </div>
+            </div>
+          </div>
+        </header>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Business Details</CardTitle>
-              <CardDescription>
+        <div className="max-w-screen-2xl mx-auto px-4 md:px-6 lg:px-8 py-8">
+          <Card className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200/50 overflow-hidden">
+            <div className="bg-slate-800 px-6 py-4">
+              <CardTitle className="text-lg font-semibold text-white flex items-center gap-2">
+                <Building2 className="h-5 w-5" />
+                Business Details
+              </CardTitle>
+              <CardDescription className="text-slate-300 mt-1">
                 Provide accurate information to improve matching with the right lenders
               </CardDescription>
-            </CardHeader>
-            <CardContent>
+            </div>
+            <CardContent className="p-6">
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-slate-900" >
                     <FormField
                       control={form.control}
                       name="business_name"
@@ -696,7 +706,7 @@ const BusinessProfile = () => {
                         <FormItem>
                           <FormLabel>Business Name *</FormLabel>
                           <FormControl>
-                            <Input placeholder="Enter your business name" {...field} />
+                            <Input placeholder="Enter your business name" className="bg-white text-slate-900" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -710,7 +720,7 @@ const BusinessProfile = () => {
                         <FormItem>
                           <FormLabel>Company Registration Number</FormLabel>
                           <FormControl>
-                            <Input placeholder="e.g. 12345678" {...field} />
+                            <Input placeholder="e.g. 12345678" className="bg-white text-slate-900" {...field} />
                           </FormControl>
                           <FormDescription>
                             UK Companies House registration number if applicable
@@ -721,20 +731,20 @@ const BusinessProfile = () => {
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-slate-900">
                     <FormField
                       control={form.control}
                       name="industry_sector"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Industry Sector *</FormLabel>
-                          <Select 
-                            onValueChange={field.onChange} 
+                          <Select
+                            onValueChange={field.onChange}
                             defaultValue={field.value}
                             value={field.value}
                           >
                             <FormControl>
-                              <SelectTrigger>
+                              <SelectTrigger className="bg-white text-slate-900">
                                 <SelectValue placeholder="Select an industry" />
                               </SelectTrigger>
                             </FormControl>
@@ -757,13 +767,13 @@ const BusinessProfile = () => {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Company Size *</FormLabel>
-                          <Select 
-                            onValueChange={field.onChange} 
+                          <Select
+                            onValueChange={field.onChange}
                             defaultValue={field.value}
                             value={field.value}
                           >
                             <FormControl>
-                              <SelectTrigger>
+                              <SelectTrigger className="bg-white text-slate-900">
                                 <SelectValue placeholder="Select company size" />
                               </SelectTrigger>
                             </FormControl>
@@ -786,13 +796,13 @@ const BusinessProfile = () => {
                     name="description"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Business Description</FormLabel>
+                        <FormLabel className="text-slate-900">Business Description</FormLabel>
                         <FormControl>
-                          <Textarea 
+                          <Textarea
                             value={field.value || ''}
                             onChange={field.onChange}
-                            placeholder="Briefly describe your business activities and services" 
-                            className="resize-none min-h-[100px]"
+                            placeholder="Briefly describe your business activities and services"
+                            className="resize-none min-h-[100px] bg-white text-slate-900"
                           />
                         </FormControl>
                         <FormDescription>
@@ -803,7 +813,7 @@ const BusinessProfile = () => {
                     )}
                   />
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-slate-900">
                     <FormField
                       control={form.control}
                       name="website"
@@ -812,16 +822,16 @@ const BusinessProfile = () => {
                           <FormLabel>Website</FormLabel>
                           <div className="flex gap-2">
                             <FormControl>
-                              <Input 
-                                placeholder="https://example.com" 
-                                {...field} 
+                              <Input
+                                placeholder="https://example.com"
+                                {...field}
                                 onChange={handleWebsiteChange}
-                                className="flex-grow"
+                                className="flex-grow bg-white text-slate-900"
                               />
                             </FormControl>
-                            <Button 
-                              type="button" 
-                              variant="outline" 
+                            <Button
+                              type="button"
+                              variant="outline"
                               onClick={() => {
                                 if (field.value) {
                                   fetchWebsiteLogo(field.value);
@@ -829,10 +839,10 @@ const BusinessProfile = () => {
                                   toast.error('Please enter a website URL first');
                                 }
                               }}
-                              className="whitespace-nowrap"
+                              className="whitespace-nowrap text-white"
                             >
-                              <ImageIcon className="h-4 w-4 mr-2" />
-                              Fetch Logo
+                              <ImageIcon className="h-4 w-4 mr-2 text-white" />
+                              <span className="text-white">Fetch Logo</span>
                             </Button>
                           </div>
                           <FormMessage />
@@ -847,7 +857,7 @@ const BusinessProfile = () => {
                         <FormItem>
                           <FormLabel>Incorporation Date</FormLabel>
                           <FormControl>
-                            <Input type="date" {...field} />
+                            <Input type="date" className="bg-white text-slate-900" {...field} />
                           </FormControl>
                           <FormDescription>
                             When was your business incorporated?
@@ -859,37 +869,40 @@ const BusinessProfile = () => {
                   </div>
 
                   <div className="col-span-2">
-                      <FormLabel>Company Logo</FormLabel>
-                      <div className="flex items-center gap-4 mt-2">
-                        <div className="border rounded-md p-2 h-20 w-20 flex items-center justify-center bg-muted/20">
-                          {form.watch('logo_url') ? (
-                            <img 
-                              src={form.watch('logo_url')} 
-                              alt="Company Logo" 
-                              className="max-h-full max-w-full object-contain"
-                              onError={(e) => console.log('Logo failed to load:', e)}
-                            />
-                          ) : (
-                            <ImageIcon className="h-8 w-8 text-muted-foreground" />
-                          )}
-                        </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground mb-1">
-                            {form.watch('logo_url') ? 'Company logo detected' : 'No logo detected'}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {form.watch('logo_url')
-                              ? 'Logo will be saved with your profile'
-                              : 'Enter your company website URL to automatically fetch your logo, or click "Fetch Logo"'
-                            }
-                          </p>
-                        </div>
+                    <FormLabel>Company Logo</FormLabel>
+                    <div className="flex items-center gap-4 mt-2">
+                      <div className="border rounded-md p-2 h-20 w-20 flex items-center justify-center bg-muted/20">
+                        {form.watch('logo_url') ? (
+                          <img
+                            src={form.watch('logo_url')}
+                            alt="Company Logo"
+                            className="max-h-full max-w-full object-contain"
+                            onError={(e) => console.log('Logo failed to load:', e)}
+                          />
+                        ) : (
+                          <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground mb-1">
+                          {form.watch('logo_url') ? 'Company logo detected' : 'No logo detected'}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {form.watch('logo_url')
+                            ? 'Logo will be saved with your profile'
+                            : 'Enter your company website URL to automatically fetch your logo, or click "Fetch Logo"'
+                          }
+                        </p>
                       </div>
                     </div>
+                  </div>
 
                   <div>
-                    <h3 className="text-lg font-medium mb-4">Address Information</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                      <Mail className="h-5 w-5 text-slate-700" />
+                      Address Information
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-slate-900">
                       <FormField
                         control={form.control}
                         name="address_line1"
@@ -897,7 +910,7 @@ const BusinessProfile = () => {
                           <FormItem>
                             <FormLabel>Address Line</FormLabel>
                             <FormControl>
-                              <Input placeholder="Street address" {...field} />
+                              <Input placeholder="Street address" className="bg-white text-slate-900" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -911,7 +924,7 @@ const BusinessProfile = () => {
                           <FormItem>
                             <FormLabel>City</FormLabel>
                             <FormControl>
-                              <Input placeholder="City" {...field} />
+                              <Input placeholder="City" className="bg-white text-slate-900" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -925,7 +938,7 @@ const BusinessProfile = () => {
                           <FormItem>
                             <FormLabel>Postal Code</FormLabel>
                             <FormControl>
-                              <Input placeholder="Postal code" {...field} />
+                              <Input placeholder="Postal code" className="bg-white text-slate-900" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -939,7 +952,7 @@ const BusinessProfile = () => {
                           <FormItem>
                             <FormLabel>Country</FormLabel>
                             <FormControl>
-                              <Input placeholder="Country" {...field} />
+                              <Input placeholder="Country" className="bg-white text-slate-900" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -950,8 +963,11 @@ const BusinessProfile = () => {
 
                   {/* Contact Information */}
                   <div>
-                    <h3 className="text-lg font-medium mb-4">Contact Information</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                      <Phone className="h-5 w-5 text-slate-700" />
+                      Contact Information
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-slate-900">
                       <FormField
                         control={form.control}
                         name="business_email"
@@ -961,7 +977,7 @@ const BusinessProfile = () => {
                             <FormControl>
                               <div className="flex">
                                 <MailIcon className="w-4 h-4 text-muted-foreground absolute mt-2.5 ml-2.5" />
-                                <Input className="pl-8" type="email" placeholder="contact@business.com" {...field} />
+                                <Input className="pl-8 bg-white text-slate-900" type="email" placeholder="contact@business.com" {...field} />
                               </div>
                             </FormControl>
                             <FormMessage />
@@ -978,7 +994,7 @@ const BusinessProfile = () => {
                             <FormControl>
                               <div className="flex">
                                 <PhoneIcon className="w-4 h-4 text-muted-foreground absolute mt-2.5 ml-2.5" />
-                                <Input className="pl-8" type="tel" placeholder="+44" {...field} />
+                                <Input className="pl-8 bg-white text-slate-900" type="tel" placeholder="+44" {...field} />
                               </div>
                             </FormControl>
                             <FormMessage />
@@ -988,109 +1004,28 @@ const BusinessProfile = () => {
                     </div>
                   </div>
 
-                  {/* Trading Address */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-4">
-                      <h3 className="text-lg font-medium">Trading Address</h3>
-                      <FormField
-                        control={form.control}
-                        name="trading_address_different"
-                        render={({ field }) => (
-                          <FormItem className="flex items-center space-x-2">
-                            <FormControl>
-                              <Checkbox
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                              />
-                            </FormControl>
-                            <FormLabel className="text-sm font-normal">Different from registered address</FormLabel>
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                    {form.watch('trading_address_different') && (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <FormField
-                          control={form.control}
-                          name="trading_address_line1"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Trading Address Line</FormLabel>
-                              <FormControl>
-                                <Input placeholder="Street address" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name="trading_address_city"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>City</FormLabel>
-                              <FormControl>
-                                <Input placeholder="City" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name="trading_address_postal_code"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Postal Code</FormLabel>
-                              <FormControl>
-                                <Input placeholder="Postal code" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name="trading_address_country"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Country</FormLabel>
-                              <FormControl>
-                                <Input placeholder="Country" {...field} defaultValue="United Kingdom" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                    )}
-                  </div>
-
-                  <CardFooter className="px-0 pt-6 flex justify-end gap-2">
+                  <CardFooter className="px-0 pt-6 flex justify-end gap-2 border-t border-slate-200">
                     <Button
                       type="button"
                       variant="outline"
                       onClick={() => navigate('/business/dashboard')}
+                      className="px-6 py-2.5"
                     >
                       Cancel
                     </Button>
-                    <Button 
+                    <Button
                       type="submit"
-                      className="bg-fundhub-blue hover:bg-fundhub-blue/90"
+                      className="bg-gradient-to-r from-[#ff8800] to-[#ffaa00] hover:from-[#ff9900] hover:to-[#ffbb00] text-slate-900 font-semibold px-6 py-2.5 rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
                       disabled={isSubmitting}
                     >
-                      {isSubmitting ? (
+                        {isSubmitting ? (
                         <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Saving...
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin text-white" />
+                          <span className="text-white">Saving...</span>
                         </>
-                      ) : (
-                        'Save Profile'
-                      )}
+                        ) : (
+                        <span className="text-white">Save Profile</span>
+                        )}
                     </Button>
                   </CardFooter>
                 </form>

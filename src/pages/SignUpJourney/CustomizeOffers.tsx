@@ -69,7 +69,7 @@ const CustomizeOffers = () => {
   const goToStep = (stepIdx: number) => {
     if (stepIdx === 0) navigate('/signup-journey/apply', { state: location.state });
     if (stepIdx === 1) navigate('/signup-journey/business-details', { state: location.state });
-    if (stepIdx === 3) navigate('/signup-journey/funding-matches', { state: { ...userInfo, matches } });
+    if (stepIdx === 2) navigate('/signup-journey/funding-matches', { state: { ...userInfo, matches } });
   };
 
   // Handle form submission

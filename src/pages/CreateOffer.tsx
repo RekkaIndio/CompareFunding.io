@@ -63,7 +63,7 @@ const CreateOffer = () => {
         throw new Error('Application ID is missing');
       }
       
-      console.log('Fetching application with ID:', id);
+
       
       // Get application data
       const { data: appData, error: appError } = await getDocument('applications', id);

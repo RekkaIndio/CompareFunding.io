@@ -52,7 +52,7 @@ export default function Contact() {
     setIsSubmitting(true);
     try {
       // TODO: Implement actual form submission logic
-      console.log("Form values:", values);
+
       
       // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 1000));

@@ -4,6 +4,7 @@ import { DownloadCloud, FileText, Lock, AlertCircle, CheckCircle2 } from 'lucide
 import { FinancialData } from '../types';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useEffect } from 'react';
 
 interface FinancialDocumentsCardProps {
   financialData: FinancialData | undefined;
@@ -14,6 +15,11 @@ export const FinancialDocumentsCard: React.FC<FinancialDocumentsCardProps> = ({
   financialData,
   isLenderMatched = false
 }) => {
+  // Debug logging
+  useEffect(() => {
+
+  }, [isLenderMatched]);
+
   // Helper function to determine if we have file URLs for any financial document
   const hasDocuments = () => {
     if (!financialData) return false;

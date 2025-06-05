@@ -38,7 +38,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (userSnap.exists()) {
         const userData = userSnap.data();
         if (userData.role) {
-          console.log("Found role in users collection:", userData.role);
+
           // Enhance user object with role
           const enhancedUser = {
             ...currentUser,
@@ -53,7 +53,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const lenderSnap = await getDoc(lenderRef);
       
       if (lenderSnap.exists()) {
-        console.log("Found user in lender_profiles, assigning lender role");
+
         // Enhance user object with lender role
         const enhancedUser = {
           ...currentUser,
@@ -71,7 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const businessSnap = await getDoc(businessRef);
       
       if (businessSnap.exists() || (await getDoc(doc(firestore, "businesses", currentUser.uid))).exists()) {
-        console.log("Found user in business profiles, assigning business role");
+
         // Enhance user object with business role
         const enhancedUser = {
           ...currentUser,

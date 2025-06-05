@@ -114,33 +114,37 @@ const BusinessDetailPage = () => {
   // Debug logs for visibility checks and financial data
   useEffect(() => {
     if (applicationData) {
-      console.log('Can see business details:', canSeeBusinessDetails());
-      console.log('Business data available:', !!applicationData?.business);
-      console.log('Application data available:', !!applicationData?.application);
+
+
+
     }
     
-    console.log('Financial data available:', !!financialData);
+
     if (financialData) {
-      console.log('Available financial documents:', Object.keys(financialData).join(', '));
+
     }
   }, [applicationData, financialData, canSeeBusinessDetails]);
 
   // Debug output for application data
   useEffect(() => {
     if (applicationData) {
-      console.log('[DEBUG] Application data loaded:', applicationData);
+
       
       // Log the business ID we're using
       const businessId = applicationData.application?.business_id || 
                        applicationData.business?.id || 
                        applicationData.application?.user_id;
                        
-      console.log('[DEBUG] Business ID for financials:', businessId);
+
       
       // Log financial data state
-      console.log('[DEBUG] Financial data state:', financialData);
+
+      
+      // Log lender match status explicitly
+      const matchStatus = isLenderMatched();
+
     }
-  }, [applicationData, financialData]);
+  }, [applicationData, financialData, isLenderMatched]);
 
   if (error) {
     console.error('BusinessDetail error:', error);

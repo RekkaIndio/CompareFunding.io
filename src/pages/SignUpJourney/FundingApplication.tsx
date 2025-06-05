@@ -1,42 +1,35 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
-import PageLayout from '@/components/PageLayout';
+import { PoundSterling, Calendar, Target, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { Card } from '@/components/ui/card';
-import cflogowhiteUrl from '@/assets/cflogowhite.png';
-import { useNavbar } from '@/contexts/NavbarContext'; // Add this line
-import { saveFundingApplication } from '@/services/firebase'; // Import Firebase service
-import { toast } from 'react-toastify'; // Import toast for notifications
-import SignUpSidebar from '@/components/SignUpSidebar';
-import '../../styles/animations.css'; // Import animations
-
-// Custom styles for input fields
-const inputStyles = "bg-white border-2 border-primary focus:border-primary focus:ring-1 focus:ring-primary text-[#2a3441]";
+import SignUpLayout from '@/components/SignUpLayout';
+import { useNavbar } from '@/contexts/NavbarContext';
+import { saveFundingApplication } from '@/services/firebase';
+import { toast } from 'react-toastify';
+import '../../styles/animations.css';
 
 const FundingApplication = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { showNavbar, hideNavbar } = useNavbar(); // Add this line
+  const { showNavbar, hideNavbar } = useNavbar();
   const [fundingPurpose, setFundingPurpose] = useState('expansion');
   const [amount, setAmount] = useState('100000');
-  const [timeframe, setTimeframe] = useState('1 Week');
+  const [timeframe, setTimeframe] = useState('1_week');
   const [duration, setDuration] = useState('');
   const [marketingConsent, setMarketingConsent] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => { // Add this block
+  useEffect(() => {
     hideNavbar();
     return () => {
       showNavbar();
     };
   }, [hideNavbar, showNavbar]);
 
-
-  // Progress bar and navigation steps config
   const steps = [
     { label: 'Email & Password', path: '/signup-journey/email-password' },
     { label: 'Funding Amount', path: '/signup-journey/apply' },
@@ -44,211 +37,225 @@ const FundingApplication = () => {
     { label: 'Business Details', path: '/signup-journey/business-details' },
     { label: 'Eligibility', path: '/signup-journey/eligibility' },
   ];
-  const [currentStep, setCurrentStep] = useState<number>(1); // Updated to reflect the new step order
-  // Ensure state is passed correctly to the next steps
-  const goToStep = (stepIdx: number) => {
-    setCurrentStep(stepIdx);
-    if (stepIdx === 0) navigate('/signup-journey/email-password', { state: { fundingPurpose, amount, timeframe, duration, marketingConsent } });
-    if (stepIdx === 1) navigate('/signup-journey/funding-matches', { state: { fundingPurpose, amount, timeframe, duration, marketingConsent } });
-    if (stepIdx === 2) navigate('/signup-journey/business-details', { state: { fundingPurpose, amount, timeframe, duration, marketingConsent } });
-    if (stepIdx === 3) navigate('/signup-journey/eligibility', { state: { fundingPurpose, amount, timeframe, duration, marketingConsent } });
+  const currentStep = 1;
+
+  const handleStepNavigation = (stepIndex: number) => {
+    const state = { fundingPurpose, amount, timeframe, duration, marketingConsent };
+    
+    switch (stepIndex) {
+      case 0:
+        navigate('/signup-journey/email-password', { state });
+        break;
+      case 1:
+        navigate('/signup-journey/apply', { state });
+        break;
+      case 2:
+        navigate('/signup-journey/funding-matches', { state });
+        break;
+      case 3:
+        navigate('/signup-journey/business-details', { state });
+        break;
+      case 4:
+        navigate('/signup-journey/eligibility', { state });
+        break;
+    }
+  };
+
+  const handlePrevious = () => {
+    navigate('/signup-journey/email-password');
+  };
+
+  const handleNext = () => {
+    navigate('/signup-journey/funding-matches', { 
+      state: { fundingPurpose, amount, timeframe, duration, marketingConsent } 
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
 
     try {
-      const userId = location.state?.userId; // Retrieve userId from navigation state
+      const userId = location.state?.userId;
       if (!userId) {
         toast.error('User ID is missing. Please restart the signup process.');
         return;
       }
 
-      // Save data to Firebase
-      await saveFundingApplication(userId, { fundingPurpose, amount, timeframe, duration, marketingConsent });
+      await saveFundingApplication(userId, { 
+        fundingPurpose, 
+        amount, 
+        timeframe, 
+        duration, 
+        marketingConsent 
+      });
 
-      // Show success message
       toast.success('Funding application saved successfully!');
-
-      // Go to next step
-      goToStep(currentStep + 1);
+      handleNext();
     } catch (error) {
-      // Show error message
       toast.error('Failed to save funding application. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
+  const sidebarProps = {
+    title: "Tell Us About Your Funding Needs",
+    description: "Help us understand what type of funding you're looking for so we can match you with the best lenders.",
+    highlight: "Average funding time: 7-14 days",
+    tips: [
+      "Be specific about your funding amount",
+      "Choose a realistic timeframe for receiving funds",
+      "The more accurate your needs, the better we can match you",
+      "You can always adjust these details later"
+    ]
+  };
+
   return (
-    <div className="bg-white min-h-screen">
-      <PageLayout className="bg-white">
-        <div className="container mx-auto px-4 py-12">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            {/* Main Form Section */}
-            <div className="lg:col-span-8">
-              {/* Progress Bar & Steps */}
-              <div className="mb-10">
-                <div className="flex items-center gap-2 mb-2">
-                  {steps.map((step, idx) => (
-                    <div
-                      key={step.label}
-                      className={`flex-1 h-2 rounded ${idx <= currentStep ? 'bg-[#ff8000]' : 'bg-gray-300'}`}
-                    ></div>
-                  ))}
-                </div>
-                <div className="grid grid-cols-5 text-center text-sm font-medium text-[#2a3441]">
-                  {steps.map((step, idx) => (
-                    <span key={step.label} className={idx === currentStep ? 'font-bold text-[#ff8000]' : ''}>{step.label}</span>
-                  ))}
-                </div>
-              </div>
+    <SignUpLayout
+      steps={steps}
+      currentStep={currentStep}
+      onStepNavigation={handleStepNavigation}
+      onPrevious={handlePrevious}
+      onNext={handleNext}
+      canGoBack={true}
+      canGoNext={!!fundingPurpose && !!amount && !!timeframe}
+      sidebarProps={sidebarProps}
+    >
+      <div className="space-y-8">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-[#2a3441] mb-3 animate-fadeIn">
+            What Funding Do You Need?
+          </h1>
+          <p className="text-gray-600 text-lg animate-fadeIn delay-100">
+            Tell us about your funding requirements to get personalised matches
+          </p>
+        </div>
 
-              {/* Navigation Arrows */}
-              <div className="flex justify-between items-center mb-6">
-                <button
-                  type="button"
-                  onClick={() => goToStep(currentStep - 1)}
-                  disabled={currentStep === 0}
-                  className={`flex items-center gap-1 px-4 py-2 rounded-full border border-gray-200 bg-white text-[#2a3441] hover:bg-gray-50 transition disabled:opacity-40 disabled:cursor-not-allowed`}
-                >
-                  <ArrowLeft className="w-5 h-5" />
-                  Back
-                </button>
-                <button
-                  type="button"
-                  onClick={() => goToStep(currentStep + 1)}
-                  disabled={currentStep === steps.length - 1}
-                  className={`flex items-center gap-1 px-4 py-2 rounded-full border border-gray-200 bg-white text-[#2a3441] hover:bg-gray-50 transition disabled:opacity-40 disabled:cursor-not-allowed`}
-                >
-                  Next
-                  <ArrowRight className="w-5 h-5" />
-                </button>
-              </div>
-
-              <h1 className="text-3xl md:text-4xl font-bold text-[#2a3441] mb-3">
-                Compare Funding
-              </h1>
-              
-              <h2 className="text-2xl font-semibold text-[#2a3441] mb-2">
-                Let's get started
-              </h2>
-              
-              <p className="text-lg text-[#2a3441] mb-8">
-                Your are one step closer to understanding your funding options
-              </p>
-              
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div>
-                  <Label htmlFor="fundingPurpose" className="text-base text-[#2a3441] font-medium">
-                    What are you looking for funds for?
-                  </Label>
-                  <Select
-                    value={fundingPurpose}
-                    onValueChange={setFundingPurpose}
-                  >
-                    <SelectTrigger id="fundingPurpose" className={`mt-2 h-12 ${inputStyles}`}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white text-[#2a3441]">
-                      <SelectItem value="expansion" className="text-[#2a3441]">Business expansion</SelectItem>
-                      <SelectItem value="startup" className="text-[#2a3441]">Start a business</SelectItem>
-                      <SelectItem value="cashflow" className="text-[#2a3441]">Improve cashflow</SelectItem>
-                      <SelectItem value="stock" className="text-[#2a3441]">Purchase stock</SelectItem>
-                      <SelectItem value="grant" className="text-[#2a3441]">Find a grant</SelectItem>
-                      <SelectItem value="asset" className="text-[#2a3441]">Asset finance</SelectItem>
-                      <SelectItem value="property" className="text-[#2a3441]">Property finance</SelectItem>
-                      <SelectItem value="research" className="text-[#2a3441]">Research & Development</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div>
-                  <Label htmlFor="amount" className="text-base text-[#2a3441] font-medium">
-                    How much are you looking for?
-                  </Label>
-                  <Input
-                    id="amount"
-                    type="text"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    className={`mt-2 h-12 ${inputStyles}`}
-                    required
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="timeframe" className="text-base text-[#2a3441] font-medium">
-                    How quickly do you need the funds?
-                  </Label>
-                  <Select
-                    value={timeframe}
-                    onValueChange={setTimeframe}
-                  >
-                    <SelectTrigger id="timeframe" className={`mt-2 h-12 ${inputStyles}`}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white text-[#2a3441]">
-                      <SelectItem value="1 Week" className="text-[#2a3441]">1 Week</SelectItem>
-                      <SelectItem value="2 Weeks" className="text-[#2a3441]">2 Weeks</SelectItem>
-                      <SelectItem value="1 Month" className="text-[#2a3441]">1 Month</SelectItem>
-                      <SelectItem value="3 Months" className="text-[#2a3441]">3 Months</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div>
-                  <Label htmlFor="duration" className="text-base text-[#2a3441] font-medium">
-                    How long do you need the funds for?
-                  </Label>
-                  <Input
-                    id="duration"
-                    type="text"
-                    value={duration}
-                    onChange={(e) => setDuration(e.target.value)}
-                    className={`mt-2 h-12 ${inputStyles}`}
-                    required
-                  />
-                </div>
-                
-                <div className="flex items-center space-x-2">
-                  <Checkbox 
-                    id="marketing" 
-                    checked={marketingConsent}
-                    onCheckedChange={(checked) => setMarketingConsent(checked as boolean)}
-                    className="border-2 border-primary data-[state=checked]:bg-primary data-[state=checked]:text-white"
-                  />
-                  <label
-                    htmlFor="marketing"
-                    className="text-sm font-medium leading-none text-[#2a3441] peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                  >
-                    Marketing Tick Box (Opt In)
-                  </label>
-                </div>
-                
-                <Button type="submit" className="bg-[#003856] hover:bg-[#003856]/90 text-white h-12 px-8 rounded-full">
-                  Apply Now
-                </Button>
-              </form>
+        <form onSubmit={handleSubmit} className="space-y-8 animate-fadeIn delay-200">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <Label className="text-[#2a3441] font-medium flex items-center gap-2">
+                <Target className="w-4 h-4 text-[#ff8000]" />
+                Funding Purpose
+              </Label>
+              <Select value={fundingPurpose} onValueChange={setFundingPurpose}>
+                <SelectTrigger className="h-12 bg-white border-2 border-gray-200 focus:border-[#ff8000] text-[#2a3441]">
+                  <SelectValue placeholder="Select funding purpose" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="expansion">Business Expansion</SelectItem>
+                  <SelectItem value="equipment">Equipment Purchase</SelectItem>
+                  <SelectItem value="inventory">Inventory/Stock</SelectItem>
+                  <SelectItem value="cashflow">Cash Flow</SelectItem>
+                  <SelectItem value="marketing">Marketing & Advertising</SelectItem>
+                  <SelectItem value="renovation">Property/Renovation</SelectItem>
+                  <SelectItem value="debt">Debt Consolidation</SelectItem>
+                  <SelectItem value="startup">Startup Capital</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            
-            {/* Sidebar Column */}
-            <div className="lg:col-span-4 flex flex-col h-full p-0 m-0">
-              <SignUpSidebar
-                title="Funding Requirements"
-                description="Tell us what you need funding for and we'll match you with the most suitable options."
-                highlight="We work with over 100 lenders to find the best terms for your business."
-                step={1}
-                tips={[
-                  "Being specific about your funding needs helps us find better matches.",
-                  "The amount and timeframe affect which lenders we can match you with.",
-                  "Many lenders specialize in specific funding purposes like expansion or cash flow.",
-                  "Your funding duration preference helps us negotiate better interest rates."
-                ]}
-              />
+
+            <div className="space-y-2">
+              <Label className="text-[#2a3441] font-medium flex items-center gap-2">
+                <PoundSterling className="w-4 h-4 text-[#ff8000]" />
+                Funding Amount (£)
+              </Label>
+              <Select value={amount} onValueChange={setAmount}>
+                <SelectTrigger className="h-12 bg-white border-2 border-gray-200 focus:border-[#ff8000] text-[#2a3441]">
+                  <SelectValue placeholder="Select amount needed" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10000">£10,000 - £25,000</SelectItem>
+                  <SelectItem value="25000">£25,000 - £50,000</SelectItem>
+                  <SelectItem value="50000">£50,000 - £100,000</SelectItem>
+                  <SelectItem value="100000">£100,000 - £250,000</SelectItem>
+                  <SelectItem value="250000">£250,000 - £500,000</SelectItem>
+                  <SelectItem value="500000">£500,000+</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-[#2a3441] font-medium flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-[#ff8000]" />
+                When Do You Need Funding?
+              </Label>
+              <Select value={timeframe} onValueChange={setTimeframe}>
+                <SelectTrigger className="h-12 bg-white border-2 border-gray-200 focus:border-[#ff8000] text-[#2a3441]">
+                  <SelectValue placeholder="Select timeframe" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="immediately">Immediately</SelectItem>
+                  <SelectItem value="1_week">Within 1 Week</SelectItem>
+                  <SelectItem value="2_weeks">Within 2 Weeks</SelectItem>
+                  <SelectItem value="1_month">Within 1 Month</SelectItem>
+                  <SelectItem value="3_months">Within 3 Months</SelectItem>
+                  <SelectItem value="6_months">Within 6 Months</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-[#2a3441] font-medium flex items-center gap-2">
+                <Clock className="w-4 h-4 text-[#ff8000]" />
+                Preferred Repayment Duration
+              </Label>
+              <Select value={duration} onValueChange={setDuration}>
+                <SelectTrigger className="h-12 bg-white border-2 border-gray-200 focus:border-[#ff8000] text-[#2a3441]">
+                  <SelectValue placeholder="Select duration" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="6_months">6 Months</SelectItem>
+                  <SelectItem value="12_months">12 Months</SelectItem>
+                  <SelectItem value="18_months">18 Months</SelectItem>
+                  <SelectItem value="2_years">2 Years</SelectItem>
+                  <SelectItem value="3_years">3 Years</SelectItem>
+                  <SelectItem value="5_years">5+ Years</SelectItem>
+                  <SelectItem value="flexible">Flexible</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
-        </div>
-      </PageLayout>
-    </div>
+
+          <div className="bg-gray-50 p-6 rounded-xl border border-gray-100">
+            <div className="flex items-start space-x-3">
+              <Checkbox
+                id="marketing"
+                checked={marketingConsent}
+                onCheckedChange={(checked) => setMarketingConsent(checked === true)}
+                className="mt-1 data-[state=checked]:bg-[#ff8000] data-[state=checked]:border-[#ff8000]"
+              />
+              <div className="space-y-1">
+                <Label htmlFor="marketing" className="text-[#2a3441] font-medium cursor-pointer">
+                  Marketing Communications
+                </Label>
+                <p className="text-sm text-gray-600">
+                  I agree to receive marketing communications about funding opportunities, 
+                  industry insights, and relevant financial products via email and SMS.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <Button
+            type="submit"
+            disabled={isLoading || !fundingPurpose || !amount || !timeframe}
+            className="w-full h-12 bg-gradient-to-r from-[#ff8000] to-[#ff6000] hover:from-[#e67300] hover:to-[#e55a00] text-white font-semibold rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+          >
+            {isLoading ? (
+              <div className="flex items-center gap-2">
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                Saving Application...
+              </div>
+            ) : (
+              'Continue to View Matches'
+            )}
+          </Button>
+        </form>
+      </div>
+    </SignUpLayout>
   );
 };
 

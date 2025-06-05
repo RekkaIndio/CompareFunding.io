@@ -46,14 +46,14 @@ const ApplicationReview = () => {
   
   // Log the ID parameter to help with debugging
   useEffect(() => {
-    console.log("Application ID from URL:", id);
+
   }, [id]);
   
   // Fetch application data using Firebase
   const { data: application, isLoading, error } = useQuery({
     queryKey: ['application', id],
     queryFn: async () => {
-      console.log("Fetching application with ID:", id);
+
       
       if (!id) {
         const error = new Error("Application ID is missing");
@@ -76,16 +76,16 @@ const ApplicationReview = () => {
           throw notFoundError;
         }
         
-        console.log("Application data retrieved:", data);
+
         
         // If business data is part of the application, we'll use it directly
         if (!data.business && data.business_id) {
           try {
-            console.log("Fetching business data with ID:", data.business_id);
+
             const businessResponse = await getDocument('businesses', data.business_id);
             if (businessResponse.data) {
               data.business = businessResponse.data;
-              console.log("Business data added to application:", data.business);
+
             }
           } catch (err) {
             console.error("Error fetching business data:", err);
@@ -117,22 +117,22 @@ const ApplicationReview = () => {
       
       // First try to get business data from the application
       if (application?.business) {
-        console.log('Using business data from application:', application.business);
+
         return application.business;
       }
       
       // Then try to get it using application.business_id
       if (application?.business_id) {
-        console.log('Fetching business profile using business_id:', application.business_id);
+
         const { data, error } = await getDocument('businesses', application.business_id);
         if (data && !error) {
-          console.log('Found business profile using business_id:', data);
+
           return data;
         }
       }
       
       // Finally, try using user.uid
-      console.log('Fetching business profile using user.uid:', user?.uid);
+
       const { data, error } = await getDocument('businesses', user.uid);
       if (error) {
         console.error('Error fetching business profile:', error);
@@ -164,7 +164,7 @@ const ApplicationReview = () => {
     queryFn: async () => {
       // If application already has financial documents, use those
       if (application?.financialDocuments) {
-        console.log('Using financial documents from application:', Object.keys(application.financialDocuments || {}));
+
         setFinancialDocs(Object.values(application.financialDocuments || {}) as FinancialDocument[]);
         return Object.values(application.financialDocuments || {}) as FinancialDocument[];
       }
@@ -189,11 +189,11 @@ const ApplicationReview = () => {
       }
       
       if (!businessId) {
-        console.log('No business ID found for fetching documents');
+
         return [];
       }
       
-      console.log('Fetching financial documents using business ID:', businessId);
+
       
       try {
         const db = getFirestore();
@@ -207,7 +207,7 @@ const ApplicationReview = () => {
           ...doc.data()
         }));
         
-        console.log('Fetched financial documents:', financialDocs.length);
+
         
         // Group documents by type and process them
         let processedFinancialDocs = {};
@@ -273,15 +273,15 @@ const ApplicationReview = () => {
   // Helper function to check if any financial documents exist
   const hasFinancialDocs = (() => {
     // More detailed logging to help diagnose issues
-    console.log("[DEBUG] Checking for financial documents:");
-    console.log("- Application:", application?.id);
-    console.log("- Traditional format:", application?.financial_documents);
-    console.log("- Object format:", application?.financialDocuments);
-    console.log("- Financials property:", application?.financials);
-    console.log("- Financial Documents Tab:", application?.financialDocumentsTab);
-    console.log("- Financial Summaries:", application?.financialSummaries);
-    console.log("- Fetched docs:", financialDocs);
-    console.log("- Business financial_documents:", businessProfile?.financial_documents);
+
+
+
+
+
+
+
+
+
     
     // Check from all possible sources
     const hasTraditionalFormat = 
@@ -421,7 +421,7 @@ const ApplicationReview = () => {
   useEffect(() => {
     // Force completeness recalculation when financialDocs change
     if (financialDocs && financialDocs.length > 0) {
-      console.log("Financial docs loaded, recalculating completeness...");
+
     }
   }, [financialDocs]);
 
@@ -430,7 +430,7 @@ const ApplicationReview = () => {
     
     try {
       setIsSubmitting(true);
-      console.log("Submitting application with ID:", id);
+
       
       if (!id) {
         const error = new Error("Application ID is missing");
@@ -471,7 +471,7 @@ const ApplicationReview = () => {
       
       // If we have fetched financial docs, process them
       if (financialDocs && financialDocs.length > 0) {
-        console.log("Processing fetched financial documents for application submission");
+
         
         // Group documents by type
         financialDocs.forEach(doc => {
@@ -533,7 +533,7 @@ const ApplicationReview = () => {
         consolidated_at: new Date().toISOString()
       };
       
-      console.log("Updating application with consolidated data:", updateData);
+
       
       const { data, error } = await updateDocument('applications', id, updateData);
       
@@ -547,7 +547,7 @@ const ApplicationReview = () => {
       queryClient.invalidateQueries({ queryKey: ['application', id] });
       queryClient.invalidateQueries({ queryKey: ['applications'] });
       
-      console.log("Application submitted successfully with consolidated data:", data);
+
       toast.success('Application submitted successfully');
       navigate('/applications');
     } catch (err) {
@@ -602,7 +602,7 @@ const ApplicationReview = () => {
       
       // Only update if calculated completeness is 100% but the stored value isn't
       if (completeness.percentage === 100 && application.completeness_percentage !== 100) {
-        console.log("Marking application as complete in the database");
+
         try {
           await updateDocument('applications', id, {
             completeness_percentage: 100

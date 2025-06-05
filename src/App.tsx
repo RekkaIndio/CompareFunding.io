@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { NavbarProvider } from '@/contexts/NavbarContext'; // Add this line
+import { SidebarProvider } from '@/contexts/SidebarContext';
 import { ThemeStyles } from '@/components/ThemeStyles';
 import PrivateRoute from "@/components/PrivateRoute";
 import Index from "./pages/Index";
@@ -50,6 +51,28 @@ import EligibilityPage from "./pages/SignUpJourney/EligibilityPage";
 import EmailPasswordPage from "./pages/SignUpJourney/EmailPasswordPage";
 // import SignUpCustomizeOffers from "./pages/SignUpJourney/CustomizeOffers";
 
+// Import Funding Options pages
+import CashflowPage from "./pages/FundingOptions/Cashflow";
+import AssetFinancePage from "./pages/FundingOptions/AssetFinance";
+
+// Import Integration pages
+import AccountingIntegrationPage from "./pages/Integrations/Accounting";
+import BankingIntegrationPage from "./pages/Integrations/Banking";
+import HMRCIntegrationPage from "./pages/Integrations/HMRC";
+
+// Import Account pages
+import BusinessDetailsPage from "./pages/account/BusinessDetails";
+import CurrentLendingPage from "./pages/account/CurrentLending";
+import HMRCStatusPage from "./pages/account/HMRCStatus";
+import DocumentUploadPage from "./pages/account/DocumentUpload";
+import UsersPage from "./pages/account/Users";
+import AdvisorPage from "./pages/account/Advisor";
+
+// Import Help pages
+import BusinessInsurancePage from "./pages/help/BusinessInsurance";
+import ForeignExchangePage from "./pages/help/ForeignExchange";
+import RaisingEquityPage from "./pages/help/RaisingEquity";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -59,9 +82,10 @@ const App = () => (
         <AuthProvider>
           <ThemeProvider>
             <NavbarProvider> {/* Add this line */}
-              <ThemeStyles />
-              <Toaster />
-              <Sonner />
+              <SidebarProvider>
+                <ThemeStyles />
+                <Toaster />
+                <Sonner />
               <Routes>
                 {/* Public routes */}
                 <Route path="/" element={<Index />} />
@@ -104,6 +128,23 @@ const App = () => (
                   {/* Business Documents page */}
                   <Route path="/business/documents" element={<BusinessDocuments />} />
 
+                  {/* Funding Options routes */}
+                  <Route path="/funding-options/cashflow" element={<CashflowPage />} />
+                  <Route path="/funding-options/asset-finance" element={<AssetFinancePage />} />
+
+                  {/* Integration routes */}
+                  <Route path="/integrations/accounting" element={<AccountingIntegrationPage />} />
+                  <Route path="/integrations/banking" element={<BankingIntegrationPage />} />
+                  <Route path="/integrations/hmrc" element={<HMRCIntegrationPage />} />
+
+                  {/* Account routes */}
+                  <Route path="/account/business-details" element={<BusinessDetailsPage />} />
+                  <Route path="/account/current-lending" element={<CurrentLendingPage />} />
+                  <Route path="/account/hmrc-status" element={<HMRCStatusPage />} />
+                  <Route path="/account/document-upload" element={<DocumentUploadPage />} />
+                  <Route path="/account/users" element={<UsersPage />} />
+                  <Route path="/account/advisor" element={<AdvisorPage />} />
+
                   {/* Add the new Credit Score route for business users */}
                   <Route path="/credit-score" element={<CreditScorePage />} />
 
@@ -111,6 +152,11 @@ const App = () => (
                   <Route path="/learn" element={<LearnPage />} />
                   {/* Help/Support page for business users */}
                   <Route path="/help" element={<HelpPage />} />
+
+                  {/* Help sub-pages */}
+                  <Route path="/help/business-insurance" element={<BusinessInsurancePage />} />
+                  <Route path="/help/foreign-exchange" element={<ForeignExchangePage />} />
+                  <Route path="/help/raising-equity" element={<RaisingEquityPage />} />
 
                   {/* Lender user routes */}
                   <Route path="/lender/profile" element={<LenderProfile />} />
@@ -133,6 +179,7 @@ const App = () => (
                 {/* Catch-all route */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
+              </SidebarProvider>
             </NavbarProvider> {/* Add this line */}
           </ThemeProvider>
         </AuthProvider>

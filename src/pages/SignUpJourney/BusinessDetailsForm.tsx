@@ -1,34 +1,18 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { ArrowLeft, ArrowRight, Search, Check, Loader2, CheckCircle2 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import PageLayout from '@/components/PageLayout';
 import { useNavbar } from '@/contexts/NavbarContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card } from '@/components/ui/card';
-import SignUpSidebar from '@/components/SignUpSidebar';
-import cflogowhiteUrl from '@/assets/cflogowhite.png';
+import SignUpLayout from '@/components/SignUpLayout';
 import { fetchCreditData, summarizeWebsite, fetchWebsiteLogo, searchCompanies } from '@/lib/businessDetailsUtils';
 import { normalizeCreditScoreData, createFinancialsCreditScoreDocument } from '@/lib/creditScoreUtils';
-import { saveFundingApplication, updateDocument, getDocument, createDocument } from '@/services/firebase'; // Import getDocument and createDocument
-import { useAuth } from '@/contexts/AuthContext'; // Import authentication context
-import { getFirestore, doc, setDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { useAuth } from '@/contexts/AuthContext';
+import { getFirestore, doc, setDoc, serverTimestamp, collection } from 'firebase/firestore';
 import OpenAI from "openai";
-import '../../styles/animations.css'; // Import animations
-import { 
-  Command,
-  CommandDialog,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-  CommandSeparator,
-} from "@/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import '../../styles/animations.css';
 import debounce from 'lodash.debounce';
 
 // Industry options
@@ -57,10 +41,8 @@ const companySizeOptions = [
 
 const openAIClient = new OpenAI({ apiKey: import.meta.env.VITE_OPEN_AI_API_KEY, dangerouslyAllowBrowser: true });
 
-// We're now using the imported normalizeCreditScoreData function from creditScoreUtils.ts
-
 const BusinessDetailsForm = () => {
-  const { user } = useAuth(); // Get user from authentication context
+  const { user } = useAuth();
   const { showNavbar, hideNavbar } = useNavbar();
   const location = useLocation();
   const navigate = useNavigate();
@@ -72,7 +54,6 @@ const BusinessDetailsForm = () => {
     website: '',
     forecastRevenue: '10000000',
     companySize: '',
-    businessDescription: '',
   });
   
   // Company search state
@@ -86,6 +67,37 @@ const BusinessDetailsForm = () => {
   }>>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isCompanyPopoverOpen, setIsCompanyPopoverOpen] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Define the signup steps
+  const signupSteps = [
+    { label: 'Email & Password', path: '/signup-journey/email-password' },
+    { label: 'Funding Amount', path: '/signup-journey/apply' },
+    { label: 'Funding Matches', path: '/signup-journey/funding-matches' },
+    { label: 'Business Details', path: '/signup-journey/business-details' },
+    { label: 'Eligibility', path: '/signup-journey/eligibility' },
+  ];
+
+  const currentStepIndex = 3; // Business Details is step 4 (0-indexed)
+
+  // Helper function to check if form is valid
+  const isFormValid = () => {
+    return (
+      searchTerm.trim() !== '' &&
+      formData.website.trim() !== '' &&
+      formData.industry !== '' &&
+      formData.companySize !== '' &&
+      formData.forecastRevenue !== ''
+    );
+  };
+
+  // Sync searchTerm with formData.companyName on initial load
+  useEffect(() => {
+    if (formData.companyName && !searchTerm) {
+      setSearchTerm(formData.companyName);
+    }
+  }, [formData.companyName]);
 
   useEffect(() => {
     hideNavbar();
@@ -96,558 +108,417 @@ const BusinessDetailsForm = () => {
 
   useEffect(() => {
     if (!userInfo.userId && user?.uid) {
-      setUserInfo((prev) => ({ ...prev, userId: user.uid })); // Safely update userInfo
+      setUserInfo(prev => ({ ...prev, userId: user.uid }));
     }
-  }, [userInfo, user]);
+  }, [user, userInfo.userId]);
 
-  // Debounced search function
+  // Debounced search function with improved responsiveness
   const debouncedSearch = useCallback(
-    debounce(async (searchValue: string) => {
-      if (searchValue.length >= 3) {
-        setIsLoading(true);
-        try {
-          const result = await searchCompanies(searchValue);
-          setSearchResults(result.companies || []);
-        } catch (error) {
-          console.error('Error searching for companies:', error);
-          setSearchResults([]);
-        } finally {
-          setIsLoading(false);
-        }
-      } else {
+    debounce(async (term: string) => {
+      if (term.length < 2) {
         setSearchResults([]);
+        setIsCompanyPopoverOpen(false);
+        return;
       }
-    }, 500),
+
+      setIsLoading(true);
+      try {
+        const results = await searchCompanies(term);
+        const companies = results.companies || [];
+        setSearchResults(companies);
+        // Only show popover if we have results and input is focused
+        if (companies.length > 0 && document.activeElement === inputRef.current) {
+          setIsCompanyPopoverOpen(true);
+        }
+      } catch (error) {
+        console.error('Error searching companies:', error);
+        setSearchResults([]);
+        setIsCompanyPopoverOpen(false);
+      } finally {
+        setIsLoading(false);
+      }
+    }, 200), // Reduced debounce time for faster response
     []
   );
 
-  // Handle search input change
-  const handleSearchChange = (value: string) => {
+  const handleCompanySearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
     setSearchTerm(value);
-    debouncedSearch(value);
-  };
-
-  // Handle company selection
-  const handleCompanySelect = (company: {
-    name: string;
-    connectId?: string;
-    id?: string;
-    registrationNumber?: string;
-    address?: { simpleValue?: string };
-  }) => {
-    setFormData(prev => ({
-      ...prev,
-      companyName: company.name,
-      companyNumber: company.registrationNumber || '' // Store company number from selection
-    }));
-    setSearchTerm(company.name);
-    setIsCompanyPopoverOpen(false);
+    setFormData({ ...formData, companyName: value });
+    setSelectedIndex(-1); // Reset selection when typing
     
-    console.log('Selected company:', company);
-    console.log('Company registration number:', company.registrationNumber || 'Not available');
-  };
-
-  const handleChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-  };
-
-  // Function to view credit report in a new tab
-  const viewCreditReport = () => {
-    // Only proceed if we have a company name
-    if (!formData.companyName) {
-      alert("Please enter a company name first");
-      return;
+    if (value.length >= 2) {
+      debouncedSearch(value);
+    } else {
+      setIsCompanyPopoverOpen(false);
+      setSearchResults([]);
     }
-    
-    // Make sure we have the flags set for the credit report page to know the context
-    sessionStorage.setItem('from_business_form', 'true');
-    sessionStorage.setItem('credit_search_company_name', formData.companyName);
-    sessionStorage.setItem('credit_search_company_number', formData.companyNumber || '');
-    
-    // Open credit score page in a new tab
-    window.open('/credit-score?companyName=' + encodeURIComponent(formData.companyName), '_blank');
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!isCompanyPopoverOpen || searchResults.length === 0) return;
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setSelectedIndex(prev => 
+          prev < searchResults.length - 1 ? prev + 1 : 0
+        );
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setSelectedIndex(prev => 
+          prev > 0 ? prev - 1 : searchResults.length - 1
+        );
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (selectedIndex >= 0 && selectedIndex < searchResults.length) {
+          selectCompany(searchResults[selectedIndex]);
+        }
+        break;
+      case 'Escape':
+        setIsCompanyPopoverOpen(false);
+        setSelectedIndex(-1);
+        break;
+    }
+  };
+
+  const handleInputFocus = () => {
+    // Show results if we have them and search term is valid
+    if (searchResults.length > 0 && searchTerm.length >= 2) {
+      setIsCompanyPopoverOpen(true);
+    }
+  };
+
+  const handleInputBlur = () => {
+    // Delay closing to allow for clicking on results
+    setTimeout(() => {
+      setIsCompanyPopoverOpen(false);
+    }, 200);
+  };
+
+  const selectCompany = (company: any) => {
+    setSearchTerm(company.name);
+    setFormData({
+      ...formData,
+      companyName: company.name,
+      companyNumber: company.registrationNumber || company.id || ''
+    });
+    setIsCompanyPopoverOpen(false);
+    setSearchResults([]);
+    setSelectedIndex(-1);
+    // Keep focus on input for better UX
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+  };
+
+  // Background function to fetch and save credit score data
+  const fetchAndSaveCreditDataBackground = async (companyName: string) => {
+    if (!user?.uid) return;
+
+    try {
+
+      
+      // Fetch credit data
+      const creditResult = await fetchCreditData(companyName, 'GB');
+      
+      // Check if there was an error (creditResult could have an error property)
+      if (creditResult && typeof creditResult === 'object' && 'error' in creditResult) {
+        console.warn('Credit data fetch failed:', creditResult.error);
+        return;
+      }
+
+      // Normalize and save credit data similar to CreditScorePage
+      const normalizedCreditInfo = normalizeCreditScoreData(creditResult);
+      const db = getFirestore();
+
+      // Extract company info from the original credit result
+      const companyNumber = creditResult && typeof creditResult === 'object' && 'company_number' in creditResult 
+        ? String(creditResult.company_number) 
+        : '';
+
+      // Save to businesses collection
+      const businessRef = doc(db, "businesses", user.uid);
+      await setDoc(businessRef, {
+        name: companyName,
+        business_name: companyName,
+        company_number: companyNumber,
+        credit_info: normalizedCreditInfo,
+        updatedAt: serverTimestamp(),
+        active: true
+      }, { merge: true });
+
+      // Save detailed credit score to financials subcollection using existing utility
+      const creditScoreRef = doc(collection(db, "businesses", user.uid, "financials"), "credit_score");
+      await setDoc(creditScoreRef, createFinancialsCreditScoreDocument(
+        creditResult,
+        companyName,
+        companyNumber,
+        creditResult // Pass the full result as raw data
+      ));
+
+      // Set flags for CreditScorePage to know data is ready
+      sessionStorage.setItem('credit_data_ready', 'true');
+      sessionStorage.setItem('credit_search_company_name', companyName);
+      
+
+    } catch (error) {
+      console.error('Background credit score fetch failed:', error);
+      // Don't throw error to avoid interrupting sign-up flow
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!isFormValid()) {
+      alert('Please fill in all required fields');
+      return;
+    }
 
     try {
-      console.log('Submitting business details with formData:', formData);
-      console.log('User info:', userInfo);
-
-      if (!userInfo.userId) {
-        throw new Error('User ID is missing. Please ensure you are logged in.');
-      }
-
-      // Fetch credit data
-      const creditData = await fetchCreditData(formData.companyName) as { 
-        error?: string; 
-        connectId?: string; 
-        address?: string; 
-        report?: any;
-        company?: any;
-        [key: string]: any 
-      };
-
-      console.log('Credit data fetched:', creditData);
-
-      // Log the full creditData to verify its structure
-      console.log('Full creditData:', creditData);
-      
-      // Try to extract company registration number if not already set
-      let companyNumber = formData.companyNumber;
-      if (!companyNumber || companyNumber.trim() === '') {
-        // Try to get it from credit report
-        companyNumber = creditData?.report?.companyIdentification?.basicInformation?.companyRegistrationNumber || 
-                         creditData?.report?.companySummary?.companyRegistrationNumber ||
-                         creditData?.company?.registrationNumber || '';
-                         
-        if (companyNumber) {
-          console.log('Retrieved company number from credit report:', companyNumber);
-          setFormData(prev => ({
-            ...prev,
-            companyNumber: companyNumber
-          }));
-        }
-      }
-
-      // Initialize credit info with default values
-      let creditInfo = {
-        credit_score: null,
-        risk: null,
-        status: null,
-        international_value: null,
-        credit_limit: null,
-        negative_information: null,
-        error: creditData.error || null
-      };
-
-      // If we successfully got credit data without errors, extract the information
-      if (!creditData.error && creditData.report) {
-        creditInfo = {
-          credit_score: creditData.report?.creditScore?.currentCreditRating?.providerValue?.value || null,
-          risk: creditData.report?.creditScore?.currentCreditRating?.commonDescription || null,
-          status: creditData.report?.companyIdentification?.basicInformation?.companyStatus?.description || null,
-          international_value: creditData.report?.creditScore?.currentCreditRating?.internationalScore?.value || null,
-          credit_limit: creditData.report?.creditScore?.currentCreditRating?.creditLimit?.value || null,
-          negative_information: creditData.report?.additionalInformation?.negativeInformation || null,
-          error: null
-        };
-      }
-      
-      console.log('Credit info prepared:', creditInfo);
-
-      // Summarize website content using OpenAI
-      let websiteSummary = '';
-      if (formData.website) {
-        try {
-          const completion = await openAIClient.chat.completions.create({
-            model: "gpt-4o-search-preview",
-            web_search_options: {},
-            messages: [{
-              role: "user",
-              content: `Summarise what this website does and what the business does: ${formData.website}`,
-            }],
-          });
-          websiteSummary = completion.choices[0].message.content;
-          console.log('Website summary fetched:', websiteSummary);
-        } catch (error) {
-          console.error('Error summarizing website:', error);
-        }
-      }
-
-      // Fetch website logo
-      const websiteLogo = await fetchWebsiteLogo(formData.website);
-      console.log('Website logo fetched:', websiteLogo);
-
-      // Extract mainAddress from the correct path in creditData
-      const mainAddress = creditData?.report?.contactInformation?.mainAddress || {};
-      console.log('Extracted mainAddress:', mainAddress);
-      
-      // creditInfo is already defined above, no need to redefine it
-
-      // Prepare address data for storage
-      const addressData = {
-        street: mainAddress.street || '',
-        house_number: mainAddress.houseNumber || '',
-        city: mainAddress.city || '',
-        postal_code: mainAddress.postalCode || '',
-        country: mainAddress.country || '',
-      };
-
-      // Log address data for debugging
-      console.log('Address data prepared:', addressData);
-
-      // Only save to businesses collection under the userId
       const db = getFirestore();
-      try {
-        // Normalize credit info for consistent structure
-        const normalizedCreditInfo = normalizeCreditScoreData(creditInfo);
+      const combinedUserData = {
+        ...userInfo,
+        ...formData,
+        companyName: searchTerm, // Use searchTerm as the final company name
+        timestamp: serverTimestamp(),
+      };
 
-        // Create or update the main business document with all the business profile data
-        const businessDocRef = doc(db, "businesses", userInfo.userId);
-        await setDoc(businessDocRef, {
-          name: formData.companyName,
-          business_name: formData.companyName,
-          company_number: companyNumber, // Use the companyNumber variable that might have been updated from the credit report
-          company_size: formData.companySize,
-          website: formData.website,
-          website_summary: websiteSummary,
-          logo_url: websiteLogo,
-          address: addressData,
-          credit_info: normalizedCreditInfo, // Embed normalized credit info directly in the document
-          user_id: userInfo.userId,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-          active: true,
-          _dataVersion: '1.0'
-        }, { merge: true });
-        console.log('Business document updated successfully in businesses collection.');
-
-        // Save detailed credit score in the credit_score subcollection (not financials!)
-        const creditScoreDocRef = doc(db, "businesses", userInfo.userId, "credit_score", "latest");
-        await setDoc(creditScoreDocRef, {
-          ...normalizedCreditInfo,
-          raw_report: creditData.report || null,
-          company_name: formData.companyName,
-          company_number: companyNumber,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
-        console.log('Credit score data saved to businesses/{userId}/credit_score/latest document.');
-      } catch (error) {
-        console.error('Error saving to businesses collection:', error);
-        // Continue with the process even if this part fails
+      if (user?.uid) {
+        await setDoc(doc(db, 'users', user.uid), combinedUserData, { merge: true });
       }
 
-      // Save a flag in sessionStorage to indicate we're coming from the business form
-      // This will be used when the user later visits the credit score page
-      sessionStorage.setItem('from_business_form', 'true');
+      // Store company name for credit score auto-population
+      sessionStorage.setItem('credit_search_company_name', searchTerm);
       
-      // Store the company information in sessionStorage for later use in credit score page
-      sessionStorage.setItem('credit_search_company_name', formData.companyName);
-      sessionStorage.setItem('credit_search_company_number', companyNumber);
-
-      // Continue with the sign-up journey by navigating to the eligibility page
+      // Trigger background credit score fetching (don't await it)
+      fetchAndSaveCreditDataBackground(searchTerm).catch(error => {
+        console.error('Background credit score fetch failed:', error);
+        // Don't block the flow if credit score fetch fails
+      });
+      
+      // Continue to the next step in the sign-up journey (Eligibility)
       navigate('/signup-journey/eligibility', {
-        state: {
-          ...userInfo,
-          businessDetails: formData,
-          fromBusinessDetails: true // Flag to indicate navigation from BusinessDetailsForm
-        },
+        state: combinedUserData
       });
     } catch (error) {
-      console.error('Error submitting business details:', error);
-      alert('An error occurred while submitting your business details. Please try again.');
+      console.error('Error saving business details:', error);
+      alert('There was an error saving your information. Please try again.');
     }
   };
 
-  // Progress bar and navigation steps config
-  const steps = [
-    { label: 'Email & Password', path: '/signup-journey/email-password' },
-    { label: 'Funding Amount', path: '/signup-journey/apply' },
-    { label: 'Funding Matches', path: '/signup-journey/funding-matches' },
-    { label: 'Business Details', path: '/signup-journey/business-details' },
-    { label: 'Eligibility', path: '/signup-journey/eligibility' },
-  ];
-  const [currentStep] = useState<number>(3); // Updated to reflect the new step order
-
-  // Navigation handlers
-  const goToStep = (stepIdx: number) => {
-    if (stepIdx === 0) navigate('/signup-journey/email-password', { state: userInfo });
-    if (stepIdx === 1) navigate('/signup-journey/apply', { state: userInfo });
-    if (stepIdx === 2) navigate('/signup-journey/funding-matches', { state: userInfo });
-    if (stepIdx === 4) navigate('/signup-journey/eligibility', { 
-      state: {
-        ...userInfo,
-        fromBusinessDetails: true // Flag to indicate navigation from BusinessDetailsForm
-      }
-    });
-  };
-
   return (
-    <div className="bg-white min-h-screen">
-      <PageLayout>
-        <div className="container mx-auto px-4 py-12">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            {/* Main Form Section */}
-            <div className="lg:col-span-8">
-              {/* Progress Bar & Steps */}
-              <div className="mb-10">
-                <div className="flex items-center gap-2 mb-2">
-                  {steps.map((step, idx) => (
-                    <div
-                      key={step.label}
-                      className={`flex-1 h-2 rounded ${idx <= currentStep ? 'bg-[#ff8000]' : 'bg-gray-300'}`}
-                    ></div>
-                  ))}
-                </div>
-                <div className="grid grid-cols-5 text-center text-sm font-medium text-[#2a3441]">
-                  {steps.map((step, idx) => (
-                    <span key={step.label} className={idx === currentStep ? 'font-bold text-[#ff8000]' : ''}>{step.label}</span>
-                  ))}
-                </div>
-              </div>
+    <SignUpLayout
+      steps={signupSteps}
+      currentStep={currentStepIndex}
+      onStepNavigation={(stepIndex) => {
+        if (stepIndex === 0) navigate('/signup-journey/email-password', { state: userInfo });
+        if (stepIndex === 1) navigate('/signup-journey/apply', { state: userInfo });
+        if (stepIndex === 2) navigate('/signup-journey/funding-matches', { state: userInfo });
+        if (stepIndex === 3) navigate('/signup-journey/business-details', { state: userInfo });
+        if (stepIndex === 4) navigate('/signup-journey/eligibility', { state: userInfo });
+      }}
+      sidebarProps={{
+        title: "Business Information",
+        description: "Help us understand your business better to find the most suitable funding options. Accurate information leads to better matches.",
+        highlight: "Your information is secure and encrypted",
+        tips: [
+          "Complete all fields for better funding matches",
+          "Your business registration number will be automatically retrieved",
+          "We use this data to pre-fill future applications"
+        ]
+      }}
+    >
+      <div className="space-y-8">
+        <div>
+          <h2 className="text-2xl font-bold text-[#2a3441] mb-2">
+            Tell us about your business
+          </h2>
+          <p className="text-gray-600 text-lg">
+            We'll use this information to find the best funding opportunities for you.
+          </p>
+        </div>
 
-              {/* Navigation Arrows */}
-              <div className="flex justify-between items-center mb-6">
-                <button
-                  type="button"
-                  onClick={() => goToStep(currentStep - 1)}
-                  disabled={currentStep === 0}
-                  className={`flex items-center gap-1 px-4 py-2 rounded-full border border-gray-200 bg-white text-[#2a3441] hover:bg-gray-50 transition disabled:opacity-40 disabled:cursor-not-allowed`}
-                >
-                  <ArrowLeft className="w-5 h-5" />
-                  Back
-                </button>
-                <button
-                  type="button"
-                  onClick={() => goToStep(currentStep + 1)}
-                  disabled={currentStep === steps.length - 1}
-                  className={`flex items-center gap-1 px-4 py-2 rounded-full border border-gray-200 bg-white text-[#2a3441] hover:bg-gray-50 transition disabled:opacity-40 disabled:cursor-not-allowed`}
-                >
-                  Next
-                  <ArrowRight className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Form Card */}
-              <div className="max-w-4xl mx-auto">
-                <Card className="p-8 border border-[#e5e7eb] shadow-sm rounded-2xl bg-white">
-                  <h2 className="text-xl font-semibold text-[#2a3441] mb-6">
-                    Provide your business details:
-                  </h2>
-                  <form onSubmit={handleSubmit}>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                      {/* Company Name with Autocomplete */}
-                      <div className="flex flex-col gap-2">
-                        <Label htmlFor="companyName" className="text-[#2a3441] font-medium">
-                          Company Name:
-                        </Label>
-                        <Popover open={isCompanyPopoverOpen} onOpenChange={setIsCompanyPopoverOpen}>
-                          <PopoverTrigger asChild>
-                            <div className="relative">
-                              <Input
-                                id="companyName"
-                                value={searchTerm}
-                                onChange={(e) => {
-                                  const value = e.target.value;
-                                  setSearchTerm(value);
-                                  handleSearchChange(value);
-                                  handleChange('companyName', value);
-                                  if (value.length >= 3) {
-                                    setIsCompanyPopoverOpen(true);
-                                  }
-                                }}
-                                className="bg-white border border-gray-300 rounded-md focus:ring-2 focus:ring-[#ff8000] text-[#2a3441]"
-                                placeholder="Start typing company name..."
-                                required
-                              />
-                              {searchTerm.length >= 3 && (
-                                <button 
-                                  type="button"
-                                  className="absolute right-3 top-1/2 transform -translate-y-1/2" 
-                                  onClick={() => setIsCompanyPopoverOpen(!isCompanyPopoverOpen)}
-                                >
-                                  {isLoading ? (
-                                    <Loader2 className="h-5 w-5 text-gray-400 animate-spin" />
-                                  ) : (
-                                    <Search className="h-5 w-5 text-gray-400" />
-                                  )}
-                                </button>
-                              )}
-                            </div>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-full p-0" align="start">
-                            <Command>
-                              <CommandList>
-                                {searchResults.length === 0 && !isLoading ? (
-                                  <CommandEmpty>No companies found.</CommandEmpty>
-                                ) : (
-                                  <CommandGroup heading="Companies">
-                                    {isLoading ? (
-                                      <div className="flex items-center justify-center py-6">
-                                        <Loader2 className="h-6 w-6 text-[#ff8000] animate-spin" />
-                                      </div>
-                                    ) : (
-                                      searchResults.map((company, index) => (
-                                        <CommandItem
-                                          key={company.id || company.connectId || index}
-                                          value={company.name}
-                                          onSelect={() => handleCompanySelect(company)}
-                                          className="flex items-start py-2"
-                                        >
-                                          <div>
-                                            <p className="font-medium">{company.name}</p>
-                                            {company.registrationNumber && (
-                                              <p className="text-sm text-gray-500">Reg: {company.registrationNumber}</p>
-                                            )}
-                                            {company.address?.simpleValue && (
-                                              <p className="text-xs text-gray-400 truncate max-w-[300px]">
-                                                {company.address.simpleValue}
-                                              </p>
-                                            )}
-                                          </div>
-                                        </CommandItem>
-                                      ))
-                                    )}
-                                  </CommandGroup>
+        <form onSubmit={handleSubmit} className="space-y-8">
+          {/* Company Name & Registration Number */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="space-y-3">
+              <Label htmlFor="companyName" className="text-base font-semibold text-gray-800">
+                Company Name <span className="text-red-500">*</span>
+              </Label>
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5 z-10" />
+                <Input
+                  ref={inputRef}
+                  type="text"
+                  id="companyName"
+                  value={searchTerm}
+                  onChange={handleCompanySearch}
+                  onKeyDown={handleKeyDown}
+                  onFocus={handleInputFocus}
+                  onBlur={handleInputBlur}
+                  placeholder="Search for your company..."
+                  className="pl-12 py-3 h-12 text-base bg-white border-2 border-gray-200 rounded-xl focus:border-[#ff8000] focus:ring-2 focus:ring-[#ff8000]/20 transition-all"
+                  required
+                  autoComplete="off"
+                />
+                
+                {/* Custom Dropdown Results */}
+                {isCompanyPopoverOpen && (
+                  <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-64 overflow-y-auto">
+                    {isLoading ? (
+                      <div className="flex items-center justify-center py-6">
+                        <Loader2 className="h-6 w-6 animate-spin text-[#ff8000]" />
+                        <span className="ml-2 text-gray-600">Searching companies...</span>
+                      </div>
+                    ) : searchResults.length > 0 ? (
+                      <div className="py-2">
+                        {searchResults.map((company, index) => (
+                          <div
+                            key={index}
+                            onClick={() => selectCompany(company)}
+                            onMouseEnter={() => setSelectedIndex(index)}
+                            className={`px-4 py-3 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors ${
+                              index === selectedIndex 
+                                ? 'bg-[#ff8000]/10 border-[#ff8000]/20' 
+                                : 'hover:bg-gray-50'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between w-full">
+                              <div>
+                                <div className="font-medium text-gray-900">{company.name}</div>
+                                {company.registrationNumber && (
+                                  <div className="text-sm text-gray-500">Reg: {company.registrationNumber}</div>
                                 )}
-                              </CommandList>
-                            </Command>
-                          </PopoverContent>
-                        </Popover>
+                                {company.address?.simpleValue && (
+                                  <div className="text-sm text-gray-500 truncate">{company.address.simpleValue}</div>
+                                )}
+                              </div>
+                              <CheckCircle2 className={`h-5 w-5 flex-shrink-0 ${
+                                index === selectedIndex ? 'text-[#ff8000]' : 'text-green-500'
+                              }`} />
+                            </div>
+                          </div>
+                        ))}
                       </div>
-
-                      {/* Company Number (Read only, displayed when company is selected) */}
-                      <div className="flex flex-col gap-2">
-                        <Label htmlFor="companyNumberDisplay" className="text-[#2a3441] font-medium flex items-center">
-                          Company Number:
-                          {formData.companyNumber && (
-                            <span className="ml-2 text-xs text-green-600 flex items-center">
-                              <CheckCircle2 className="w-3 h-3 mr-1" /> Auto-retrieved
-                            </span>
-                          )}
-                        </Label>
-                        <div className="relative">
-                          <Input
-                            id="companyNumberDisplay"
-                            value={formData.companyNumber || "Auto-retrieved from company search"}
-                            className={`bg-gray-50 border ${formData.companyNumber ? 'border-green-300' : 'border-gray-300'} rounded-md text-[#2a3441] cursor-not-allowed`}
-                            readOnly
-                            disabled
-                          />
-                          {formData.companyNumber && (
-                            <CheckCircle2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-green-600" />
-                          )}
-                        </div>
+                    ) : searchTerm.length >= 2 && !isLoading ? (
+                      <div className="py-6 text-center text-gray-500">
+                        No companies found. Try a different search term.
                       </div>
-
-                      {/* Website */}
-                      <div className="flex flex-col gap-2">
-                        <Label htmlFor="website" className="text-[#2a3441] font-medium">
-                          Website:
-                        </Label>
-                        <Input
-                          id="website"
-                          value={formData.website}
-                          onChange={(e) => handleChange('website', e.target.value)}
-                          className="bg-white border border-gray-300 rounded-md focus:ring-2 focus:ring-[#ff8000] text-[#2a3441]"
-                        />
-                      </div>
-
-                      {/* Forecast Revenue */}
-                      <div className="flex flex-col gap-2">
-                        <Label htmlFor="forecastRevenue" className="text-[#2a3441] font-medium">
-                          Forecast Revenue:
-                        </Label>
-                        <Input
-                          id="forecastRevenue"
-                          value={`£${Number(formData.forecastRevenue).toLocaleString()}`}
-                          onChange={(e) => handleChange('forecastRevenue', e.target.value.replace(/[^0-9]/g, ''))}
-                          className="bg-white border border-gray-300 rounded-md focus:ring-2 focus:ring-[#ff8000] text-[#2a3441]"
-                          required
-                        />
-                      </div>
-
-                      {/* Industry */}
-                      <div className="flex flex-col gap-2">
-                        <Label htmlFor="industry" className="text-[#2a3441] font-medium">
-                          Industry:
-                        </Label>
-                        <Select
-                          value={formData.industry}
-                          onValueChange={(value) => handleChange('industry', value)}
-                        >
-                          <SelectTrigger className="bg-white border border-gray-300 rounded-md focus:ring-2 focus:ring-[#ff8000] text-[#2a3441]">
-                            <SelectValue placeholder="Select industry" />
-                          </SelectTrigger>
-                          <SelectContent className="bg-white border border-[#ff8000]">
-                            {industryOptions.map((option) => (
-                              <SelectItem key={option.value} value={option.value}>
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      {/* Company Size */}
-                      <div className="flex flex-col gap-2">
-                        <Label htmlFor="companySize" className="text-[#2a3441] font-medium">
-                          Company Size:
-                        </Label>
-                        <Select
-                          value={formData.companySize}
-                          onValueChange={(value) => handleChange('companySize', value)}
-                        >
-                          <SelectTrigger className="bg-white border border-gray-300 rounded-md focus:ring-2 focus:ring-[#ff8000] text-[#2a3441]">
-                            <SelectValue placeholder="Select size" />
-                          </SelectTrigger>
-                          <SelectContent className="bg-white border border-[#ff8000]">
-                            {companySizeOptions.map((option) => (
-                              <SelectItem key={option.value} value={option.value}>
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    {/* Business Description */}
-                    <div className="mb-10">
-                      <Label htmlFor="businessDescription" className="text-[#2a3441] font-medium block mb-2">
-                        Business Description:
-                      </Label>
-                      <Textarea
-                        id="businessDescription"
-                        value={formData.businessDescription}
-                        onChange={(e) => handleChange('businessDescription', e.target.value)}
-                        className="w-full bg-white border border-gray-300 rounded-md p-4 text-[#2a3441] focus:ring-2 focus:ring-[#ff8000]"
-                        placeholder="Tell us about your business..."
-                        required
-                      />
-                    </div>
-
-                    {/* Submit and View Credit Report Buttons */}
-                    <div className="flex justify-between items-center">
-                      <Button
-                        type="button"
-                        onClick={viewCreditReport}
-                        className="bg-white border border-[#ff8000] text-[#ff8000] hover:bg-[#fff8f0] px-6 py-3 text-lg rounded-full font-medium shadow transition-transform hover:scale-[1.02]"
-                      >
-                        View Credit Report
-                      </Button>
-                      <Button
-                        type="submit"
-                        className="bg-[#ff8000] hover:bg-[#e67300] text-white px-10 py-4 text-lg rounded-full font-medium shadow transition-transform hover:scale-[1.02]"
-                      >
-                        Submit
-                      </Button>
-                    </div>
-                  </form>
-                </Card>
+                    ) : null}
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Sidebar Column - Modular and tailored for this step */}
-            <div className="lg:col-span-4 flex flex-col h-full p-0 m-0">
-              <SignUpSidebar
-                title="Why Business Details?"
-                description="We ask for your business details to match you with the most relevant funding options. Accurate information helps us find the best offers tailored to your business profile."
-                highlight="Your details are secure and only shared with trusted lenders."
-                tips={[
-                  'Filling out all fields increases your chances of better matches.',
-                  'We use this information to pre-fill future applications and save you time.',
-                  'You can update your business profile at any time.'
-                ]}
+            <div className="space-y-3">
+              <Label htmlFor="companyNumber" className="text-base font-semibold text-gray-800">
+                Company Registration Number
+              </Label>
+              <Input
+                type="text"
+                id="companyNumber"
+                value={formData.companyNumber}
+                onChange={(e) => setFormData({ ...formData, companyNumber: e.target.value })}
+                placeholder="Auto-filled from search"
+                className="py-3 h-12 text-base bg-white border-2 border-gray-200 rounded-xl focus:border-[#ff8000] focus:ring-2 focus:ring-[#ff8000]/20 transition-all"
+                readOnly
               />
             </div>
           </div>
-        </div>
-      </PageLayout>
-    </div>
+
+          {/* Website */}
+          <div className="space-y-3">
+            <Label htmlFor="website" className="text-base font-semibold text-gray-800">
+              Company Website <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              type="url"
+              id="website"
+              value={formData.website}
+              onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+              placeholder="https://www.yourcompany.com"
+              className="py-3 h-12 text-base bg-white border-2 border-gray-200 rounded-xl focus:border-[#ff8000] focus:ring-2 focus:ring-[#ff8000]/20 transition-all"
+              required
+            />
+          </div>
+
+          {/* Industry and Company Size */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="space-y-3">
+              <Label htmlFor="industry" className="text-base font-semibold text-gray-800">
+                Industry <span className="text-red-500">*</span>
+              </Label>
+              <Select value={formData.industry} onValueChange={(value) => setFormData({ ...formData, industry: value })}>
+                <SelectTrigger className="py-3 h-12 text-base bg-white border-2 border-gray-200 rounded-xl focus:border-[#ff8000] focus:ring-2 focus:ring-[#ff8000]/20 transition-all">
+                  <SelectValue placeholder="Select your industry" />
+                </SelectTrigger>
+                <SelectContent>
+                  {industryOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value} className="py-2 text-base">
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-3">
+              <Label htmlFor="companySize" className="text-base font-semibold text-gray-800">
+                Company Size <span className="text-red-500">*</span>
+              </Label>
+              <Select value={formData.companySize} onValueChange={(value) => setFormData({ ...formData, companySize: value })}>
+                <SelectTrigger className="py-3 h-12 text-base bg-white border-2 border-gray-200 rounded-xl focus:border-[#ff8000] focus:ring-2 focus:ring-[#ff8000]/20 transition-all">
+                  <SelectValue placeholder="Select company size" />
+                </SelectTrigger>
+                <SelectContent>
+                  {companySizeOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value} className="py-2 text-base">
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Forecast Revenue */}
+          <div className="space-y-3">
+            <Label htmlFor="forecastRevenue" className="text-base font-semibold text-gray-800">
+              Annual Revenue Forecast <span className="text-red-500">*</span>
+            </Label>
+            <Select value={formData.forecastRevenue} onValueChange={(value) => setFormData({ ...formData, forecastRevenue: value })}>
+              <SelectTrigger className="py-3 h-12 text-base bg-white border-2 border-gray-200 rounded-xl focus:border-[#ff8000] focus:ring-2 focus:ring-[#ff8000]/20 transition-all">
+                <SelectValue placeholder="Select revenue range" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="100000" className="py-2 text-base">Under £100k</SelectItem>
+                <SelectItem value="500000" className="py-2 text-base">£100k - £500k</SelectItem>
+                <SelectItem value="1000000" className="py-2 text-base">£500k - £1M</SelectItem>
+                <SelectItem value="5000000" className="py-2 text-base">£1M - £5M</SelectItem>
+                <SelectItem value="10000000" className="py-2 text-base">£5M - £10M</SelectItem>
+                <SelectItem value="50000000" className="py-2 text-base">£10M+</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Submit Button */}
+          <div className="flex justify-end pt-6">
+            <Button
+              type="submit"
+              disabled={!isFormValid()}
+              className="bg-[#ff8000] hover:bg-[#e67300] text-white px-10 py-4 text-lg rounded-full font-medium shadow transition-transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+            >
+              Continue to Funding Application
+              <ArrowRight className="ml-2 h-5 w-5" />
+            </Button>
+          </div>
+        </form>
+      </div>
+    </SignUpLayout>
   );
 };
 

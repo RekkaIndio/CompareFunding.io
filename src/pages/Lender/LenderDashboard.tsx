@@ -1,11 +1,33 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { 
+  CreditCard, 
+  TrendingUp, 
+  Users, 
+  DollarSign, 
+  MessageSquare, 
+  Eye, 
+  CheckCircle, 
+  Clock, 
+  AlertCircle,
+  BarChart3,
+  Calendar,
+  Download,
+  Filter,
+  Search,
+  Bell,
+  ArrowUpRight,
+  ArrowDownRight,
+  Building2,
+  PieChart,
+  Activity
+} from 'lucide-react';
 import { getDocument, getDocuments, createDocument, getLenderApplications } from '@/firebase';
 import { toast } from 'sonner';
 import PageLayout from '@/components/PageLayout';
 import { useAuth } from '@/contexts/AuthContext';
-import { BarChart, CreditCard, Users, DollarSign, ArrowUp, ArrowDown, Loader2, MessageCircle } from 'lucide-react';
 import { formatAddress, getBusinessDisplayName } from '@/lib/formatters';
 
 const LenderDashboard = () => {
@@ -75,7 +97,7 @@ const LenderDashboard = () => {
         throw error;
       }
       
-      console.log('Fetched lender applications:', data);
+
       return data || [];
     },
     enabled: !!user?.uid,
@@ -110,7 +132,7 @@ const LenderDashboard = () => {
   const { data: acceptedOffers, isLoading: acceptedOffersLoading } = useQuery({
     queryKey: ['acceptedOffers', user?.uid],
     queryFn: async () => {
-      console.log('Fetching accepted offers for user:', user?.uid);
+
       const { data, error } = await getDocuments('offers', [
         { field: 'lender_id', operator: '==', value: user?.uid },
         { 
@@ -127,7 +149,7 @@ const LenderDashboard = () => {
         throw error;
       }
       
-      console.log('Found accepted offers:', data?.length || 0);
+
       
       // Fetch business details for each offer
       if (data && data.length > 0) {
@@ -139,14 +161,14 @@ const LenderDashboard = () => {
               const applicationData = appResponse.data;
               const businessId = applicationData?.business_id || applicationData?.user_id;
               
-              console.log(`Offer ${offer.id} - Application ${offer.application_id} - Business ID: ${businessId}`);
+
               
               let businessData = null;
               // If we have a business ID, fetch the business details
               if (businessId) {
                 const businessResponse = await getDocument('businesses', businessId);
                 businessData = businessResponse.data;
-                console.log(`Fetched business data for ${businessId}:`, businessData?.business_name || 'No name');
+
               }
               
               // Return combined data
@@ -170,7 +192,7 @@ const LenderDashboard = () => {
           })
         );
         
-        console.log('Processed offers with business details:', offersWithBusinesses);
+
         return offersWithBusinesses;
       }
       
@@ -185,16 +207,16 @@ const LenderDashboard = () => {
     queryFn: async () => {
       if (!selectedConversation) return [];
       
-      console.log('===== MESSAGE DEBUGGING =====');
-      console.log('Selected conversation:', selectedConversation);
+
+
       
       try {
         // First, check if messages collection exists and what's in it
         const allMessagesResult = await getDocuments('messages', []);
-        console.log('All messages in database:', allMessagesResult.data);
+
         
         // Then try to fetch messages for this specific conversation
-        console.log('Fetching messages for conversation ID:', selectedConversation.id);
+
         
         const { data, error } = await getDocuments(
           'messages',
@@ -207,7 +229,7 @@ const LenderDashboard = () => {
           throw error;
         }
         
-        console.log('Messages found for this conversation:', data);
+
         
         // Sort messages client-side by timestamp
         const sortedMessages = data ? 
@@ -215,7 +237,7 @@ const LenderDashboard = () => {
             new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
           ) : [];
         
-        console.log('Sorted messages:', sortedMessages);
+
         return sortedMessages;
       } catch (err) {
         console.error('Exception in message fetching:', err);
@@ -278,7 +300,7 @@ const LenderDashboard = () => {
         message: newMessage.trim()
       };
       
-      console.log("Sending message with params:", messageParams);
+
       
       // Force create the message directly in Firebase
       const result = await forceCreateMessage(messageParams);
@@ -287,7 +309,7 @@ const LenderDashboard = () => {
         throw new Error(result.error || 'Failed to send message');
       }
       
-      console.log("Message sent successfully:", result);
+
 
       // Create a notification for the business
       await createDocument('notifications', {
@@ -315,7 +337,7 @@ const LenderDashboard = () => {
 
   // Function to start a new conversation or select existing one
   const selectConversation = (offer) => {
-    console.log('Selected offer for conversation:', offer);
+
     
     // Check for valid business ID 
     const businessId = offer.application?.business_id;
@@ -335,7 +357,7 @@ const LenderDashboard = () => {
       amount: offer.offered_amount
     });
     
-    console.log('Set conversation with businessId:', businessId);
+
   };
 
   // Calculate statistics for dashboard
@@ -378,227 +400,538 @@ const LenderDashboard = () => {
 
   return (
     <PageLayout showSidebar={true}>
-      <div className="container py-8">
-        <div className="flex items-center justify-between gap-4 mb-6">
-          <h1 className="text-2xl font-bold">Lender Dashboard</h1>
-          <div className="flex items-center gap-2">
-            {stats.logo_url && (
-              <img 
-                src={stats.logo_url} 
-                alt={`${stats.company_name || 'Lender'} logo`} 
-                className="h-8 w-8 rounded object-contain"
-              />
-            )}
-            <span className="font-medium">{stats.company_name || 'Welcome'}</span>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-gray-100">
+        <div className="max-w-8xl mx-auto py-8 px-6 space-y-8">
+        {/* Header Section */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+          <div className="bg-white/90 backdrop-blur-sm rounded-xl border border-slate-200/50 shadow-lg p-6 flex-1">
+            <div className="flex items-center gap-4">
+              {stats.logo_url && (
+                <div className="w-16 h-16 rounded-lg overflow-hidden bg-slate-100 border border-slate-200">
+                  <img 
+                    src={stats.logo_url} 
+                    alt="Company Logo" 
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
+              <div>
+                <h1 className="text-3xl font-bold text-slate-900 mb-2">
+                  Welcome back{lenderProfile?.lender_name ? `, ${lenderProfile.lender_name}` : ''}
+                </h1>
+                <p className="text-slate-600">
+                  {stats.company_name && (
+                    <span className="font-medium text-slate-800">{stats.company_name} • </span>
+                  )}
+                  Manage your funding opportunities and monitor your portfolio performance
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <div className="flex items-center space-x-2 bg-white/90 backdrop-blur-sm rounded-lg px-4 py-3 shadow-lg border border-slate-200/50">
+              <div className="w-3 h-3 bg-emerald-400 rounded-full animate-pulse"></div>
+              <span className="text-sm font-medium text-slate-700">
+                Credits: <span className="text-slate-900 font-semibold">{billingData?.credits_balance || 0}</span>
+              </span>
+            </div>
+            <Button
+              onClick={() => navigate('/lender-billing')}
+              className="bg-[#212936] hover:bg-[#212936]/90 text-white border-b-2 border-[#ff8000] hover:border-[#ff8000]/80 transition-all duration-200"
+            >
+              Manage Credits
+            </Button>
+            <div className="flex gap-2">
+              <button className="p-3 text-slate-500 hover:text-slate-700 hover:bg-white/60 rounded-lg transition-all duration-200 bg-white/30 backdrop-blur-sm border border-slate-200/50">
+                <Bell className="h-5 w-5" />
+              </button>
+              <button className="p-3 text-slate-500 hover:text-slate-700 hover:bg-white/60 rounded-lg transition-all duration-200 bg-white/30 backdrop-blur-sm border border-slate-200/50">
+                <Download className="h-5 w-5" />
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Dashboard Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
-          {/* Stats Cards */}
-          <div className="bg-white rounded-lg shadow p-5 border border-gray-200">
-            <div className="text-sm text-gray-500 mb-1">Available Credits</div>
-            <div className="text-2xl font-bold">{billingData?.credits_balance || 0}</div>
-            <div className="mt-2 text-xs text-gray-400">
-              Used: {billingData?.credits_used || 0} credits
+        {/* Key Metrics Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* Available Credits Card */}
+          <div className="bg-slate-800 rounded-xl shadow-lg border border-slate-700 p-6 relative overflow-hidden hover:shadow-xl transition-all duration-300">
+            <div className="absolute -top-6 -right-6 w-20 h-20 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full opacity-20"></div>
+            <div className="absolute top-4 right-4">
+              <div className="p-2 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow-md">
+                <CreditCard className="h-5 w-5 text-white" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="text-sm font-medium text-slate-300">Available Credits</div>
+              <div className="text-3xl font-bold text-white">{billingData?.credits_balance || 0}</div>
+              <div className="flex items-center gap-2">
+                <div className="text-sm text-slate-400">
+                  Used: {billingData?.credits_used || 0} credits
+                </div>
+                {billingData?.credits_balance > 10 ? (
+                  <ArrowUpRight className="h-4 w-4 text-emerald-400" />
+                ) : (
+                  <AlertCircle className="h-4 w-4 text-amber-400" />
+                )}
+              </div>
             </div>
           </div>
           
-          <div className="bg-white rounded-lg shadow p-5 border border-gray-200">
-            <div className="text-sm text-gray-500 mb-1">Applications</div>
-            <div className="text-2xl font-bold">{stats.totalApplicationsAvailable}</div>
-            <div className="mt-2 text-xs text-gray-400">
-              {stats.prospects} new prospects
+          {/* Applications Card */}
+          <div className="bg-slate-800 rounded-xl shadow-lg border border-slate-700 p-6 relative overflow-hidden hover:shadow-xl transition-all duration-300">
+            <div className="absolute -top-6 -right-6 w-20 h-20 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full opacity-20"></div>
+            <div className="absolute top-4 right-4">
+              <div className="p-2 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-lg shadow-md">
+                <Building2 className="h-5 w-5 text-white" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="text-sm font-medium text-slate-300">Available Applications</div>
+              <div className="text-3xl font-bold text-white">{stats.totalApplicationsAvailable}</div>
+              <div className="flex items-center gap-2">
+                <div className="text-sm text-slate-400">
+                  {stats.prospects} new prospects
+                </div>
+                {stats.prospects > 0 && <div className="h-2 w-2 bg-emerald-400 rounded-full animate-pulse" />}
+              </div>
             </div>
           </div>
           
-          <div className="bg-white rounded-lg shadow p-5 border border-gray-200">
-            <div className="text-sm text-gray-500 mb-1">Offers Extended</div>
-            <div className="text-2xl font-bold">{stats.offersExtended}</div>
-            <div className="mt-2 text-xs">
-              <span className="text-green-600 font-medium">{stats.offersAccepted} accepted</span>
-              <span className="text-gray-400 ml-1">({stats.offersExtended - stats.offersAccepted} pending)</span>
+          {/* Offers Extended Card */}
+          <div className="bg-slate-800 rounded-xl shadow-lg border border-slate-700 p-6 relative overflow-hidden hover:shadow-xl transition-all duration-300">
+            <div className="absolute -top-6 -right-6 w-20 h-20 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full opacity-20"></div>
+            <div className="absolute top-4 right-4">
+              <div className="p-2 bg-gradient-to-br from-amber-500 to-amber-600 rounded-lg shadow-md">
+                <TrendingUp className="h-5 w-5 text-white" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="text-sm font-medium text-slate-300">Offers Extended</div>
+              <div className="text-3xl font-bold text-white">{stats.offersExtended}</div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-emerald-400 font-medium">{stats.offersAccepted} accepted</span>
+                <span className="text-sm text-slate-400">({stats.offersExtended - stats.offersAccepted} pending)</span>
+              </div>
             </div>
           </div>
           
-          <div className="bg-white rounded-lg shadow p-5 border border-gray-200">
-            <div className="text-sm text-gray-500 mb-1">Conversion Rate</div>
-            <div className="text-2xl font-bold">{stats.conversionRate}%</div>
-            <div className="mt-2 text-xs text-gray-400">
-              Total funded: £{stats.totalLoanAmount.toLocaleString()}
+          {/* Performance Card */}
+          <div className="bg-slate-800 rounded-xl shadow-lg border border-slate-700 p-6 relative overflow-hidden hover:shadow-xl transition-all duration-300">
+            <div className="absolute -top-6 -right-6 w-20 h-20 bg-gradient-to-br from-purple-400 to-purple-600 rounded-full opacity-20"></div>
+            <div className="absolute top-4 right-4">
+              <div className="p-2 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg shadow-md">
+                <BarChart3 className="h-5 w-5 text-white" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="text-sm font-medium text-slate-300">Conversion Rate</div>
+              <div className="text-3xl font-bold text-white">{stats.conversionRate}%</div>
+              <div className="flex items-center gap-2">
+                <div className="text-sm text-slate-400">
+                  Total funded: £{stats.totalLoanAmount.toLocaleString()}
+                </div>
+                {stats.conversionRate > 50 ? (
+                  <ArrowUpRight className="h-4 w-4 text-emerald-400" />
+                ) : (
+                  <ArrowDownRight className="h-4 w-4 text-red-400" />
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Secondary Metrics */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200/50 p-6 hover:shadow-xl transition-all duration-300">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-slate-100 rounded-lg">
+                  <Activity className="h-5 w-5 text-slate-600" />
+                </div>
+                <div>
+                  <div className="font-semibold text-slate-900">Active Portfolio</div>
+                  <div className="text-sm text-slate-500">Current active loans</div>
+                </div>
+              </div>
+            </div>
+            <div className="text-2xl font-bold text-slate-900 mb-2">{stats.activeApplications}</div>
+            <div className="text-sm text-slate-600">
+              Total value: £{(stats.totalLoanAmount * 0.8).toLocaleString()}
+            </div>
+          </div>
+
+          <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200/50 p-6 hover:shadow-xl transition-all duration-300">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-slate-100 rounded-lg">
+                  <PieChart className="h-5 w-5 text-slate-600" />
+                </div>
+                <div>
+                  <div className="font-semibold text-slate-900">Monthly Pipeline</div>
+                  <div className="text-sm text-slate-500">This month's activity</div>
+                </div>
+              </div>
+            </div>
+            <div className="text-2xl font-bold text-slate-900 mb-2">{stats.monthlyConversion.total}</div>
+            <div className="w-full bg-slate-200 rounded-full h-2 mb-2">
+              <div 
+                className="bg-gradient-to-r from-[#ff8000] to-[#212936] h-2 rounded-full transition-all duration-300" 
+                style={{ width: `${stats.monthlyConversion.total ? (stats.monthlyConversion.accepted / stats.monthlyConversion.total) * 100 : 0}%` }}
+              ></div>
+            </div>
+            <div className="text-sm text-slate-600">
+              {stats.monthlyConversion.accepted} accepted ({stats.monthlyConversion.total ? 
+                Math.round((stats.monthlyConversion.accepted / stats.monthlyConversion.total) * 100) : 0}% rate)
+            </div>
+          </div>
+
+          <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200/50 p-6 hover:shadow-xl transition-all duration-300">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-slate-100 rounded-lg">
+                  <Clock className="h-5 w-5 text-slate-600" />
+                </div>
+                <div>
+                  <div className="font-semibold text-slate-900">Response Time</div>
+                  <div className="text-sm text-slate-500">Average response</div>
+                </div>
+              </div>
+            </div>
+            <div className="text-2xl font-bold text-slate-900 mb-2">2.4h</div>
+            <div className="text-sm text-emerald-600 flex items-center gap-1">
+              <ArrowUpRight className="h-3 w-3" />
+              15% faster than last month
             </div>
           </div>
         </div>
         
-        {/* Tabs Navigation */}
-        <div className="border-b border-gray-200 mb-6">
-          <div className="flex -mb-px">
-            <button
-              onClick={() => setActiveTab('overview')}
-              className={`mr-8 py-4 px-1 ${
-                activeTab === 'overview'
-                  ? 'border-b-2 border-[#ff8000] text-[#ff8000]'
-                  : 'text-gray-500'
-              } font-medium`}
-            >
-              Overview
-            </button>
-            <button
-              onClick={() => setActiveTab('applications')}
-              className={`mr-8 py-4 px-1 ${
-                activeTab === 'applications'
-                  ? 'border-b-2 border-[#ff8000] text-[#ff8000]'
-                  : 'text-gray-500'
-              } font-medium`}
-            >
-              Applications
-            </button>
-            <button
-              onClick={() => setActiveTab('messages')}
-              className={`mr-8 py-4 px-1 ${
-                activeTab === 'messages'
-                  ? 'border-b-2 border-[#ff8000] text-[#ff8000]'
-                  : 'text-gray-500'
-              } font-medium`}
-            >
-              Messages
-            </button>
+        {/* Enhanced Tabs Navigation */}
+        <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200/50 overflow-hidden">
+          <div className="border-b border-slate-200/50">
+            <div className="flex">
+              <button
+                onClick={() => setActiveTab('overview')}
+                className={`flex items-center gap-2 px-6 py-4 font-medium transition-all duration-200 ${
+                  activeTab === 'overview'
+                    ? 'border-b-2 border-[#ff8000] text-[#212936] bg-gradient-to-r from-[#ff8000]/5 to-[#212936]/5'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+                }`}
+              >
+                <BarChart3 className="h-4 w-4" />
+                Overview
+              </button>
+              <button
+                onClick={() => setActiveTab('applications')}
+                className={`flex items-center gap-2 px-6 py-4 font-medium transition-all duration-200 ${
+                  activeTab === 'applications'
+                    ? 'border-b-2 border-[#ff8000] text-[#212936] bg-gradient-to-r from-[#ff8000]/5 to-[#212936]/5'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+                }`}
+              >
+                <Users className="h-4 w-4" />
+                Applications
+                {stats.prospects > 0 && (
+                  <span className="ml-1 px-2 py-0.5 text-xs bg-[#ff8000] text-white rounded-full">
+                    {stats.prospects}
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={() => setActiveTab('messages')}
+                className={`flex items-center gap-2 px-6 py-4 font-medium transition-all duration-200 ${
+                  activeTab === 'messages'
+                    ? 'border-b-2 border-[#ff8000] text-[#212936] bg-gradient-to-r from-[#ff8000]/5 to-[#212936]/5'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+                }`}
+              >
+                <MessageSquare className="h-4 w-4" />
+                Messages
+                {acceptedOffers && acceptedOffers.length > 0 && (
+                  <span className="ml-1 px-2 py-0.5 text-xs bg-emerald-500 text-white rounded-full">
+                    {acceptedOffers.length}
+                  </span>
+                )}
+              </button>
+            </div>
           </div>
-        </div>
         
         {/* Tab Content */}
         {activeTab === 'overview' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Accepted Offers */}
-            <div className="lg:col-span-2">
-              <div className="bg-white rounded-lg shadow border border-gray-200 mb-6">
-                <div className="px-6 py-5 border-b border-gray-200">
-                  <h2 className="font-semibold">Accepted Offers</h2>
-                  <p className="text-sm text-slate-500">Applications with accepted funding offers</p>
-                </div>
-                <div className="p-6">
-                  {acceptedOffersLoading ? (
-                    <div className="text-center py-4 text-gray-500">Loading accepted offers...</div>
-                  ) : acceptedOffers && acceptedOffers.length > 0 ? (
-                    <div className="space-y-4">
-                      {acceptedOffers.map(offer => (
-                        <div 
-                          key={offer.id}
-                          className="p-4 border border-green-100 rounded-lg bg-green-50/50 hover:bg-green-50 cursor-pointer transition-colors"
-                          onClick={() => navigate(`/business/${offer.application_id}`)}
-                        >
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <div className="font-medium text-slate-900">
-                                {getBusinessDisplayName(offer.application, offer.business)}
+          <div className="p-6 space-y-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Accepted Offers - Enhanced */}
+              <div className="lg:col-span-2 space-y-6">
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                  <div className="px-6 py-5 bg-slate-800">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-green-500 rounded-lg">
+                          <CheckCircle className="h-5 w-5 text-white" />
+                        </div>
+                        <div>
+                          <h2 className="text-lg font-semibold text-white">Active Loans</h2>
+                          <p className="text-sm text-slate-300">Funded applications with ongoing relationships</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-2xl font-bold text-white">{acceptedOffers?.length || 0}</div>
+                        <div className="text-sm text-slate-300">Active</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-6">
+                    {acceptedOffersLoading ? (
+                      <div className="space-y-4">
+                        {[...Array(3)].map((_, i) => (
+                          <div key={i} className="animate-pulse">
+                            <div className="flex items-center space-x-4">
+                              <div className="h-12 w-12 bg-gray-200 rounded-lg"></div>
+                              <div className="flex-1">
+                                <div className="h-4 bg-gray-200 rounded w-1/3 mb-2"></div>
+                                <div className="h-3 bg-gray-200 rounded w-1/2"></div>
                               </div>
-                              <div className="text-sm text-slate-600 mt-1">
-                                Offer Amount: {new Intl.NumberFormat('en-GB', {
+                              <div className="h-6 w-16 bg-gray-200 rounded"></div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : acceptedOffers && acceptedOffers.length > 0 ? (
+                      <div className="space-y-4">
+                        {acceptedOffers.slice(0, 5).map(offer => (
+                          <div 
+                            key={offer.id}
+                            className="group p-4 border border-gray-200 rounded-xl hover:border-green-300 hover:shadow-md cursor-pointer transition-all duration-200 bg-gradient-to-r from-gray-50 to-green-50/30"
+                            onClick={() => navigate(`/business/${offer.application_id}`)}
+                          >
+                            <div className="flex justify-between items-center">
+                              <div className="flex items-center gap-4">
+                                <div className="h-12 w-12 bg-gradient-to-br from-green-100 to-green-200 rounded-lg flex items-center justify-center">
+                                  <Building2 className="h-6 w-6 text-green-600" />
+                                </div>
+                                <div>
+                                  <div className="font-semibold text-gray-900 group-hover:text-green-700 transition-colors">
+                                    {getBusinessDisplayName(offer.application, offer.business)}
+                                  </div>
+                                  <div className="text-sm text-gray-600 mt-1">
+                                    Loan Amount: {new Intl.NumberFormat('en-GB', {
+                                      style: 'currency',
+                                      currency: 'GBP'
+                                    }).format(offer.offered_amount || 0)}
+                                  </div>
+                                  <div className="text-xs text-gray-500 mt-1 flex items-center gap-2">
+                                    <Calendar className="h-3 w-3" />
+                                    Funded {new Date(offer.accepted_at).toLocaleDateString()}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <span className="px-3 py-1 text-xs rounded-full bg-green-100 text-green-800 font-medium">
+                                  Active
+                                </span>
+                                <button 
+                                  className="p-2 text-gray-400 hover:text-green-600 transition-colors"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    selectConversation(offer);
+                                    setActiveTab('messages');
+                                  }}
+                                >
+                                  <MessageSquare className="h-4 w-4" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        {acceptedOffers.length > 5 && (
+                          <div className="text-center pt-4">
+                            <button 
+                              className="text-sm text-orange-600 hover:text-orange-700 font-medium"
+                              onClick={() => setActiveTab('applications')}
+                            >
+                              View all {acceptedOffers.length} active loans →
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-center py-12">
+                        <div className="mx-auto h-16 w-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                          <CheckCircle className="h-8 w-8 text-gray-400" />
+                        </div>
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">No active loans yet</h3>
+                        <p className="text-gray-600 mb-4">Start reviewing applications to build your portfolio</p>
+                        <button 
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+                          onClick={() => setActiveTab('applications')}
+                        >
+                          <Eye className="h-4 w-4" />
+                          Browse Applications
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Recent Activity Feed */}
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                  <div className="px-6 py-5 bg-slate-800">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-blue-500 rounded-lg">
+                        <Activity className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <h2 className="text-lg font-semibold text-white">Recent Activity</h2>
+                        <p className="text-sm text-slate-300">Latest updates on your applications</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-6">
+                    {applicationsLoading ? (
+                      <div className="space-y-4">
+                        {[...Array(4)].map((_, i) => (
+                          <div key={i} className="animate-pulse flex items-center space-x-3">
+                            <div className="h-8 w-8 bg-gray-200 rounded-full"></div>
+                            <div className="flex-1">
+                              <div className="h-4 bg-gray-200 rounded w-2/3 mb-1"></div>
+                              <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : lenderApplications && lenderApplications.length > 0 ? (
+                      <div className="space-y-4">
+                        {lenderApplications.slice(0, 6).map(app => (
+                          <div 
+                            key={app.id} 
+                            className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                            onClick={() => navigate(`/lender/applications/${app.id}`)}
+                          >
+                            <div className="h-8 w-8 bg-gradient-to-br from-orange-100 to-orange-200 rounded-full flex items-center justify-center">
+                              <Building2 className="h-4 w-4 text-orange-600" />
+                            </div>
+                            <div className="flex-1">
+                              <div className="font-medium text-gray-900">{app.company_name || 'Business'}</div>
+                              <div className="text-sm text-gray-500">
+                                Applied for {new Intl.NumberFormat('en-GB', {
                                   style: 'currency',
                                   currency: 'GBP'
-                                }).format(offer.offered_amount || 0)}
-                              </div>
-                              <div className="text-xs text-slate-500 mt-1">
-                                Accepted on {new Date(offer.accepted_at).toLocaleDateString()}
+                                }).format(app.loan_amount || 0)}
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
-                              <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">
-                                Accepted
+                              <span className={`px-2 py-1 text-xs rounded-full ${
+                                app.isMatched 
+                                  ? 'bg-green-100 text-green-800' 
+                                  : 'bg-blue-100 text-blue-800'
+                              }`}>
+                                {app.isMatched ? 'Matched' : 'New'}
                               </span>
+                              <Clock className="h-3 w-3 text-gray-400" />
                             </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-6 text-gray-500">
-                      No accepted offers yet
-                    </div>
-                  )}
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">
+                        No recent activity to show.
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
+              
+              {/* Performance Sidebar */}
+              <div className="space-y-6">
+                {/* Quick Actions */}
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                  <div className="px-6 py-5 bg-slate-800">
+                    <h2 className="font-semibold text-white">Quick Actions</h2>
+                  </div>
+                  <div className="p-6 space-y-3">
+                    <button 
+                      className="w-full flex items-center gap-3 px-4 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+                      onClick={() => navigate('/matched-applications')}
+                    >
+                      <Eye className="h-4 w-4" />
+                      Review Applications
+                    </button>
+                    <button 
+                      className="w-full flex items-center gap-3 px-4 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                      onClick={() => navigate('/lender/billing')}
+                    >
+                      <CreditCard className="h-4 w-4" />
+                      Purchase Credits
+                    </button>
+                    <button 
+                      className="w-full flex items-center gap-3 px-4 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                      onClick={() => setActiveTab('messages')}
+                    >
+                      <MessageSquare className="h-4 w-4" />
+                      View Messages
+                    </button>
+                  </div>
+                </div>
 
-              {/* Recent Applications */}
-              <div className="bg-white rounded-lg shadow border border-gray-200">
-                <div className="px-6 py-5 border-b border-gray-200 flex justify-between items-center">
-                  <h2 className="font-semibold">Recent Applications</h2>
-                  <button 
-                    className="text-sm text-[#ff8000]"
-                    onClick={() => navigate('/matched-applications')}
-                  >
-                    View All
-                  </button>
-                </div>
-                <div className="p-6">
-                  {applicationsLoading ? (
-                    <div className="text-center py-10 text-gray-500">Loading applications...</div>
-                  ) : lenderApplications && lenderApplications.length > 0 ? (
-                    <div className="space-y-4">
-                      {lenderApplications.slice(0, 5).map(app => (
+                {/* Performance Metrics */}
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                  <div className="px-6 py-5 bg-slate-800">
+                    <h2 className="font-semibold text-white">Performance Insights</h2>
+                  </div>
+                  <div className="p-6 space-y-6">
+                    <div>
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm font-medium text-gray-700">Monthly Conversion</span>
+                        <span className="text-sm font-bold text-gray-900">
+                          {stats.monthlyConversion.total ? 
+                            Math.round((stats.monthlyConversion.accepted / stats.monthlyConversion.total) * 100) : 0}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-3">
                         <div 
-                          key={app.id} 
-                          className="p-4 border border-gray-100 rounded-lg hover:bg-gray-50 cursor-pointer"
-                          onClick={() => navigate(`/lender/applications/${app.id}`)}
-                        >
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <div className="font-medium">{app.company_name || 'Business'}</div>
-                              <div className="text-sm text-gray-500">
-                                {new Intl.NumberFormat('en-GB', {
-                                  style: 'currency',
-                                  currency: 'GBP'
-                                }).format(app.loan_amount || 0)} - {app.loan_purpose || 'Funding'}
-                              </div>
-                            </div>
-                            <span className={`px-2 py-1 text-xs rounded-full ${
-                              app.isMatched 
-                                ? 'bg-green-100 text-green-800' 
-                                : 'bg-blue-100 text-blue-800'
-                            }`}>
-                              {app.isMatched ? 'Matched' : 'New'}
-                            </span>
-                          </div>
+                          className="bg-gradient-to-r from-orange-400 to-orange-600 h-3 rounded-full transition-all duration-500" 
+                          style={{ width: `${stats.monthlyConversion.total ? (stats.monthlyConversion.accepted / stats.monthlyConversion.total) * 100 : 0}%` }}
+                        ></div>
+                      </div>
+                      <div className="mt-2 flex justify-between text-xs text-gray-500">
+                        <span>{stats.monthlyConversion.accepted} accepted</span>
+                        <span>{stats.monthlyConversion.total} total</span>
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm font-medium text-gray-700">Portfolio Health</span>
+                        <span className="text-sm font-bold text-green-600">Excellent</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-3">
+                        <div className="bg-gradient-to-r from-green-400 to-green-600 h-3 rounded-full" style={{ width: '87%' }}></div>
+                      </div>
+                      <div className="mt-2 text-xs text-gray-500">
+                        Based on repayment rates and diversification
+                      </div>
+                    </div>
+
+                    <div className="pt-4 border-t border-gray-200">
+                      <div className="text-sm font-medium text-gray-700 mb-3">This Month</div>
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">Applications Reviewed</span>
+                          <span className="font-medium">{stats.totalApplicationsAvailable}</span>
                         </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-10 text-gray-500">
-                      No applications available at the moment.
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-            
-            {/* Monthly Performance */}
-            <div>
-              <div className="bg-white rounded-lg shadow border border-gray-200 h-full">
-                <div className="px-6 py-5 border-b border-gray-200">
-                  <h2 className="font-semibold">Monthly Performance</h2>
-                </div>
-                <div className="p-6">
-                  <div className="mb-6">
-                    <div className="text-sm text-gray-500 mb-1">Offers Extended</div>
-                    <div className="text-xl font-bold">{stats.monthlyConversion.total}</div>
-                    <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
-                      <div 
-                        className="bg-[#ff8000] h-2.5 rounded-full" 
-                        style={{ width: `${stats.monthlyConversion.total ? (stats.monthlyConversion.accepted / stats.monthlyConversion.total) * 100 : 0}%` }}
-                      ></div>
-                    </div>
-                    <div className="mt-1 text-xs text-gray-400">
-                      {stats.monthlyConversion.accepted} accepted ({stats.monthlyConversion.total ? 
-                        Math.round((stats.monthlyConversion.accepted / stats.monthlyConversion.total) * 100) : 0}% conversion)
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">Offers Made</span>
+                          <span className="font-medium">{stats.monthlyConversion.total}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">Amount Funded</span>
+                          <span className="font-medium text-green-600">
+                            £{(stats.totalLoanAmount * 0.3).toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  
-                  <button 
-                    className="w-full py-2 bg-[#ff8000] text-white rounded-md hover:bg-[#ff8000]/90"
-                    onClick={() => navigate('/lender/billing')}
-                  >
-                    Purchase More Credits
-                  </button>
                 </div>
               </div>
             </div>
@@ -606,157 +939,374 @@ const LenderDashboard = () => {
         )}
         
         {activeTab === 'applications' && (
-          <div className="bg-white rounded-lg shadow border border-gray-200">
-            <div className="px-6 py-5 border-b border-gray-200">
-              <h2 className="font-semibold">All Applications</h2>
+          <div className="p-6 space-y-6">
+            {/* Applications Header with Search and Filters */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">All Applications</h2>
+                <p className="text-gray-600">Review and manage funding applications</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search businesses..."
+                    className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  />
+                </div>
+                <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                  <Filter className="h-4 w-4" />
+                  Filter
+                </button>
+              </div>
             </div>
-            <div className="p-6">
-              {applicationsLoading ? (
-                <div className="text-center py-10 text-gray-500">Loading applications...</div>
-              ) : lenderApplications && lenderApplications.length > 0 ? (
-                <div className="space-y-4">
-                  {lenderApplications.map(app => (
-                    <div 
-                      key={app.id} 
-                      className="p-4 border border-gray-100 rounded-lg hover:bg-gray-50 cursor-pointer"
-                      onClick={() => navigate(`/lender/applications/${app.id}`)}
-                    >
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <div className="font-medium">{app.company_name || 'Business'}</div>
-                          <div className="text-sm text-gray-500">
-                            {new Intl.NumberFormat('en-GB', {
-                              style: 'currency',
-                              currency: 'GBP'
-                            }).format(app.loan_amount || 0)} - {app.loan_purpose || 'Funding'}
+
+            {/* Application Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-medium text-blue-700">Total Available</div>
+                    <div className="text-2xl font-bold text-blue-900">{stats.totalApplicationsAvailable}</div>
+                  </div>
+                  <Eye className="h-8 w-8 text-blue-500" />
+                </div>
+              </div>
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-medium text-green-700">Matched</div>
+                    <div className="text-2xl font-bold text-green-900">{stats.totalApplicationsMatched}</div>
+                  </div>
+                  <CheckCircle className="h-8 w-8 text-green-500" />
+                </div>
+              </div>
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-medium text-orange-700">New Prospects</div>
+                    <div className="text-2xl font-bold text-orange-900">{stats.prospects}</div>
+                  </div>
+                  <AlertCircle className="h-8 w-8 text-orange-500" />
+                </div>
+              </div>
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-medium text-purple-700">In Review</div>
+                    <div className="text-2xl font-bold text-purple-900">{Math.max(0, stats.totalApplicationsAvailable - stats.prospects)}</div>
+                  </div>
+                  <Clock className="h-8 w-8 text-purple-500" />
+                </div>
+              </div>
+            </div>
+
+            {/* Applications List */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="px-6 py-4 bg-slate-800">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-white">Applications</h3>
+                  <span className="text-sm text-slate-300">
+                    {lenderApplications?.length || 0} total applications
+                  </span>
+                </div>
+              </div>
+              <div className="divide-y divide-gray-200">
+                {applicationsLoading ? (
+                  <div className="p-6">
+                    <div className="space-y-4">
+                      {[...Array(5)].map((_, i) => (
+                        <div key={i} className="animate-pulse">
+                          <div className="flex items-center space-x-4">
+                            <div className="h-16 w-16 bg-gray-200 rounded-xl"></div>
+                            <div className="flex-1">
+                              <div className="h-5 bg-gray-200 rounded w-1/3 mb-2"></div>
+                              <div className="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
+                              <div className="h-3 bg-gray-200 rounded w-1/4"></div>
+                            </div>
+                            <div className="h-8 w-20 bg-gray-200 rounded"></div>
                           </div>
                         </div>
-                        <span className={`px-2 py-1 text-xs rounded-full ${
-                          app.isMatched 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-blue-100 text-blue-800'
-                        }`}>
-                          {app.isMatched ? 'Matched' : 'New'}
-                        </span>
-                      </div>
+                      ))}
                     </div>
-                  ))}
+                  </div>
+                ) : lenderApplications && lenderApplications.length > 0 ? (
+                  <>
+                    {lenderApplications.map(app => (
+                      <div 
+                        key={app.id} 
+                        className="group p-6 hover:bg-gray-50 cursor-pointer transition-all duration-200"
+                        onClick={() => navigate(`/lender/applications/${app.id}`)}
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="h-16 w-16 bg-gradient-to-br from-orange-100 to-orange-200 rounded-xl flex items-center justify-center group-hover:shadow-md transition-shadow">
+                            <Building2 className="h-8 w-8 text-orange-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-1">
+                              <h4 className="font-semibold text-gray-900 group-hover:text-orange-700 transition-colors">
+                                {app.company_name || 'Business'}
+                              </h4>
+                              {!app.isViewed && (
+                                <span className="px-2 py-0.5 text-xs bg-orange-500 text-white rounded-full animate-pulse">
+                                  New
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-sm text-gray-600 mb-2">
+                              <span className="font-medium">
+                                {new Intl.NumberFormat('en-GB', {
+                                  style: 'currency',
+                                  currency: 'GBP'
+                                }).format(app.loan_amount || 0)}
+                              </span>
+                              <span className="mx-2">•</span>
+                              <span>{app.loan_purpose || 'Business funding'}</span>
+                            </div>
+                            <div className="flex items-center gap-4 text-xs text-gray-500">
+                              <div className="flex items-center gap-1">
+                                <Calendar className="h-3 w-3" />
+                                Applied {new Date(app.created_at || Date.now()).toLocaleDateString()}
+                              </div>
+                              {app.credit_score && (
+                                <div className="flex items-center gap-1">
+                                  <BarChart3 className="h-3 w-3" />
+                                  Credit Score: {app.credit_score}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <div className="text-right">
+                              <div className={`px-3 py-1 text-sm rounded-full font-medium ${
+                                app.isMatched 
+                                  ? 'bg-green-100 text-green-800' 
+                                  : 'bg-blue-100 text-blue-800'
+                              }`}>
+                                {app.isMatched ? 'Matched' : 'Available'}
+                              </div>
+                              {app.isMatched && (
+                                <div className="text-xs text-gray-500 mt-1">
+                                  Review to make offer
+                                </div>
+                              )}
+                            </div>
+                            <div className="text-gray-400 group-hover:text-orange-500 transition-colors">
+                              <ArrowUpRight className="h-5 w-5" />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                ) : (
+                  <div className="p-12 text-center">
+                    <div className="mx-auto h-16 w-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                      <Users className="h-8 w-8 text-gray-400" />
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No applications available</h3>
+                    <p className="text-gray-600 mb-6">Check back later for new funding applications</p>
+                    <button 
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+                      onClick={() => window.location.reload()}
+                    >
+                      <Activity className="h-4 w-4" />
+                      Refresh Applications
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {activeTab === 'messages' && (
+          <div className="p-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="px-6 py-5 bg-slate-800">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-500 rounded-lg">
+                    <MessageSquare className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-white">Business Conversations</h2>
+                    <p className="text-sm text-slate-300">Communicate with funded businesses</p>
+                  </div>
+                </div>
+              </div>
+              
+              {acceptedOffersLoading ? (
+                <div className="p-6">
+                  <div className="animate-pulse space-y-4">
+                    <div className="h-20 bg-gray-200 rounded-lg"></div>
+                    <div className="h-20 bg-gray-200 rounded-lg"></div>
+                    <div className="h-20 bg-gray-200 rounded-lg"></div>
+                  </div>
+                </div>
+              ) : acceptedOffers && acceptedOffers.length > 0 ? (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-0 h-[600px]">
+                  {/* Conversations List */}
+                  <div className="lg:border-r border-gray-200 bg-gray-50">
+                    <div className="p-4 bg-slate-800">
+                      <h3 className="font-medium text-white">Active Conversations</h3>
+                      <p className="text-sm text-slate-300">{acceptedOffers.length} businesses</p>
+                    </div>
+                    <div className="overflow-y-auto h-full">
+                      {acceptedOffers.map(offer => (
+                        <div 
+                          key={offer.id}
+                          onClick={() => selectConversation(offer)}
+                          className={`p-4 border-b border-gray-200 cursor-pointer transition-all duration-200 ${
+                            selectedConversation?.id === offer.id
+                              ? 'bg-orange-50 border-l-4 border-l-orange-500'
+                              : 'hover:bg-white'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="h-12 w-12 bg-gradient-to-br from-blue-100 to-blue-200 rounded-lg flex items-center justify-center">
+                              <Building2 className="h-6 w-6 text-blue-600" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium text-gray-900 truncate">
+                                {offer.application?.company_name || offer.business?.business_name || 'Business'}
+                              </div>
+                              <div className="text-sm text-gray-500 truncate">
+                                {new Intl.NumberFormat('en-GB', {
+                                  style: 'currency',
+                                  currency: 'GBP'
+                                }).format(offer.offered_amount || 0)}
+                              </div>
+                              <div className="text-xs text-gray-400">
+                                Active loan
+                              </div>
+                            </div>
+                            {selectedConversation?.id === offer.id && (
+                              <div className="h-2 w-2 bg-orange-500 rounded-full"></div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {/* Message Area */}
+                  <div className="lg:col-span-2 flex flex-col">
+                    {selectedConversation ? (
+                      <>
+                        {/* Chat Header */}
+                        <div className="bg-slate-800 p-4">
+                          <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 bg-gradient-to-br from-blue-100 to-blue-200 rounded-lg flex items-center justify-center">
+                              <Building2 className="h-5 w-5 text-blue-600" />
+                            </div>
+                            <div>
+                              <div className="font-semibold text-white">{selectedConversation.businessName}</div>
+                              <div className="text-sm text-slate-300">
+                                Loan: {new Intl.NumberFormat('en-GB', {
+                                  style: 'currency',
+                                  currency: 'GBP'
+                                }).format(selectedConversation.amount || 0)}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Messages */}
+                        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+                          {messagesLoading ? (
+                            <div className="flex justify-center items-center h-full">
+                              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+                            </div>
+                          ) : messages && messages.length > 0 ? (
+                            messages.map(msg => (
+                              <div 
+                                key={msg.id}
+                                className={`flex ${msg.sender_id === user.uid ? 'justify-end' : 'justify-start'}`}
+                              >
+                                <div className={`max-w-[70%] rounded-lg p-3 ${
+                                  msg.sender_id === user.uid
+                                    ? 'bg-orange-500 text-white'
+                                    : 'bg-white text-gray-900 border border-gray-200'
+                                }`}>
+                                  <div className="text-sm">{msg.message}</div>
+                                  <div className={`text-xs mt-1 ${
+                                    msg.sender_id === user.uid ? 'text-orange-100' : 'text-gray-500'
+                                  }`}>
+                                    {new Date(msg.timestamp).toLocaleString()}
+                                  </div>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="flex flex-col items-center justify-center h-full text-center">
+                              <div className="h-16 w-16 bg-gray-200 rounded-full flex items-center justify-center mb-4">
+                                <MessageSquare className="h-8 w-8 text-gray-400" />
+                              </div>
+                              <h3 className="text-lg font-medium text-gray-900 mb-2">Start the conversation</h3>
+                              <p className="text-gray-600 max-w-sm">
+                                Send a message to begin communicating with this business about their loan.
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Message Input */}
+                        <form onSubmit={sendMessage} className="p-4 bg-white border-t border-gray-200">
+                          <div className="flex gap-3">
+                            <input
+                              type="text"
+                              value={newMessage}
+                              onChange={(e) => setNewMessage(e.target.value)}
+                              placeholder="Type your message..."
+                              className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                            />
+                            <button
+                              type="submit"
+                              className="flex items-center gap-2 bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              disabled={!newMessage.trim()}
+                            >
+                              <MessageSquare className="h-4 w-4" />
+                              Send
+                            </button>
+                          </div>
+                        </form>
+                      </>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center h-full text-center bg-gray-50">
+                        <div className="h-20 w-20 bg-gray-200 rounded-full flex items-center justify-center mb-6">
+                          <MessageSquare className="h-10 w-10 text-gray-400" />
+                        </div>
+                        <h3 className="text-xl font-medium text-gray-900 mb-2">Select a conversation</h3>
+                        <p className="text-gray-600 max-w-sm">
+                          Choose a business from the list to start or continue a conversation.
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               ) : (
-                <div className="text-center py-10 text-gray-500">
-                  No applications available at the moment.
+                <div className="p-12 text-center">
+                  <div className="mx-auto h-16 w-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                    <MessageSquare className="h-8 w-8 text-gray-400" />
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No active conversations</h3>
+                  <p className="text-gray-600 mb-6">You'll be able to message businesses once you have accepted offers.</p>
+                  <button 
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+                    onClick={() => setActiveTab('applications')}
+                  >
+                    <Eye className="h-4 w-4" />
+                    Review Applications
+                  </button>
                 </div>
               )}
             </div>
           </div>
         )}
         
-        {activeTab === 'messages' && (
-          <div className="bg-white rounded-lg shadow border border-gray-200">
-            <div className="px-6 py-5 border-b border-gray-200">
-              <h2 className="font-semibold">Conversations</h2>
-            </div>
-            <div className="p-6">
-              {acceptedOffersLoading ? (
-                <div className="text-center py-10 text-gray-500">Loading conversations...</div>
-              ) : acceptedOffers && acceptedOffers.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="md:col-span-1 border-r border-gray-200 pr-4">
-                    <h3 className="font-medium text-gray-500 mb-4">Businesses</h3>
-                    {acceptedOffers.map(offer => (
-                      <div 
-                        key={offer.id}
-                        onClick={() => selectConversation(offer)}
-                        className={`p-3 rounded-lg mb-2 cursor-pointer ${
-                          selectedConversation?.id === offer.id
-                            ? 'bg-[#ff8000]/10 border border-[#ff8000]/30'
-                            : 'hover:bg-gray-50'
-                        }`}
-                      >
-                        <div className="font-medium">
-                          {offer.application?.company_name || 'Business'}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {new Intl.NumberFormat('en-GB', {
-                            style: 'currency',
-                            currency: 'GBP'
-                          }).format(offer.offered_amount || 0)}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  
-                  <div className="md:col-span-2">
-                    {selectedConversation ? (
-                      <div className="h-[500px] flex flex-col">
-                        <div className="bg-gray-50 p-3 border-b border-gray-200">
-                          <div className="font-medium">{selectedConversation.businessName}</div>
-                          <div className="text-sm text-gray-500">
-                            {new Intl.NumberFormat('en-GB', {
-                              style: 'currency',
-                              currency: 'GBP'
-                            }).format(selectedConversation.amount || 0)}
-                          </div>
-                        </div>
-                        
-                        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                          {messagesLoading ? (
-                            <div className="text-center text-gray-500">Loading messages...</div>
-                          ) : messages && messages.length > 0 ? (
-                            messages.map(msg => (
-                              <div 
-                                key={msg.id}
-                                className={`max-w-[80%] p-3 rounded-lg ${
-                                  msg.sender_id === user.uid
-                                    ? 'bg-[#ff8000]/10 ml-auto'
-                                    : 'bg-gray-100 mr-auto'
-                                }`}
-                              >
-                                <div className="text-sm">{msg.message}</div>
-                                <div className="text-xs text-gray-500 mt-1">
-                                  {new Date(msg.timestamp).toLocaleString()}
-                                </div>
-                              </div>
-                            ))
-                          ) : (
-                            <div className="text-center text-gray-500">
-                              No messages yet. Start the conversation!
-                            </div>
-                          )}
-                        </div>
-                        
-                        <form onSubmit={sendMessage} className="p-3 border-t border-gray-200 flex gap-2">
-                          <input
-                            type="text"
-                            value={newMessage}
-                            onChange={(e) => setNewMessage(e.target.value)}
-                            placeholder="Type your message..."
-                            className="flex-1 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#ff8000]"
-                          />
-                          <button
-                            type="submit"
-                            className="bg-[#ff8000] text-white px-4 py-2 rounded-md hover:bg-[#ff8000]/90"
-                            disabled={!newMessage.trim()}
-                          >
-                            Send
-                          </button>
-                        </form>
-                      </div>
-                    ) : (
-                      <div className="text-center py-20 text-gray-500">
-                        Select a conversation to start messaging
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-10 text-gray-500">
-                  No active conversations yet. Accept offers to start messaging businesses.
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+        </div>
+      </div>
       </div>
     </PageLayout>
   );

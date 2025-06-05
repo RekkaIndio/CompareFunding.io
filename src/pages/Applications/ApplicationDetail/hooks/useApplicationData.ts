@@ -111,7 +111,7 @@ export const useApplicationData = (id?: string | null, user?: User | null) => {
       
       // Check if data has already been consolidated (submitted application)
       if (data.data_consolidated) {
-        console.log('Using consolidated application data:', data);
+
         
         // Use the consolidated business profile data
         if (data.business_profile) {
@@ -251,7 +251,7 @@ export const useApplicationData = (id?: string | null, user?: User | null) => {
     
     // If the app already has a completeness percentage and it's 100%, use that
     if (app.data_consolidated === true || app.completeness_percentage === 100) {
-      console.log('Using pre-calculated completeness percentage:', app.completeness_percentage);
+
       return {
         percentage: 100,
         completed: 4,
@@ -291,7 +291,7 @@ export const useApplicationData = (id?: string | null, user?: User | null) => {
       { name: 'Application details', value: app.loan_amount && app.loan_term_months && app.purpose ? true : false }
     ];
     
-    console.log('Application completeness checks:', checks);
+
     
     const completed = checks.filter(check => check.value).length;
     const missing = checks.filter(check => !check.value).map(check => check.name);

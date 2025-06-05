@@ -24,7 +24,7 @@ export const fetchCreditData = async (companyName: string, countryCode: string =
     const token = await authenticateWithCreditSafe();
     const searchResults: { companies?: Array<CompanySearchResult> } = await searchCompanyByNameDirect(companyName, countryCode);
 
-    console.log('Company search results:', searchResults);
+
 
     if (searchResults.companies && searchResults.companies.length > 0) {
       const company = searchResults.companies[0];
@@ -32,7 +32,7 @@ export const fetchCreditData = async (companyName: string, countryCode: string =
       const connectId = company.connectId || company.id || 
         (company.identification && (company.identification.connectId || company.identification.id));
         
-      console.log('Extracted connectId:', connectId);
+
 
       if (!connectId) {
         console.warn('connectId is missing in the company search results:', JSON.stringify(searchResults));

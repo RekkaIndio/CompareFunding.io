@@ -20,9 +20,9 @@ export const useBusinessData = (id: string | undefined, user: any) => {
         
         // If we found an application, get the business details through the application
         if (!appError && application) {
-          console.log('[DEBUG Business ID] Found application:', application);
-          console.log('[DEBUG Business ID] Application business_id:', application.business_id);
-          console.log('[DEBUG Business ID] Application user_id:', application.user_id);
+
+
+
           
           // If no business_id, fall back to using the application owner's ID
           const businessId = application.business_id || application.user_id;
@@ -31,7 +31,7 @@ export const useBusinessData = (id: string | undefined, user: any) => {
             throw new Error('Could not determine business reference');
           }
 
-          console.log('[DEBUG Business ID] Trying to fetch business profile with ID:', businessId);
+
 
           // Get business profile using business_id or user_id from the application
           const { data: business, error: businessError } = await getDocument(
@@ -80,14 +80,14 @@ export const useBusinessData = (id: string | undefined, user: any) => {
           
           // First check businesses (current location)
           if (business && business.credit_info) {
-            console.log('[DEBUG] Found credit score in businesses:', business.credit_info);
+
             creditScore = business.credit_info;
           } else {
             // If not found, try the businesses collection
             try {
               const businessDoc = await getDoc(doc(db, "businesses", businessId));
               if (businessDoc.exists() && businessDoc.data().credit_info) {
-                console.log('[DEBUG] Found credit score in businesses collection:', businessDoc.data().credit_info);
+
                 creditScore = businessDoc.data().credit_info;
               }
             } catch (err) {
@@ -101,7 +101,7 @@ export const useBusinessData = (id: string | undefined, user: any) => {
                 businessId
               );
               if (creditScoreData) {
-                console.log('[DEBUG] Found credit score in credit_scores collection:', creditScoreData);
+
                 creditScore = creditScoreData;
               }
             }
@@ -119,7 +119,7 @@ export const useBusinessData = (id: string | undefined, user: any) => {
         } 
         
         // If no application found, try direct business profile lookup
-        console.log('No application found, trying direct business lookup with ID:', id);
+
         const { data: business, error: businessError } = await getDocument('businesses', id);
         
         if (businessError) {
@@ -162,7 +162,7 @@ export const useBusinessData = (id: string | undefined, user: any) => {
   // Check if lender has accepted interest or made an offer (can see business details)
   const canSeeBusinessDetails = () => {
     if (!applicationData?.application) {
-      console.log('[DEBUG Access] No application data available, cannot see business details');
+
       return false;
     }
     
@@ -231,15 +231,27 @@ export const useBusinessData = (id: string | undefined, user: any) => {
       o => o.id === hasAcceptedOfferId && o.lender_id === user?.uid
     );
     
+    // Check if application has been approved and this lender is the one who was accepted
+    const isApplicationApproved = applicationData.application?.status === 'approved';
+    const isApprovedForThisLender = isApplicationApproved && applicationData.application?.lender_id === user?.uid;
+    
     console.log('[DEBUG Match] Lender match status check:', {
       isInMatchedLenders,
       isAcceptedInterest,
       hasAcceptedOffer,
       isOfferAccepter,
-      userId: user?.uid
+      isApplicationApproved,
+      isApprovedForThisLender,
+      applicationStatus: applicationData.application?.status,
+      userId: user?.uid,
+      lenderId: applicationData.application?.lender_id
     });
     
-    return isInMatchedLenders || isAcceptedInterest || hasAcceptedOffer || isOfferAccepter;
+    return isInMatchedLenders || 
+           isAcceptedInterest || 
+           hasAcceptedOffer || 
+           isOfferAccepter || 
+           isApprovedForThisLender;
   };
 
   // Add function to get display name based on match status
