@@ -4,6 +4,7 @@ import FooterUpdated from './FooterUpdated';
 import Sidebar from './Sidebar';
 import { cn } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
+import { useSidebar } from '../contexts/SidebarContext';
 
 interface PageLayoutProps {
   children: ReactNode;
@@ -22,6 +23,8 @@ const PageLayout = ({
   showSidebar = false
 }: PageLayoutProps) => {
   const { user } = useAuth();
+  const { sidebarWidth } = useSidebar();
+  
   // Always show sidebar for logged-in users by default, unless explicitly set to false
   const shouldShowSidebar = Boolean(user); // We'll show sidebar by default for logged-in users
   
@@ -41,11 +44,12 @@ const PageLayout = ({
         <main
           className={cn(
             "flex-1 transition-all duration-300 ease-in-out",
-            // Add padding for the sidebar when it's visible
-            shouldShowSidebar ? "ml-[var(--sidebar-width-collapsed)]" : "",
             "min-h-[calc(100vh-4rem)]", // Adjust for navbar height
             className
           )}
+          style={{
+            marginLeft: shouldShowSidebar ? sidebarWidth : '0',
+          }}
         >
           <div className="w-full h-full">
             {children}

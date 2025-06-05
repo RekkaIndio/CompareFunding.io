@@ -149,7 +149,7 @@ const BusinessDocuments: React.FC = () => {
   // Function to ensure the user has a valid business ID
   const ensureBusinessProfile = async (userId: string) => {
     try {
-      console.log("Checking business profile for user:", userId);
+
       
       const userDocRef = doc(db, "users", userId);
       const userDoc = await getDoc(userDocRef);
@@ -160,12 +160,12 @@ const BusinessDocuments: React.FC = () => {
       }
       
       const userData = userDoc.data();
-      console.log("User data:", userData);
+
       
       let businessId = userData?.businessId;
       
       if (!businessId) {
-        console.log("No business ID found, creating a new business record");
+
         
         // Create a new business record
         const businessesCollection = collection(db, "businesses");
@@ -187,7 +187,7 @@ const BusinessDocuments: React.FC = () => {
           role: 'business' // Set the user role to 'business'
         });
         
-        console.log("Created new business with ID:", businessId);
+
         
         toast({
           title: "Business profile created",
@@ -330,7 +330,7 @@ const BusinessDocuments: React.FC = () => {
           // Delete the existing document
           await deleteDoc(existingDocRef);
           
-          console.log(`Archived document ${docId} for ${documentType}`);
+
         }
       }
       
@@ -499,8 +499,8 @@ const BusinessDocuments: React.FC = () => {
           }
         }
         
-        console.log("Loaded saved documents:", Object.keys(savedFinancials));
-        console.log("Current upload step set to:", nextStepIndex !== -1 ? nextStepIndex : 'last step');
+
+
       } catch (error) {
         console.error("Error fetching saved documents:", error);
       } finally {

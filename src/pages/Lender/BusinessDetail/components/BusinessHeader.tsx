@@ -30,8 +30,8 @@ export const BusinessHeader: React.FC<BusinessHeaderProps> = ({
     const applicationId = applicationData.application?.id || applicationData.application?.application_number;
     if (!applicationId) return null;
     
-    console.log("Application data for actions:", applicationData.application);
-    console.log("Using application ID for routing:", applicationId);
+
+
     
     const buttons = [];
     

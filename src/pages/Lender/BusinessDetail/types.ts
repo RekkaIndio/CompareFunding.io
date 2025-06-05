@@ -45,6 +45,9 @@ export interface Application {
   has_accepted_offer?: boolean;
   accepted_at?: string;
   status?: string;
+  lender_id?: string; // ID of the approved/matched lender
+  is_visible_to_lender?: boolean;
+  application_stage?: string;
 }
 
 export interface Business {

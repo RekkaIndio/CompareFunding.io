@@ -4,7 +4,6 @@ import { FinancialDataTabs } from './FinancialDataTabs';
 import { CreditScoreCard } from './CreditScoreCard';
 import { FundingRequestCard } from './FundingRequestCard';
 import { InterestConfirmDialog } from './InterestConfirmDialog';
-import { AdminPanel } from './AdminPanel';
 
 export {
   BusinessHeader,
@@ -13,5 +12,5 @@ export {
   CreditScoreCard,
   FundingRequestCard,
   InterestConfirmDialog,
-  AdminPanel
+  
 };

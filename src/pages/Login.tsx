@@ -109,20 +109,20 @@ const Login = () => {
       }
       
       if (valid) {
-        console.log("User role found:", role);
+
         // Redirect based on user role
         if (role === 'business') {
           navigate('/business/dashboard');
         } else if (role === 'lender') {
-          console.log("Redirecting to lender dashboard");
+
           navigate('/lender/dashboard');
         } else {
-          console.log("No specific role found, using default redirect");
+
           // Default redirect if role is not specified
           navigate('/applications');
         }
       } else {
-        console.log("No role information found, using default redirect");
+
         // No role information found, use default redirect
         navigate('/applications');
       }

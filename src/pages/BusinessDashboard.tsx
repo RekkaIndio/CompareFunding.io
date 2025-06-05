@@ -3,7 +3,6 @@ import { getDocument, getDocuments, createDocument, updateDocument, serverTimest
 import { useAuth } from '@/contexts/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
 import PageLayout from '@/components/PageLayout'; // Default import
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -19,7 +18,8 @@ import {
   DollarSign, Users, FileCheck2, Bell, AlertTriangle, CheckCircle2, Clock, MessageSquare,
   Loader2, Archive, Search as SearchIcon, CreditCard, Building, Mail, Phone, Globe, Edit3, UploadCloud, Eye,
   BarChart3, PieChart, UserCircle2 as UserCircle, ArrowRight, Activity, FileClockIcon as FileClock, ExternalLink, Plus, Settings,
-  TrendingUp, Landmark, Store, BarChartHorizontalBig, ClipboardList, FileSignature, Upload // Added new icons
+  TrendingUp, Landmark, Store, BarChartHorizontalBig, ClipboardList, FileSignature, Upload, // Added new icons
+  ArrowUpRight, ArrowDownRight, Target, Calendar, Filter, Star, Shield, Zap, Compass, Download, RefreshCw
 } from 'lucide-react';
 import { format, formatDistanceToNowStrict } from 'date-fns';
 
@@ -126,12 +126,15 @@ const formatCurrency = (amount: number | undefined) => {
 const BusinessDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('overview');
   const [businessProfile, setBusinessProfile] = useState<BusinessProfile | null>(null);
   const [applications, setApplications] = useState<Application[]>([]);
   const [offers, setOffers] = useState<Offer[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [overallDashboardLoading, setOverallDashboardLoading] = useState(true);
+  
+  // Document center state
+  const [uploadedDocuments, setUploadedDocuments] = useState<string[]>([]);
+  const [documentsLoading, setDocumentsLoading] = useState(false);
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [isLoadingConversations, setIsLoadingConversations] = useState(true);
@@ -162,6 +165,26 @@ const BusinessDashboard = () => {
           if (offersResult.data) setOffers(offersResult.data as Offer[]);
           if (notificationsResult.data) setNotifications(notificationsResult.data as Notification[]);
 
+          // Load uploaded documents from financials collection
+          setDocumentsLoading(true);
+          try {
+            const financialsCollectionRef = `businesses/${user.uid}/financials`;
+            const { data: financialDocs } = await getDocuments(financialsCollectionRef, []);
+            
+            if (financialDocs && financialDocs.length > 0) {
+              // Extract document types from saved financials
+              const documentTypes = financialDocs.map(doc => doc.documentType?.toLowerCase() || "");
+              setUploadedDocuments(documentTypes);
+
+            } else {
+              setUploadedDocuments([]);
+            }
+          } catch (err) {
+            console.error("Error fetching financial documents:", err);
+          } finally {
+            setDocumentsLoading(false);
+          }
+
         } catch (error) {
           console.error("Error fetching dashboard data:", error);
           toast({ title: "Error", description: "Could not load dashboard data.", variant: "destructive" });
@@ -174,6 +197,7 @@ const BusinessDashboard = () => {
         setApplications([]);
         setOffers([]);
         setNotifications([]);
+        setUploadedDocuments([]);
       }
     };
     fetchData();
@@ -376,272 +400,340 @@ const BusinessDashboard = () => {
       .filter(app => app.status === 'approved') // Assuming 'approved' means funded
       .reduce((sum, app) => sum + app.loan_amount, 0);
 
-    const newApplicationsThisWeek = applications.filter(app => {
-      const appDate = new Date(app.application_date as string);
-      const today = new Date();
-      const oneWeekAgo = new Date(new Date().setDate(today.getDate() - 7)); // Ensure new Date object for oneWeekAgo
-      return appDate >= oneWeekAgo;
-    }).length;
+    const pendingApplications = applications.filter(app => 
+      ['pending', 'under_review', 'documents_requested'].includes(app.status)
+    ).length;
 
     const approvalRate = applications.length > 0 
       ? Math.round(applications.filter(app => app.status === 'approved').length / applications.length * 100)
       : 0;
 
+    const activeOffers = offers.filter(offer => 
+      ['pending_acceptance'].includes(offer.status)
+    ).length;
+
     const overviewData = [
       {
-        title: "Total Funding",
+        title: "Total Funding Secured",
         value: formatCurrency(totalFunding),
-        // Subtitle needs real data, using placeholder
-        subtitle: "+12.4% vs last month", 
-        icon: <span className="text-3xl">£</span>, // Using text for pound symbol
-        iconBg: "bg-gray-100",
-        trendColor: "text-green-500",
+        subtitle: totalFunding > 0 ? `${applications.filter(app => app.status === 'approved').length} approved applications` : "No funding secured yet",
+        icon: <DollarSign className="h-6 w-6 text-white" />,
+        gradient: "from-emerald-500 to-emerald-600",
+        trend: totalFunding > 0 ? "positive" : "neutral",
+        bgOpacity: "opacity-20"
       },
       {
-        title: "Applications",
-        value: applications.length.toString(),
-        subtitle: `+${newApplicationsThisWeek} new this week`,
-        icon: <BarChart3 size={24} />,
-        iconBg: "bg-gray-100",
-        trendColor: "text-green-500",
+        title: "Active Applications",
+        value: pendingApplications.toString(),
+        subtitle: `${applications.length} total applications`,
+        icon: <FileText className="h-6 w-6 text-white" />,
+        gradient: "from-blue-500 to-blue-600",
+        trend: pendingApplications > 0 ? "positive" : "neutral",
+        bgOpacity: "opacity-20"
       },
       {
-        title: "Approval Rate",
+        title: "Pending Offers",
+        value: activeOffers.toString(),
+        subtitle: `${offers.length} total offers received`,
+        icon: <Target className="h-6 w-6 text-white" />,
+        gradient: "from-amber-500 to-amber-600",
+        trend: activeOffers > 0 ? "positive" : "neutral",
+        bgOpacity: "opacity-20"
+      },
+      {
+        title: "Success Rate",
         value: `${approvalRate}%`,
-        // Subtitle needs real data, using placeholder
-        subtitle: "+7% vs industry avg", 
-        icon: <CheckCircle2 size={24} />,
-        iconBg: "bg-green-500", // Green background for the icon as in screenshot
-        trendColor: "text-green-500",
+        subtitle: applications.length > 0 ? `Based on ${applications.length} applications` : "No applications yet",
+        icon: <TrendingUp className="h-6 w-6 text-white" />,
+        gradient: "from-purple-500 to-purple-600",
+        trend: approvalRate >= 50 ? "positive" : "neutral",
+        bgOpacity: "opacity-20"
       },
     ];
 
     return (
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {overviewData.map((item, index) => (
-          <Card key={index} className="bg-white border-gray-200 shadow-md rounded-xl p-0">
-            <div className="bg-[#1c2127] rounded-t-xl px-6 py-4 flex flex-row items-center justify-between">
-              <CardTitle className="text-sm font-medium text-white m-0 p-0">{item.title}</CardTitle>
-              <div className={`p-2 rounded-md ${item.iconBg}`}> 
-                {React.cloneElement(item.icon, { className: "text-slate-100"})}
+          <div key={index} className="bg-slate-800 rounded-xl shadow-lg border border-slate-700 p-6 relative overflow-hidden hover:shadow-xl transition-all duration-300">
+            <div className={`absolute -top-6 -right-6 w-20 h-20 bg-gradient-to-br ${item.gradient} rounded-full ${item.bgOpacity}`}></div>
+            <div className="absolute top-4 right-4">
+              <div className={`p-2 bg-gradient-to-br ${item.gradient} rounded-lg shadow-md`}>
+                {item.icon}
               </div>
             </div>
-            <CardContent className="p-6">
-              <div className="text-4xl font-bold text-gray-800 py-2">{item.value}</div>
-              <p className={`text-xs ${item.trendColor} flex items-center`}>
-                <ArrowRight size={12} className="mr-1 transform rotate-[-45deg]" />
-                {item.subtitle}
-              </p>
-            </CardContent>
-          </Card>
+            <div className="space-y-2">
+              <div className="text-sm font-medium text-slate-300">{item.title}</div>
+              <div className="text-3xl font-bold text-white">{item.value}</div>
+              <div className="flex items-center gap-2">
+                <div className="text-sm text-slate-400">
+                  {item.subtitle}
+                </div>
+                {item.trend === "positive" && <ArrowUpRight className="h-4 w-4 text-emerald-400" />}
+              </div>
+            </div>
+          </div>
         ))}
       </div>
     );
   };
 
   const renderRecentActivity = () => {
-    const recentActivities = applications.slice(0, 3).map(app => ({
-      id: app.id,
-      type: app.loan_purpose,
-      source: app.company_name, // Or a lender name if available post-matching
-      time: formatDistanceToNowStrict(new Date(app.application_date as string), { addSuffix: true }),
-      amount: app.loan_amount,
-      status: app.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()),
-      icon: <Archive size={20} className="text-gray-600" /> // Generic icon
-    }));
+    const recentActivities = applications
+      .sort((a, b) => new Date(b.application_date as string).getTime() - new Date(a.application_date as string).getTime())
+      .slice(0, 5)
+      .map(app => ({
+        id: app.id,
+        type: app.loan_purpose,
+        amount: app.loan_amount,
+        date: new Date(app.application_date as string),
+        status: app.status,
+        company: app.company_name,
+      }));
+
+    const getStatusIcon = (status: string) => {
+      switch (status) {
+        case 'approved':
+          return <CheckCircle2 className="h-5 w-5 text-emerald-500" />;
+        case 'pending':
+          return <Clock className="h-5 w-5 text-amber-500" />;
+        case 'under_review':
+          return <Eye className="h-5 w-5 text-blue-500" />;
+        case 'rejected':
+          return <AlertTriangle className="h-5 w-5 text-red-500" />;
+        case 'offered':
+          return <Star className="h-5 w-5 text-purple-500" />;
+        default:
+          return <FileText className="h-5 w-5 text-slate-500" />;
+      }
+    };
+
+    const getStatusColor = (status: string) => {
+      switch (status) {
+        case 'approved':
+          return 'text-emerald-600 bg-emerald-50 border-emerald-200';
+        case 'pending':
+          return 'text-amber-600 bg-amber-50 border-amber-200';
+        case 'under_review':
+          return 'text-blue-600 bg-blue-50 border-blue-200';
+        case 'rejected':
+          return 'text-red-600 bg-red-50 border-red-200';
+        case 'offered':
+          return 'text-purple-600 bg-purple-50 border-purple-200';
+        default:
+          return 'text-slate-600 bg-slate-50 border-slate-200';
+      }
+    };
 
     if (recentActivities.length === 0) {
       return (
-        <div className="bg-white border-gray-200 shadow-md rounded-xl p-6 text-center">
-          <p className="text-gray-500">No recent funding activity.</p>
-        </div>
+        <Card className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200/50 overflow-hidden">
+          <div className="bg-slate-800 px-6 py-4">
+            <CardTitle className="text-lg font-semibold text-white flex items-center gap-2">
+              <Activity className="h-5 w-5" />
+              Recent Activity
+            </CardTitle>
+          </div>
+          <CardContent className="p-8">
+            <div className="text-center">
+              <div className="mx-auto mb-4 p-4 bg-slate-100 rounded-full w-16 h-16 flex items-center justify-center">
+                <FileText className="h-8 w-8 text-slate-400" />
+              </div>
+              <h3 className="text-lg font-medium text-slate-900 mb-2">No Recent Activity</h3>
+              <p className="text-slate-500 mb-6">Start your funding journey by creating your first application</p>
+              <Button 
+                className="bg-gradient-to-r from-[#ff8800] to-[#ffaa00] hover:from-[#ff9900] hover:to-[#ffbb00] text-white font-semibold px-6 py-2.5 rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
+                onClick={() => navigate('/new-application')}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Create Your First Application
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       );
     }
 
     return (
-      <Card className="bg-white border-gray-200 shadow-md rounded-xl mb-8">
-        <CardHeader className="flex flex-row items-center justify-between pb-4">
-          <div className="flex items-center">
-            <FileClock size={20} className="text-gray-600 mr-3" />
-            <CardTitle className="text-lg font-semibold text-gray-800">Recent Funding Activity</CardTitle>
-          </div>
-          <Button variant="link" className="text-[#ff8800] hover:text-[#ffaa00] px-0" onClick={() => setActiveTab('applications')}>
-            View All <ArrowRight size={16} className="ml-1" />
+      <Card className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200/50 overflow-hidden hover:shadow-xl transition-all duration-300">
+        <div className="bg-slate-800 px-6 py-4 flex items-center justify-between">
+          <CardTitle className="text-lg font-semibold text-white flex items-center gap-2">
+            <Activity className="h-5 w-5" />
+            Recent Activity
+          </CardTitle>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg px-3 py-2"
+            onClick={() => navigate('/applications')}
+          >
+            View All
+            <ArrowRight className="h-4 w-4 ml-1" />
           </Button>
-        </CardHeader>
-        <CardContent className="divide-y divide-slate-700 p-0">
-          {recentActivities.map((activity) => (
-            <div key={activity.id} className="flex items-center justify-between p-4 hover:bg-gray-100/50 transition-colors">
-              <div className="flex items-center">
-                <div className="p-3 bg-gray-100 rounded-lg mr-4">
-                  {activity.icon}
-                </div>
-                <div>
-                  <p className="font-semibold text-gray-800">{activity.type}</p>
-                  <p className="text-xs text-gray-500">{activity.source} • {activity.time}</p>
+        </div>
+        <CardContent className="p-0">
+          <div className="divide-y divide-slate-100">
+            {recentActivities.map((activity, index) => (
+              <div 
+                key={activity.id} 
+                className="p-6 hover:bg-slate-50 transition-colors cursor-pointer group"
+                onClick={() => navigate(`/applications/${activity.id}`)}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="p-2 bg-slate-100 rounded-lg group-hover:bg-slate-200 transition-colors">
+                      {getStatusIcon(activity.status)}
+                    </div>
+                    <div>
+                      <div className="font-semibold text-slate-900 text-lg">{activity.type}</div>
+                      <div className="text-sm text-slate-500 mt-1">
+                        {formatCurrency(activity.amount)} • {formatDistanceToNowStrict(activity.date, { addSuffix: true })}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right flex items-center gap-3">
+                    <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium border ${getStatusColor(activity.status)}`}>
+                      {activity.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                    </span>
+                    <ArrowRight className="h-4 w-4 text-slate-400 group-hover:text-slate-600 transition-colors" />
+                  </div>
                 </div>
               </div>
-              <div className="text-right">
-                <p className="font-semibold text-gray-800">{formatCurrency(activity.amount)}</p>
-                <span className={`text-xs px-2 py-0.5 rounded-md font-medium ${
-                  activity.status === 'Approved' ? 'bg-green-600 text-gray-800' :
-                  activity.status === 'Pending' || activity.status === 'Under Review' ? 'bg-yellow-500 text-slate-900' :
-                  activity.status === 'Rejected' ? 'bg-red-600 text-gray-800' :
-                  'bg-gray-200 text-gray-600'
-                }`}>
-                  {activity.status}
-                </span>
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </CardContent>
       </Card>
     );
   };
   
-  const renderBottomActions = () => {
-    const unreadNotificationsCount = notifications.filter(n => !n.read).length;
-
-    return (
-      <div className="fixed bottom-0 left-0 right-0 lg:relative p-4 bg-white lg:bg-transparent lg:p-0 border-t border-gray-200 lg:border-t-0 flex items-center justify-around lg:justify-start lg:space-x-4 mt-auto">
-        <Button className="bg-[#ff8800] hover:bg-[#ffaa00] text-white font-semibold py-3 px-6 rounded-lg flex-grow lg:flex-grow-0" onClick={() => navigate('/new-application')}>
-          <Plus size={20} className="mr-2" />
-          New Application
-        </Button>
-        <div className="flex items-center space-x-2 lg:space-x-3">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="text-gray-500 hover:text-[#ff8800] hover:bg-gray-100 relative" onClick={() => navigate('/notifications')}>
-                  <Bell size={22} />
-                  {unreadNotificationsCount > 0 && (
-                    <span className="absolute top-0 right-0 block h-4 w-4 transform -translate-y-1/2 translate-x-1/2 rounded-full bg-red-500 text-gray-800 text-[10px] flex items-center justify-center">
-                      {unreadNotificationsCount}
-                    </span>
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent className="bg-white text-gray-800 border-gray-200">
-                <p>Notifications</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="text-gray-500 hover:text-[#ff8800] hover:bg-gray-100 relative" onClick={() => setActiveTab('messages')}>
-                  <MessageSquare size={22} />
-                  {totalUnreadMessages > 0 && (
-                     <span className="absolute top-0 right-0 block h-4 w-4 transform -translate-y-1/2 translate-x-1/2 rounded-full bg-[#ff8800] text-gray-800 text-[10px] flex items-center justify-center">
-                       {totalUnreadMessages}
-                     </span>
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent className="bg-white text-gray-800 border-gray-200">
-                <p>Messages</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="text-gray-500 hover:text-[#ff8800] hover:bg-gray-100" onClick={() => navigate('/settings')}>
-                  <Settings size={22} />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent className="bg-white text-gray-800 border-gray-200">
-                <p>Settings</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
-      </div>
-    );
-  };
+  
 
   const renderProfileCompletionCard = () => {
-    if (!businessProfile) return null;
-    const percentage = getProfileCompletionPercentage();
+    // This function is being replaced by renderNewApplicationCard
+    return null;
+  };
+
+  const renderNewApplicationCard = () => {
     return (
-      <Card className="bg-white border-gray-200 shadow-md rounded-xl">
-        <CardHeader>
-          <CardTitle className="text-lg font-semibold text-gray-800">Complete Your Profile</CardTitle>
-          <CardDescription className="text-gray-500">
-            A complete profile helps us match you with the best funding options.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Progress value={percentage} className="w-full [&>div]:bg-[#ff8800]" />
-          <p className="text-sm text-gray-600 mt-2">{percentage}% complete</p>
-        </CardContent>
-        <CardContent className="pt-0">
-           <Button className="w-full bg-[#ff8800] hover:bg-[#ffaa00] text-white" onClick={() => setActiveTab('profile')}>
-            Go to Profile <ArrowRight size={16} className="ml-2" />
-          </Button>
+      <Card className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200/50 overflow-hidden">
+        <div className="bg-slate-800 px-6 py-4">
+          <CardTitle className="text-lg font-semibold text-white flex items-center gap-2">
+            <PlusCircle className="h-5 w-5" />
+            Start New Application
+          </CardTitle>
+        </div>
+        <CardContent className="p-6">
+          <div className="space-y-4">
+            <div className="flex flex-col items-center text-center p-4">
+              <div className="p-3 bg-orange-100 rounded-full mb-4">
+                <FileText className="h-8 w-8 text-[#ff8800]" />
+              </div>
+              <h3 className="text-lg font-semibold text-slate-900 mb-2">Need funding for your business?</h3>
+              <p className="text-slate-600 mb-4">Quick application process with high approval rates and competitive terms</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-center">
+                <h4 className="font-semibold text-slate-800 text-sm">Fast Approval</h4>
+                <p className="text-xs text-slate-600 mt-1">As quick as 24 hours</p>
+              </div>
+              <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-center">
+                <h4 className="font-semibold text-slate-800 text-sm">Tailored Options</h4>
+                <p className="text-xs text-slate-600 mt-1">Multiple lender matches</p>
+              </div>
+            </div>
+            <Button 
+              className="w-full bg-gradient-to-r from-[#ff8800] to-[#ffaa00] hover:from-[#ff9900] hover:to-[#ffbb00] text-white font-semibold py-2.5 rounded-lg shadow-md hover:shadow-lg transition-all duration-200" 
+              onClick={() => navigate('/applications/new')}
+            >
+              Apply Now
+              <ArrowRight size={16} className="ml-2" />
+            </Button>
+          </div>
         </CardContent>
       </Card>
     );
   };
 
   const renderApplicationJourney = () => {
-    const displayedApplications = applications.sort((a,b) => new Date(b.application_date as string).getTime() - new Date(a.application_date as string).getTime()).slice(0, 2);
+    const displayedApplications = applications.sort((a,b) => new Date(b.application_date as string).getTime() - new Date(a.application_date as string).getTime()).slice(0, 3);
 
     return (
-      <Card className="bg-white border-gray-200 shadow-md rounded-xl w-full h-full flex flex-col">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-gray-800 text-xl">Application Journey</CardTitle>
-              <CardDescription className="text-gray-500">Track your application progress</CardDescription>
-            </div>
-            <Button variant="ghost" size="icon" className="text-gray-500 hover:text-gray-800">
-              <Info size={18} />
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-2.5 flex-grow px-4">
-          {displayedApplications.length > 0 ? displayedApplications.map((app, index) => (
-            <div key={app.id} className="p-3 bg-gray-100 rounded-lg border border-gray-200">
-              <div className="flex items-start space-x-3">
-                <div className={`flex-shrink-0 h-7 w-7 rounded-full text-gray-800 flex items-center justify-center text-sm font-bold ${app.status === 'approved' ? 'bg-green-500' : 'bg-[#ff8800]'}`}>
-                  {index + 1}
-                </div>
-                <div className="flex-grow min-w-0">
-                  <div className="flex justify-between items-center mb-1 gap-2">
-                    <p className="text-sm font-semibold text-gray-800 truncate" title={`Application #${app.id}`}>
-                      Application #{app.id.substring(0, 8)}...
-                    </p>
-                    <span className={`px-2 py-0.5 text-xs font-medium rounded-full shrink-0 ${
-                      app.status === 'approved' ? 'bg-green-500 text-gray-800' :
-                      app.status === 'submitted' ? 'bg-blue-500 text-gray-800' :
-                      app.status === 'documents_requested' ? 'bg-yellow-500 text-slate-900' :
-                      app.status === 'offered' ? 'bg-[#ff8800] text-gray-800' :
-                      app.status === 'pending' || app.status === 'under_review' ? 'bg-blue-500 text-gray-800' :
-                      'bg-gray-200 text-gray-600'
+      <Card className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200/50 overflow-hidden h-full flex flex-col">
+        <div className="bg-slate-800 px-6 py-4">
+          <CardTitle className="text-lg font-semibold text-white flex items-center gap-2">
+            <Compass className="h-5 w-5" />
+            Application Journey
+          </CardTitle>
+          <p className="text-sm text-slate-300 mt-1">Track your application progress</p>
+        </div>
+        <CardContent className="flex-grow p-6">
+          {displayedApplications.length > 0 ? (
+            <div className="space-y-4">
+              {displayedApplications.map((app, index) => (
+                <div key={app.id} className="group relative">
+                  <div className="flex items-start gap-4 p-4 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer" onClick={() => navigate(`/applications/${app.id}`)}>
+                    <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-white ${
+                      app.status === 'approved' ? 'bg-gradient-to-r from-emerald-500 to-emerald-600' : 
+                      app.status === 'offered' ? 'bg-gradient-to-r from-purple-500 to-purple-600' :
+                      app.status === 'under_review' ? 'bg-gradient-to-r from-blue-500 to-blue-600' :
+                      'bg-gradient-to-r from-amber-500 to-amber-600'
                     }`}>
-                      {app.status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                    </span>
+                      {index + 1}
+                    </div>
+                    <div className="flex-grow min-w-0">
+                      <div className="flex justify-between items-start mb-2">
+                        <h4 className="font-semibold text-slate-900 truncate" title={`Application #${app.id}`}>
+                          Application #{app.id.substring(0, 8)}...
+                        </h4>
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${
+                          app.status === 'approved' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                          app.status === 'offered' ? 'bg-purple-50 text-purple-700 border-purple-200' :
+                          app.status === 'under_review' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                          app.status === 'pending' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                          'bg-slate-50 text-slate-700 border-slate-200'
+                        }`}>
+                          {app.status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                        </span>
+                      </div>
+                      <p className="text-sm text-slate-600 mb-1">
+                        {format(new Date(app.application_date as string), 'MMM d, yyyy')} • {formatDistanceToNowStrict(new Date(app.application_date as string), { addSuffix: true })}
+                      </p>
+                      <p className="text-sm font-medium text-slate-700">
+                        {formatCurrency(app.loan_amount)} for {app.loan_purpose}
+                      </p>
+                    </div>
+                    <ArrowRight className="h-4 w-4 text-slate-400 group-hover:text-slate-600 transition-colors opacity-0 group-hover:opacity-100" />
                   </div>
-                  <p className="text-xs text-gray-500 mb-1">
-                    {format(new Date(app.application_date as string), 'PP')} ({formatDistanceToNowStrict(new Date(app.application_date as string), { addSuffix: true })})
-                  </p>
-                  <p className="text-xs text-gray-600 truncate" title={`${formatCurrency(app.loan_amount)} for ${app.loan_purpose}`}>
-                    {formatCurrency(app.loan_amount)} for {app.loan_purpose}
-                  </p>
                 </div>
-              </div>
+              ))}
             </div>
-          )) : (
-            <p className="text-gray-500 text-center py-4">No recent applications to display.</p>
+          ) : (
+            <div className="text-center py-8">
+              <div className="mx-auto mb-4 p-3 bg-slate-100 rounded-full w-12 h-12 flex items-center justify-center">
+                <FileText className="h-6 w-6 text-slate-400" />
+              </div>
+              <p className="text-slate-500 mb-4">No applications yet</p>
+              <Button 
+                variant="outline" 
+                size="sm"
+                className="border-[#ff8800] text-[#ff8800] hover:bg-[#ff8800] hover:text-white"
+                onClick={() => navigate('/new-application')}
+              >
+                Create Application
+              </Button>
+            </div>
           )}
         </CardContent>
-        {applications.length > 0 && (
-            <CardFooter className='pt-0 pb-4 px-4'>
-                <Button variant="link" className="text-[#ff8800] hover:text-[#ffaa00] px-0 w-full justify-center text-sm" onClick={() => setActiveTab('applications')}>
-                  View All Applications <ArrowRight size={16} className="ml-1" />
-                </Button>
-            </CardFooter>
+        {applications.length > 3 && (
+          <div className="px-6 pb-6">
+            <Button 
+              variant="ghost" 
+              className="w-full text-[#ff8800] hover:text-[#ff9900] hover:bg-orange-50 font-medium" 
+              onClick={() => navigate('/applications')}
+            >
+              View All Applications
+              <ArrowRight size={16} className="ml-2" />
+            </Button>
+          </div>
         )}
       </Card>
     );
@@ -652,121 +744,186 @@ const BusinessDashboard = () => {
       { 
         title: 'Term Loans', 
         description: 'Best for long-term investments and growth opportunities with stable repayment terms.', 
-        icon: <Landmark size={20} className="text-[#ff8800]" />, 
+        icon: <Landmark size={20} className="text-white" />, 
         linkText: 'Explore Options', 
-        linkTo: '/new-application?type=term_loan' 
+        linkTo: '/new-application?type=term_loan',
+        gradient: 'from-blue-500 to-blue-600',
+        bgColor: 'bg-blue-50',
+        textColor: 'text-blue-700'
       },
       { 
         title: 'Invoice Financing', 
         description: 'Unlock cash tied up in your unpaid invoices to improve cash flow and working capital.', 
-        icon: <TrendingUp size={20} className="text-[#ff8800]" />, 
+        icon: <TrendingUp size={20} className="text-white" />, 
         linkText: 'Explore Options', 
-        linkTo: '/new-application?type=invoice_financing' 
+        linkTo: '/new-application?type=invoice_financing',
+        gradient: 'from-emerald-500 to-emerald-600',
+        bgColor: 'bg-emerald-50',
+        textColor: 'text-emerald-700'
       },
       { 
         title: 'Merchant Cash Advance', 
         description: 'Flexible funding based on your business card sales with repayments that scale with your revenue.', 
-        icon: <Store size={20} className="text-[#ff8800]" />, 
+        icon: <Store size={20} className="text-white" />, 
         linkText: 'Explore Options', 
-        linkTo: '/new-application?type=mca' 
+        linkTo: '/new-application?type=mca',
+        gradient: 'from-purple-500 to-purple-600',
+        bgColor: 'bg-purple-50',
+        textColor: 'text-purple-700'
       },
     ];
+    
     return (
-      <Card className="bg-white border-gray-200 shadow-md rounded-xl w-full h-full flex flex-col">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-gray-800 text-xl">Funding Opportunities</CardTitle>
-          <CardDescription className="text-gray-500">Financing options for your business</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-2.5 flex-grow px-4">
-          {opportunities.map((op, index) => (
-            <div key={index} className="p-3 bg-gray-100 rounded-lg border border-gray-200">
-              <div className="flex items-center space-x-3 mb-1">
-                <div className="p-1.5 bg-gray-200 rounded-md flex-shrink-0">{op.icon}</div>
-                <h4 className="font-semibold text-gray-800 text-sm">{op.title}</h4>
+      <Card className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200/50 overflow-hidden h-full flex flex-col">
+        <div className="bg-slate-800 px-6 py-4">
+          <CardTitle className="text-lg font-semibold text-white flex items-center gap-2">
+            <Zap className="h-5 w-5" />
+            Funding Opportunities
+          </CardTitle>
+          <p className="text-sm text-slate-300 mt-1">Financing options for your business</p>
+        </div>
+        <CardContent className="flex-grow p-6">
+          <div className="space-y-4">
+            {opportunities.map((op, index) => (
+              <div 
+                key={index} 
+                className={`p-4 rounded-lg border border-slate-200 ${op.bgColor} hover:shadow-md transition-all duration-200 cursor-pointer group`}
+                onClick={() => navigate(op.linkTo)}
+              >
+                <div className="flex items-start gap-3 mb-3">
+                  <div className={`p-2 bg-gradient-to-r ${op.gradient} rounded-lg shadow-sm flex-shrink-0`}>
+                    {op.icon}
+                  </div>
+                  <div className="flex-grow min-w-0">
+                    <h4 className={`font-semibold ${op.textColor} text-base mb-1`}>{op.title}</h4>
+                    <p className="text-sm text-slate-600 leading-relaxed">{op.description}</p>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    className={`${op.textColor} hover:bg-white/50 font-medium p-0 h-auto`}
+                  >
+                    {op.linkText}
+                    <ArrowRight size={14} className="ml-1 group-hover:translate-x-1 transition-transform" />
+                  </Button>
+                </div>
               </div>
-              <p className="text-xs text-gray-600 mb-1.5 line-clamp-2 min-w-0">{op.description}</p>
-              <Button variant="link" className="text-[#ff8800] hover:text-[#ffaa00] p-0 h-auto text-xs" onClick={() => navigate(op.linkTo)}>
-                {op.linkText} <ArrowRight size={14} className="ml-1" />
-              </Button>
-            </div>
-          ))}
+            ))}
+          </div>
         </CardContent>
-        <CardFooter className='pt-0 pb-4 px-4'>
-          <Button variant="link" className="text-[#ff8800] hover:text-[#ffaa00] px-0 w-full justify-center text-sm" onClick={() => navigate('/new-application')}>
-            Explore All Options <ArrowRight size={16} className="ml-1" />
+        <div className="px-6 pb-6">
+          <Button 
+            className="w-full bg-gradient-to-r from-[#ff8800] to-[#ffaa00] hover:from-[#ff9900] hover:to-[#ffbb00] text-white font-semibold py-2.5 rounded-lg shadow-md hover:shadow-lg transition-all duration-200" 
+            onClick={() => navigate('/new-application')}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Start New Application
           </Button>
-        </CardFooter>
+        </div>
       </Card>
     );
   };
 
   const renderDocumentCenter = () => {
-    // Define the required documents
+    // Define the required documents - matching the keys from DOCUMENT_STEPS in Business/Documents.tsx
     const requiredDocs = [
-      { id: 'pl', name: 'Profit and Loss', description: 'Last 12 months of P&L statement', icon: <FileText size={18} className="text-gray-600" /> },
-      { id: 'bs', name: 'Balance Sheet', description: 'Current financial position', icon: <BarChartHorizontalBig size={18} className="text-gray-600" /> },
-      { id: 'tb', name: 'Trial Balance', description: 'Detailed financial snapshot', icon: <ClipboardList size={18} className="text-gray-600" /> },
-      { id: 'ar', name: 'Aged Receivables', description: 'Outstanding customer payments', icon: <Users size={18} className="text-gray-600" /> },
-      { id: 'ap', name: 'Aged Payables', description: 'Outstanding vendor invoices', icon: <FileSignature size={18} className="text-gray-600" /> },
+      { 
+        id: 'pl', 
+        name: 'Profit and Loss', 
+        description: 'Last 12 months of P&L statement', 
+        icon: <FileText size={18} className="text-white" />,
+        gradient: 'from-blue-500 to-blue-600'
+      },
+      { 
+        id: 'bs', 
+        name: 'Balance Sheet', 
+        description: 'Current financial position', 
+        icon: <BarChartHorizontalBig size={18} className="text-white" />,
+        gradient: 'from-emerald-500 to-emerald-600'
+      },
+      { 
+        id: 'tb', 
+        name: 'Trial Balance', 
+        description: 'Detailed financial snapshot', 
+        icon: <ClipboardList size={18} className="text-white" />,
+        gradient: 'from-purple-500 to-purple-600'
+      },
+      { 
+        id: 'ar', 
+        name: 'Aged Receivables', 
+        description: 'Outstanding customer payments', 
+        icon: <Users size={18} className="text-white" />,
+        gradient: 'from-amber-500 to-amber-600'
+      },
+      { 
+        id: 'ap', 
+        name: 'Aged Payables', 
+        description: 'Outstanding vendor invoices', 
+        icon: <FileSignature size={18} className="text-white" />,
+        gradient: 'from-red-500 to-red-600'
+      },
     ];
     
-    // Safely handle documents which might not exist in the businessProfile
-    const uploadedDocumentNames: string[] = [];
-    if (businessProfile && 'documents' in businessProfile) {
-      const documents = businessProfile.documents as Array<{name: string, url: string}> | undefined;
-      if (documents && Array.isArray(documents)) {
-        documents.forEach(doc => {
-          if (doc && doc.name) {
-            uploadedDocumentNames.push(doc.name.toLowerCase());
-          }
-        });
-      }
-    }
-    
+    // Map required documents to their status based on uploaded documents
     const documentsStatus = requiredDocs.map(doc => ({
       ...doc,
-      status: uploadedDocumentNames.includes(doc.name.toLowerCase()) ? 'uploaded' : 'pending'
+      status: uploadedDocuments.includes(doc.id) ? 'uploaded' : 'pending'
     }));
     
-    const uploadedCount = documentsStatus.filter(d => d.status === 'uploaded').length;
-    const totalCount = documentsStatus.length;
+    const uploadedCount = uploadedDocuments.length;
+    const totalCount = requiredDocs.length;
 
     return (
-      <Card className="bg-white border-gray-200 shadow-md rounded-xl w-full h-full flex flex-col">
-        <CardHeader className="pb-3">
-          <div className="flex justify-between items-center">
-            <div>
-              <CardTitle className="text-gray-800 text-xl">Document Center</CardTitle>
-              <CardDescription className="text-gray-500">Track your document upload status</CardDescription>
+      <Card className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200/50 overflow-hidden h-full flex flex-col">
+        <div className="flex items-center justify-between p-5 border-b border-slate-200">
+          <div className="flex items-center space-x-2">
+            <div className="bg-slate-800 p-2 rounded-md">
+              <Shield className="h-5 w-5 text-white" />
             </div>
-            <p className="text-gray-600 font-semibold">{uploadedCount}/{totalCount}</p>
+            <h3 className="text-lg font-semibold text-slate-800">Document Center</h3>
           </div>
-        </CardHeader>
-        <CardContent className="space-y-2.5 flex-grow overflow-y-auto px-4">
-          {documentsStatus.map((doc) => (
-            <div key={doc.id} className="flex items-center justify-between p-3 bg-gray-100 border border-gray-200 rounded-lg">
-              <div className="flex items-center space-x-2.5 min-w-0 flex-grow">
-                <div className="p-1.5 bg-gray-200 rounded-md flex-shrink-0">{doc.icon}</div>
-                <div className="flex-grow min-w-0">
-                  <p className="font-medium text-gray-800 text-sm truncate" title={doc.name}>{doc.name}</p>
-                  <p className="text-xs text-gray-500 truncate" title={doc.description}>{doc.description}</p>
+          <div className="text-2xl font-bold text-slate-800">{uploadedCount}/{totalCount}</div>
+        </div>
+        <div className="p-5">
+          <p className="text-slate-600 text-sm mb-4">Secure document management</p>
+          
+          <div className="space-y-4">
+            {requiredDocs.map((doc, index) => (
+              <div key={doc.id} className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className={`p-2 rounded-md bg-gradient-to-br ${doc.gradient}`}>
+                    {doc.icon}
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-slate-800">{doc.name}</h4>
+                    <p className="text-xs text-slate-500">{doc.description}</p>
+                  </div>
                 </div>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="bg-orange-50 hover:bg-orange-100 text-orange-600 flex items-center" 
+                  onClick={() => navigate('/business/documents')}
+                >
+                  <Upload className="h-4 w-4 mr-1" />
+                  Upload
+                </Button>
               </div>
-              <Button 
-                size="sm" 
-                className={`text-xs whitespace-nowrap ml-2 shrink-0 ${doc.status === 'uploaded' ? 'bg-green-600 hover:bg-green-700' : 'bg-[#ff8800] hover:bg-[#ffaa00]'} text-gray-800`}
-                onClick={() => setActiveTab('profile')} // Navigate to profile tab for upload
-              >
-                {doc.status === 'uploaded' ? 'View' : 'Upload'} <Upload size={12} className="ml-1.5" />
-              </Button>
-            </div>
-          ))}
-        </CardContent>
-        <CardFooter className='pt-2 px-4'>
-          <Button className="w-full bg-gray-200 hover:bg-slate-500 text-gray-800" onClick={() => setActiveTab('profile')}>
-            Upload All Documents <ArrowRight size={16} className="ml-2" />
+            ))}
+          </div>
+        </div>
+        <div className="mt-auto p-5 border-t border-slate-200">
+          <Button 
+            variant="outline" 
+            className="w-full bg-slate-800 text-white hover:bg-slate-700 flex items-center justify-center"
+            onClick={() => navigate('/business/documents')}
+          >
+            <Upload className="h-4 w-4 mr-2" />
+            Manage All Documents
           </Button>
-        </CardFooter>
+        </div>
       </Card>
     );
   };
@@ -776,8 +933,21 @@ const BusinessDashboard = () => {
   if (overallDashboardLoading) {
     return (
       <PageLayout>
-        <div className="flex justify-center items-center h-screen bg-white">
-          <Loader2 className="h-12 w-12 animate-spin text-[#ff8800]" />
+        <div className="bg-gradient-to-br from-slate-50 to-slate-100 min-h-screen">
+          <div className="flex flex-col justify-center items-center h-screen">
+            <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200 p-8">
+              <div className="text-center">
+                <div className="relative mb-6">
+                  <div className="w-16 h-16 mx-auto">
+                    <Loader2 className="h-16 w-16 text-[#ff8800] animate-spin" />
+                  </div>
+                  <div className="absolute inset-0 w-16 h-16 mx-auto rounded-full bg-gradient-to-r from-[#ff8800]/20 to-[#ffaa00]/20 animate-pulse"></div>
+                </div>
+                <h2 className="text-xl font-semibold text-slate-900 mb-2">Loading Dashboard</h2>
+                <p className="text-slate-600">Preparing your business overview...</p>
+              </div>
+            </div>
+          </div>
         </div>
       </PageLayout>
     );
@@ -787,159 +957,64 @@ const BusinessDashboard = () => {
 
   return (
     <PageLayout>
-      <div className="bg-white text-gray-800 min-h-screen p-4 md:p-6 lg:p-8">
-        {/* Custom Header */}
-        <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 md:mb-8">
-          <div>
-            {/* The "traffic lights" are OS-level, not part of the component. */}
-            {/* <div className="flex space-x-2 mb-2 md:mb-0">
-              <span className="h-3 w-3 bg-red-500 rounded-full"></span>
-              <span className="h-3 w-3 bg-yellow-500 rounded-full"></span>
-              <span className="h-3 w-3 bg-green-500 rounded-full"></span>
-            </div> */}
-            <h1 className="text-3xl font-bold text-gray-800"></h1>
-          </div>
-          <div className="flex items-center space-x-3 mt-4 md:mt-0">
-            <Avatar className="h-10 w-10">
-              <AvatarImage src={businessProfile?.avatar_url || undefined} />
-              <AvatarFallback className="bg-[#ff8800] text-white font-semibold">
-                {userInitials}
-              </AvatarFallback>
-            </Avatar>
+      <div className="bg-gradient-to-br from-slate-50 to-slate-100 min-h-screen">
+        {/* Professional Header */}
+        <header className="bg-white/95 backdrop-blur-sm border-b border-slate-200 shadow-sm">
+          <div className="max-w-screen-2xl mx-auto px-4 md:px-6 lg:px-8 py-6">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <div>
+                <h1 className="text-2xl md:text-3xl font-bold text-slate-900">
+                  Welcome back{businessProfile?.company_name ? `, ${businessProfile.company_name}` : ''}
+                </h1>
+                <p className="text-slate-600 mt-1">Manage your funding applications and grow your business</p>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="hidden md:flex items-center gap-3 px-4 py-2 bg-slate-100 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                    <span className="text-sm font-medium text-slate-700">Online</span>
+                  </div>
+                </div>
+                <Avatar className="h-12 w-12 ring-2 ring-[#ff8800]/20">
+                  <AvatarImage src={businessProfile?.avatar_url || undefined} />
+                  <AvatarFallback className="bg-gradient-to-r from-[#ff8800] to-[#ffaa00] text-white font-semibold text-lg">
+                    {userInitials}
+                  </AvatarFallback>
+                </Avatar>
+              </div>
+            </div>
           </div>
         </header>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 bg-white p-1 rounded-lg mb-6">
-            {['overview', 'applications', 'offers', 'messages', 'profile'].map((tabName) => (
-              <TabsTrigger
-                key={tabName}
-                value={tabName}
-                className="capitalize data-[state=active]:bg-[#ff8800] data-[state=active]:text-white data-[state=inactive]:text-gray-600 data-[state=inactive]:hover:bg-gray-100 data-[state=inactive]:hover:text-gray-800 rounded-md px-3 py-2 text-sm font-medium transition-all"
-              >
-                {tabName}
-                {tabName === 'messages' && totalUnreadMessages > 0 && (
-                  <span className="ml-2 bg-white text-[#ff8800] text-xs font-bold px-1.5 py-0.5 rounded-full">
-                    {totalUnreadMessages}
-                  </span>
-                )}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-
-          <TabsContent value="overview" className="outline-none">
+        <div className="max-w-screen-2xl mx-auto px-4 md:px-6 lg:px-8 py-8">
+          {/* Overview Content - No Tabs */}
+          <div className="w-full">
             {renderOverviewCards()}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
               <div className="lg:col-span-2">
                 {renderRecentActivity()}
               </div>
               <div className="lg:col-span-1">
-                {renderProfileCompletionCard()}
+                {renderNewApplicationCard()}
               </div>
             </div>
             {/* Application Journey, Funding Opportunities, and Document Center sections */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-3 mb-8 w-full">
-              <div className="md:col-span-1 lg:col-span-1 w-full h-full">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8 w-full">
+              <div className="md:col-span-1 lg:col-span-1 w-full">
                 {renderApplicationJourney()}
               </div>
-              <div className="md:col-span-1 lg:col-span-1 w-full h-full">
+              <div className="md:col-span-1 lg:col-span-1 w-full">
                 {renderFundingOpportunities()}
               </div>
-              <div className="md:col-span-2 lg:col-span-1 w-full h-full"> 
+              <div className="md:col-span-2 lg:col-span-1 w-full"> 
                 {renderDocumentCenter()}
               </div>
             </div>
-          </TabsContent>
+          </div>
 
-          <TabsContent value="applications">
-            <Card className="bg-white border-gray-200 shadow-md rounded-xl">
-              <CardHeader>
-                <CardTitle className="text-gray-800">My Applications</CardTitle>
-                <CardDescription className="text-gray-500">View and manage your funding applications.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {applications.length > 0 ? (
-                  applications.map(app => (
-                    <ApplicationCard 
-                      key={app.id} 
-                      id={app.id}
-                      amount={app.loan_amount}
-                      purpose={app.loan_purpose}
-                      status={app.status}
-                      dateApplied={typeof app.application_date === 'string' ? app.application_date : format(new Date(app.application_date), 'yyyy-MM-dd')}
-                      className="mb-4 bg-gray-100 border-slate-600 text-gray-800" 
-                      business_name={app.company_name} 
-                    />
-                  ))
-                ) : (
-                  <p className="text-gray-500">No applications submitted yet.</p>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="offers">
-            <Card className="bg-white border-gray-200 shadow-md rounded-xl">
-              <CardHeader><CardTitle className="text-gray-800">My Offers</CardTitle></CardHeader>
-              <CardContent>
-                {offers.length > 0 ? (
-                  offers.map(offer => (
-                    <div key={offer.id} className="p-3 bg-gray-100 rounded-md mb-2 text-gray-600">
-                      Offer for {formatCurrency(offer.offer_amount)} from {offer.lender_name || 'a lender'} - Status: {offer.status}
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-gray-500">No offers received yet.</p>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="messages">
-            <Card className="bg-white border-gray-200 shadow-md rounded-xl min-h-[calc(100vh-200px)] md:min-h-[500px] flex flex-col">
-              <CardHeader>
-                <CardTitle className="text-gray-800">Conversations</CardTitle>
-              </CardHeader>
-              <CardContent className="flex-grow p-0">
-                {user?.uid ? (
-                  <ConversationsUI
-                    conversations={conversations}
-                    initialSelectedConversation={initialSelectedConvoForUI}
-                    initialMessages={initialMessagesForUI}
-                    currentUserId={user.uid}
-                    onSendMessage={handleSendMessage}
-                    onFetchMessages={handleFetchMessages}
-                    isLoadingConversations={isLoadingConversations}
-                    isLoadingMessages={isLoadingMessagesForSelectedConvo}
-                  />
-                ) : (
-                  <p className="text-gray-500 text-center py-10">Please log in to view messages.</p>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="profile">
-            <Card className="bg-white border-gray-200 shadow-md rounded-xl">
-              <CardHeader><CardTitle className="text-gray-800">Business Profile</CardTitle></CardHeader>
-              <CardContent>
-                {businessProfile ? (
-                  Object.entries(businessProfile).map(([key, value]) => (
-                    <p key={key} className="text-gray-600"><strong>{key}:</strong> {String(value)}</p>
-                  ))
-                ) : (
-                  <p className="text-gray-500">Profile not loaded.</p>
-                )}
-                 <Button className="mt-4 bg-[#ff8800] hover:bg-[#ffaa00] text-white" onClick={() => navigate('/business-profile')}>
-                  Edit Profile <Edit3 size={16} className="ml-2" />
-                </Button>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-        {activeTab === 'overview' && <div className="mt-8 hidden lg:block">{renderBottomActions()}</div>}
+        </div>
+        
       </div>
-      {activeTab === 'overview' && <div className="lg:hidden">{renderBottomActions()}</div>}
     </PageLayout>
   );
 };

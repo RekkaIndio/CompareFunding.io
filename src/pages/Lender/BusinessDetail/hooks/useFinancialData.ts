@@ -18,13 +18,13 @@ export const useFinancialData = (id: string | undefined, applicationData: Applic
         // Check if it's directly in the application
         if (applicationData.application?.business_id) {
           businessId = applicationData.application.business_id;
-          console.log('[DEBUG] Found business_id in application:', businessId);
+
         }
         
         // If not in application, check if it's in the business object
         else if (applicationData.business?.id) {
           businessId = applicationData.business.id;
-          console.log('[DEBUG] Found business ID in business object:', businessId);
+
         }
         
         // Fall back to user_id if no business_id is available
@@ -35,21 +35,21 @@ export const useFinancialData = (id: string | undefined, applicationData: Applic
           
           if (userSnap.exists() && userSnap.data().businessId) {
             businessId = userSnap.data().businessId;
-            console.log('[DEBUG] Found businessId from user document:', businessId);
+
           } else {
             // Final fallback to the user_id itself
             businessId = applicationData.application.user_id;
-            console.log('[DEBUG] Falling back to user_id as business ID:', businessId);
+
           }
         }
         
         // Last resort fallback to the application ID
         if (!businessId) {
           businessId = id;
-          console.log('[DEBUG] Using application ID as fallback business ID:', businessId);
+
         }
         
-        console.log('[DEBUG] Using business ID for financials:', businessId);
+
         
         let financials = {} as FinancialData;
         
@@ -59,11 +59,11 @@ export const useFinancialData = (id: string | undefined, applicationData: Applic
           const businessDoc = await getDoc(businessDocRef);
           
           if (businessDoc.exists()) {
-            console.log('[DEBUG] Found business document:', businessId);
+
             // If the business document has direct financial data fields
             const data = businessDoc.data();
             if (data.financials || data.financial_data) {
-              console.log('[DEBUG] Found embedded financial data in business document');
+
               financials = data.financials || data.financial_data || {};
             }
           }
@@ -73,15 +73,15 @@ export const useFinancialData = (id: string | undefined, applicationData: Applic
         
         // If we didn't find embedded financials, try the subcollection
         if (Object.keys(financials).length === 0) {
-          console.log('[DEBUG] Trying financials subcollection');
+
           const financialsCollection = collection(db, "businesses", businessId, "financials");
           const querySnapshot = await getDocs(query(financialsCollection, orderBy("createdAt", "desc")));
           
-          console.log(`[DEBUG] Financial documents found: ${querySnapshot.size} for business ID: ${businessId}`);
+
           
           querySnapshot.forEach((doc) => {
             const data = doc.data();
-            console.log('[DEBUG] Financial document:', doc.id, data);
+
             
             let docKey = "";
             
@@ -105,7 +105,7 @@ export const useFinancialData = (id: string | undefined, applicationData: Applic
             }
             
             if (docKey) {
-              console.log(`[DEBUG] Mapping document type '${data.documentType}' to tab key: ${docKey}`);
+
               financials[docKey as keyof FinancialData] = {
                 id: doc.id,
                 ...data,
@@ -122,7 +122,7 @@ export const useFinancialData = (id: string | undefined, applicationData: Applic
         
         // Also check the business_financials collection as a fallback
         if (Object.keys(financials).length === 0) {
-          console.log('[DEBUG] Trying business_financials collection');
+
           try {
             const altFinancialsQuery = query(
               collection(db, "business_financials"),
@@ -130,7 +130,7 @@ export const useFinancialData = (id: string | undefined, applicationData: Applic
               orderBy("createdAt", "desc")
             );
             const altQuerySnapshot = await getDocs(altFinancialsQuery);
-            console.log(`[DEBUG] Found ${altQuerySnapshot.size} documents in business_financials collection`);
+
             
             // Process documents if found
             if (!altQuerySnapshot.empty) {
@@ -175,19 +175,19 @@ export const useFinancialData = (id: string | undefined, applicationData: Applic
           }
         }
         
-        console.log('[DEBUG] Final financials object keys:', Object.keys(financials));
+
         
         // If we still have no data, check the financial_documents collection
         if (Object.keys(financials).length === 0) {
           try {
-            console.log('[DEBUG] Trying financial_documents collection');
+
             const financialDocsQuery = query(
               collection(db, "financial_documents"),
               where("business_id", "==", businessId),
               orderBy("createdAt", "desc")
             );
             const docsSnapshot = await getDocs(financialDocsQuery);
-            console.log(`[DEBUG] Found ${docsSnapshot.size} documents in financial_documents collection`);
+
           } catch (e) {
             console.error('[DEBUG] Error querying financial_documents collection:', e);
           }

@@ -1,9 +1,18 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { extractFinancialsWithOpenAI, OpenAIExtractResult } from "@/services/openai";
 import FileExtractor, { ExtractedFile } from "./FileExtractor";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import FinancialsTable from "@/pages/Business/Documents/FinancialsTable";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { 
   collection, addDoc, serverTimestamp, doc, getDoc, updateDoc,
   query, orderBy, getDocs, where, limit, deleteDoc
@@ -80,9 +89,12 @@ const DOCUMENT_STEPS = [
 ];
 
 const BusinessDocuments: React.FC = (): JSX.Element => {
+  const navigate = useNavigate();
   const [files, setFiles] = useState<{ [key: string]: File | null }>({});
   // Modal state for each logo
   const [modal, setModal] = useState<null | "freeagent" | "sage" | "xero">(null);
+  // State for completion popup
+  const [showCompletionDialog, setShowCompletionDialog] = useState<boolean>(false);
 
   // State to track if we're loading saved documents
   const [loadingSaved, setLoadingSaved] = useState<boolean>(false);
@@ -100,8 +112,12 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
   // Sequential upload control
   const [currentUploadStep, setCurrentUploadStep] = useState<number>(0); // Index of the current document being uploaded
   const [completedUploads, setCompletedUploads] = useState<string[]>([]); // Keys of completed document uploads
+  const [skippedUploads, setSkippedUploads] = useState<string[]>([]); // Keys of skipped document uploads
   const [replacementMode, setReplacementMode] = useState<boolean>(false); // Whether we're in replacement mode
   const [replacingDocKey, setReplacingDocKey] = useState<string | null>(null); // Key of the document being replaced
+  
+  // Tab control - automatically sync with current upload step
+  const [activeTab, setActiveTab] = useState<string>(DOCUMENT_STEPS[0].key);
 
   const db = getFirestore();
   const auth = getAuth();
@@ -138,6 +154,17 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
         docType: DOCUMENT_STEPS.find((s) => s.key === key)?.label || key,
       });
       setAiResults((prev) => ({ ...prev, [key]: aiResult }));
+      
+      // Auto-save the document after successful AI processing
+      if (aiResult && aiResult.json) {
+        const documentType = DOCUMENT_STEPS.find((s) => s.key === key)?.label || key;
+        toast({
+          title: "Processing complete",
+          description: `${documentType} data extracted successfully. Auto-saving now...`,
+          variant: "default"
+        });
+        await saveFinancialData(key, documentType);
+      }
     } catch (err: any) {
       setAiError((prev) => ({ ...prev, [key]: err?.message || "OpenAI error" }));
       setAiResults((prev) => ({ ...prev, [key]: null }));
@@ -149,7 +176,7 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
   // Function to ensure the user has a valid business ID
   const ensureBusinessProfile = async (userId: string) => {
     try {
-      console.log("Checking business profile for user:", userId);
+
       
       const userDocRef = doc(db, "users", userId);
       const userDoc = await getDoc(userDocRef);
@@ -160,12 +187,12 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
       }
       
       const userData = userDoc.data();
-      console.log("User data:", userData);
+
       
       let businessId = userData?.businessId;
       
       if (!businessId) {
-        console.log("No business ID found, creating a new business record");
+
         
         // Create a new business record
         const businessesCollection = collection(db, "businesses");
@@ -187,7 +214,7 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
           role: 'business' // Set the user role to 'business'
         });
         
-        console.log("Created new business with ID:", businessId);
+
         
         toast({
           title: "Business profile created",
@@ -308,7 +335,7 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
           // Delete the existing document
           await deleteDoc(existingDocRef);
           
-          console.log(`Archived document ${docId} for ${documentType}`);
+
         }
       }
       
@@ -352,8 +379,18 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
       // Update completed uploads if not in replacement mode
       if (!replacementMode) {
         setCompletedUploads(prev => {
-          if (!prev.includes(key)) return [...prev, key];
-          return prev;
+          const newCompleted = prev.includes(key) ? prev : [...prev, key];
+          
+          // Check if all documents are now either completed or skipped
+          const totalProcessed = newCompleted.length + skippedUploads.length;
+          if (totalProcessed === DOCUMENT_STEPS.length && !showCompletionDialog) {
+            // Show completion dialog after a short delay to ensure UI updates
+            setTimeout(() => {
+              setShowCompletionDialog(true);
+            }, 500);
+          }
+          
+          return newCompleted;
         });
         
         // Move to next step if available
@@ -366,11 +403,11 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
         setReplacingDocKey(null);
       }
       
-      setSaveStatus((prev) => ({ ...prev, [key]: "Saved successfully!" }));
+      setSaveStatus((prev) => ({ ...prev, [key]: "Auto-saved successfully!" }));
       
       toast({
-        title: "Financial data saved",
-        description: `The ${documentType} data has been saved to your business profile.`,
+        title: "Document auto-saved",
+        description: `${documentType} has been automatically saved to your business profile.`,
         variant: "default"
       });
     } catch (error) {
@@ -470,17 +507,19 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
         if (completedDocKeys.length === DOCUMENT_STEPS.length) {
           setCurrentUploadStep(DOCUMENT_STEPS.length - 1);
         } else {
-          // Find the first step that isn't completed
-          const nextStepIndex = DOCUMENT_STEPS.findIndex(step => !completedDocKeys.includes(step.key));
+          // Find the first step that isn't completed or skipped
+          const nextStepIndex = DOCUMENT_STEPS.findIndex(step => 
+            !completedDocKeys.includes(step.key) && !skippedUploads.includes(step.key)
+          );
           if (nextStepIndex !== -1) {
             setCurrentUploadStep(nextStepIndex);
           }
         }
         
-        console.log("Loaded saved documents:", Object.keys(savedFinancials));
+
         // Find the first step that isn't completed
         const nextStepIndex = DOCUMENT_STEPS.findIndex(step => !completedDocKeys.includes(step.key));
-        console.log("Current upload step set to:", nextStepIndex !== -1 ? nextStepIndex : 'last step');
+
       } catch (error) {
         console.error("Error fetching saved documents:", error);
       } finally {
@@ -490,6 +529,22 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
 
     fetchSavedDocuments();
   }, [auth.currentUser]);
+
+  // Automatically update active tab when current upload step changes
+  useEffect(() => {
+    if (!replacementMode && currentUploadStep < DOCUMENT_STEPS.length) {
+      // Find the next step that isn't completed or skipped
+      const nextStepIndex = DOCUMENT_STEPS.findIndex(step => 
+        !completedUploads.includes(step.key) && !skippedUploads.includes(step.key)
+      );
+      
+      if (nextStepIndex !== -1) {
+        setActiveTab(DOCUMENT_STEPS[nextStepIndex].key);
+      } else if (DOCUMENT_STEPS[currentUploadStep]) {
+        setActiveTab(DOCUMENT_STEPS[currentUploadStep].key);
+      }
+    }
+  }, [currentUploadStep, replacementMode, completedUploads, skippedUploads]);
 
   // Component to display saved document information
   const SavedDocumentInfo = ({ docKey, documentType }: { docKey: string, documentType: string }) => {
@@ -536,6 +591,7 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
     
     setReplacementMode(true);
     setReplacingDocKey(key);
+    setActiveTab(key); // Set the active tab to the document being replaced
     
     toast({
       title: "Replacement mode",
@@ -544,13 +600,64 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
     });
   };
 
+  // Handler for "Make Application" button in completion dialog
+  const handleMakeApplication = () => {
+    setShowCompletionDialog(false);
+    navigate('/applications/new'); // Navigate to application page
+  };
+
+  // Handler for "Explore Dashboard" button in completion dialog
+  const handleExploreDashboard = () => {
+    setShowCompletionDialog(false);
+    navigate('/business/dashboard'); // Navigate to business dashboard
+  };
+
+  // Handler for skipping a document
+  const handleSkipDocument = (key: string) => {
+    // Only allow skipping if this is the current step
+    if (!replacementMode && DOCUMENT_STEPS[currentUploadStep].key !== key) {
+      toast({
+        title: "Upload in sequence",
+        description: `Please handle ${DOCUMENT_STEPS[currentUploadStep].label} first.`,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Add to skipped uploads
+    setSkippedUploads(prev => {
+      if (!prev.includes(key)) return [...prev, key];
+      return prev;
+    });
+
+    // Move to next step if available
+    if (currentUploadStep < DOCUMENT_STEPS.length - 1) {
+      setCurrentUploadStep(currentUploadStep + 1);
+    } else {
+      // Check if all documents are either completed or skipped
+      const totalProcessed = completedUploads.length + skippedUploads.length + 1; // +1 for current skip
+      if (totalProcessed === DOCUMENT_STEPS.length && !showCompletionDialog) {
+        setTimeout(() => {
+          setShowCompletionDialog(true);
+        }, 500);
+      }
+    }
+
+    toast({
+      title: "Document skipped",
+      description: `${DOCUMENT_STEPS.find(s => s.key === key)?.label} has been skipped. You can upload it later if needed.`,
+      variant: "default"
+    });
+  };
+
   // Document card component to handle the various states of each card
   const DocumentCard = ({ step, index }: { step: typeof DOCUMENT_STEPS[0], index: number }) => {
     const key = step.key;
     const isCompleted = completedUploads.includes(key);
+    const isSkipped = skippedUploads.includes(key);
     const isCurrent = currentUploadStep === index;
     const isReplacing = replacementMode && replacingDocKey === key;
-    const isDisabled = !isCurrent && !isReplacing && !isCompleted;
+    const isDisabled = !isCurrent && !isReplacing && !isCompleted && !isSkipped;
     
     return (
       <div 
@@ -560,9 +667,10 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
           flex flex-col mx-auto relative
           ${isDisabled ? 'opacity-60 bg-gray-50' : 'bg-white'}
           ${isCompleted ? 'border-2 border-green-500' : ''}
+          ${isSkipped ? 'border-2 border-yellow-500' : ''}
           ${isCurrent ? 'border-2 border-blue-500' : ''}
           ${isReplacing ? 'border-2 border-orange-500' : ''}
-          ${isDisabled && !isReplacing && !isCompleted ? 'pointer-events-none' : ''}
+          ${isDisabled && !isReplacing && !isCompleted && !isSkipped ? 'pointer-events-none' : ''}
         `}
       >
         {/* Success badge for completed documents */}
@@ -592,6 +700,15 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
           </div>
         )}
         
+        {/* Skipped badge */}
+        {isSkipped && !isReplacing && (
+          <div className="absolute -top-3 -right-3 bg-yellow-500 text-white rounded-full p-1">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+        )}
+        
         <h2 className="text-lg font-semibold mb-2 text-center">{step.label}</h2>
         <p className="text-sm text-slate-500 mb-2 text-center">Upload your {step.label} document here.</p>
         
@@ -601,7 +718,7 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
             <p className="text-green-700 font-medium text-center">{savedDocs[key].name}</p>
             
             {/* Replace button - only shown when all documents are uploaded */}
-            {completedUploads.length === DOCUMENT_STEPS.length && (
+            {(completedUploads.length + skippedUploads.length) === DOCUMENT_STEPS.length && (
               <button
                 onClick={(e) => { 
                   e.preventDefault();
@@ -615,36 +732,83 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
           </div>
         )}
         
+        {/* Show skipped document info */}
+        {isSkipped && !isReplacing && (
+          <div className="bg-yellow-50 rounded p-2 mb-3 text-sm">
+            <p className="text-yellow-700 font-medium text-center">Document Skipped</p>
+            <p className="text-yellow-600 text-xs text-center mt-1">You can upload this later if needed</p>
+            
+            {/* Upload button for skipped documents - only shown when all documents are processed */}
+            {(completedUploads.length + skippedUploads.length) === DOCUMENT_STEPS.length && (
+              <button
+                onClick={(e) => { 
+                  e.preventDefault();
+                  // Remove from skipped list and allow upload
+                  setSkippedUploads(prev => prev.filter(skipped => skipped !== key));
+                  setReplacementMode(true);
+                  setReplacingDocKey(key);
+                  setActiveTab(key);
+                }}
+                className="mt-2 w-full px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition"
+              >
+                Upload Now
+              </button>
+            )}
+          </div>
+        )}
+        
         {/* Upload button - disabled if not current step and not in replacing mode */}
-        {(!isCompleted || isReplacing) && (
+        {(!isCompleted && !isSkipped) || isReplacing ? (
           <>
             {/* Render disabled button UI when the card is disabled */}
             {isDisabled && !isReplacing ? (
-              <span
-                className="inline-block w-full px-4 py-2 font-semibold rounded text-center bg-gray-300 text-gray-500 opacity-70 cursor-not-allowed pointer-events-none"
-              >
-                Upload
-              </span>
+              <div className="space-y-2">
+                <span
+                  className="inline-block w-full px-4 py-2 font-semibold rounded text-center bg-gray-300 text-gray-500 opacity-70 cursor-not-allowed pointer-events-none"
+                >
+                  Upload
+                </span>
+                <span
+                  className="inline-block w-full px-4 py-1 text-sm font-medium rounded text-center bg-gray-200 text-gray-400 opacity-70 cursor-not-allowed pointer-events-none"
+                >
+                  Skip
+                </span>
+              </div>
             ) : (
               /* Render active FileExtractor when the card is active */
-              <FileExtractor
-                accept="application/pdf,.csv,.xlsx,.xls,.doc,.docx,image/*"
-                onExtracted={handleExtracted(key)}
-                className="mb-2 block"
-              >
-                <span
-                  className="inline-block w-full px-4 py-2 font-semibold rounded text-center cursor-pointer transition-colors bg-[#ff8000] text-white hover:bg-orange-600"
+              <div className="space-y-2">
+                <FileExtractor
+                  accept="application/pdf,.csv,.xlsx,.xls,.doc,.docx,image/*"
+                  onExtracted={handleExtracted(key)}
+                  className="block"
                 >
-                  {isReplacing ? 'Replace' : 'Upload'}
-                </span>
-              </FileExtractor>
+                  <span
+                    className="inline-block w-full px-4 py-2 font-semibold rounded text-center cursor-pointer transition-colors bg-[#ff8000] text-white hover:bg-orange-600"
+                  >
+                    {isReplacing ? 'Replace' : 'Upload'}
+                  </span>
+                </FileExtractor>
+                
+                {/* Skip button - only show for current step and not in replacement mode */}
+                {isCurrent && !isReplacing && (
+                  <button
+                    onClick={(e) => { 
+                      e.preventDefault();
+                      handleSkipDocument(key);
+                    }}
+                    className="w-full px-4 py-1 text-sm font-medium rounded text-center bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
+                  >
+                    Skip for Now
+                  </button>
+                )}
+              </div>
             )}
             
             {files[key] && (
-              <div className="text-green-700 text-sm text-center">Selected: {files[key]?.name}</div>
+              <div className="text-green-700 text-sm text-center mt-2">Selected: {files[key]?.name}</div>
             )}
           </>
-        )}
+        ) : null}
         
         {/* Loading indicator */}
         {aiLoading[key] && (
@@ -722,15 +886,23 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
             <p className="text-sm text-blue-600">
               You are replacing your {DOCUMENT_STEPS.find(s => s.key === replacingDocKey)?.label} document. Your old document will be archived.
             </p>
-          ) : completedUploads.length === DOCUMENT_STEPS.length ? (
+          ) : (completedUploads.length + skippedUploads.length) === DOCUMENT_STEPS.length ? (
             <p className="text-sm text-blue-600">
-              All required documents have been uploaded. You can replace any document if needed.
+              All documents have been processed ({completedUploads.length} uploaded, {skippedUploads.length} skipped). You can upload skipped documents or replace any document if needed.
             </p>
           ) : (
-            <p className="text-sm text-blue-600">
-              Please upload your documents in sequence. Current document to upload: 
-              <span className="font-bold"> {DOCUMENT_STEPS[currentUploadStep].label}</span>
-            </p>
+            <div className="text-sm text-blue-600">
+              <p className="mb-1">
+                Please upload your documents in sequence. Current document to process: 
+                <span className="font-bold"> {DOCUMENT_STEPS[currentUploadStep].label}</span>
+              </p>
+              <p className="text-xs text-blue-500 mb-1">
+                📄 Documents are automatically processed and saved after upload - no manual save required!
+              </p>
+              <p className="text-xs text-yellow-600">
+                💡 Don't have a document ready? You can skip it and upload it later.
+              </p>
+            </div>
           )}
           <div className="mt-2 flex">
             {DOCUMENT_STEPS.map((step, idx) => (
@@ -741,12 +913,34 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
                     ? 'bg-orange-500' 
                     : completedUploads.includes(step.key) 
                       ? 'bg-green-500' 
-                      : currentUploadStep === idx 
-                        ? 'bg-blue-500' 
-                        : 'bg-gray-300'
+                      : skippedUploads.includes(step.key)
+                        ? 'bg-yellow-500'
+                        : currentUploadStep === idx 
+                          ? 'bg-blue-500' 
+                          : 'bg-gray-300'
                 }`}
               />
             ))}
+          </div>
+          
+          {/* Progress bar legend */}
+          <div className="mt-2 flex flex-wrap gap-4 text-xs text-gray-600">
+            <div className="flex items-center">
+              <div className="w-3 h-3 bg-green-500 rounded mr-1"></div>
+              <span>Uploaded</span>
+            </div>
+            <div className="flex items-center">
+              <div className="w-3 h-3 bg-yellow-500 rounded mr-1"></div>
+              <span>Skipped</span>
+            </div>
+            <div className="flex items-center">
+              <div className="w-3 h-3 bg-blue-500 rounded mr-1"></div>
+              <span>Current</span>
+            </div>
+            <div className="flex items-center">
+              <div className="w-3 h-3 bg-gray-300 rounded mr-1"></div>
+              <span>Pending</span>
+            </div>
           </div>
         </div>
 
@@ -758,7 +952,7 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
 
         {/* Tabbed element for document details */}
         <div className="mt-12">
-          <Tabs defaultValue={DOCUMENT_STEPS[0].key} className="w-full">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="flex flex-wrap justify-center mb-4">
               {DOCUMENT_STEPS.map((step) => (
                 <TabsTrigger
@@ -908,36 +1102,36 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
                         <h4 className="text-lg font-semibold text-gray-800">Financial Metrics</h4>
                       </div>
                       
-                      <Button 
-                        onClick={() => saveFinancialData(step.key, step.label)}
-                        disabled={saving[step.key]}
-                        className="bg-[#ff8000] hover:bg-orange-600 text-white border-none"
-                        size="sm"
-                        title={files[step.key] ? "Save financial data and document to your profile" : "Save financial data to your profile"}
-                      >
-                        {saving[step.key] ? (
-                          <>
-                            <span className="animate-spin mr-2">⏳</span>
-                            {saveStatus[step.key] || "Saving..."}
-                          </>
-                        ) : (
-                          <>
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-                            </svg>
-                            {files[step.key] ? "Save Data & Document" : "Save to Profile"}
-                          </>
-                        )}
-                      </Button>
+                      {/* Auto-save status indicator */}
+                      {saving[step.key] ? (
+                        <div className="flex items-center text-sm text-orange-600">
+                          <span className="animate-spin mr-2">⏳</span>
+                          <span className="font-medium">{saveStatus[step.key] || "Auto-saving..."}</span>
+                        </div>
+                      ) : completedUploads.includes(step.key) ? (
+                        <div className="flex items-center text-sm text-green-600">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          <span className="font-medium">Auto-saved</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center text-sm text-blue-600">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span className="font-medium">Processing...</span>
+                        </div>
+                      )}
                     </div>
 
-                    {files[step.key] && (
+                    {files[step.key] && !completedUploads.includes(step.key) && (
                       <div className="flex items-center bg-blue-50 rounded-md p-2 mb-4 text-sm">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
                         <span className="text-blue-700">
-                          Document file <span className="font-medium">{files[step.key]?.name}</span> will be saved along with the data
+                          Document file <span className="font-medium">{files[step.key]?.name}</span> will be auto-saved with the extracted data
                         </span>
                       </div>
                     )}
@@ -949,20 +1143,20 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                           </svg>
                           <span className="text-green-700">
-                            Document <span className="font-medium">{savedDocs[step.key].name}</span> saved successfully
+                            <span className="font-medium">Auto-saved:</span> {savedDocs[step.key].name}
                           </span>
                         </div>
-                        <Button
-                          onClick={() => window.open(savedDocs[step.key].url, '_blank')}
-                          variant="outline" 
-                          size="sm"
-                          className="text-green-700 border-green-300 hover:bg-green-50"
+                        <a 
+                          href={savedDocs[step.key].url} 
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-green-600 hover:text-green-800 hover:underline flex items-center"
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          <span className="mr-1">View</span>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
                           </svg>
-                          View Document
-                        </Button>
+                        </a>
                       </div>
                     )}
                     
@@ -1027,6 +1221,61 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
           </Tabs>
         </div>
       </div>
+
+      {/* Completion Dialog */}
+      <Dialog open={showCompletionDialog} onOpenChange={setShowCompletionDialog}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold text-center text-[#2a3441] mb-2">
+              🎉 Document Process Complete!
+            </DialogTitle>
+            <DialogDescription className="text-center text-lg text-gray-600">
+              {skippedUploads.length > 0 ? (
+                <>
+                  You've completed the document upload process! {completedUploads.length} document{completedUploads.length !== 1 ? 's' : ''} uploaded
+                  {skippedUploads.length > 0 && ` and ${skippedUploads.length} skipped`}. 
+                  Your profile is ready for lender review.
+                </>
+              ) : (
+                <>
+                  Congratulations! You've successfully uploaded all required business documents. 
+                  Your profile is now complete and ready for lender review.
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-6">
+            <div className="text-center mb-6">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-green-500 to-green-600 rounded-full mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <p className="text-gray-700 mb-4">
+                What would you like to do next?
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className="flex-col sm:flex-row gap-3">
+            <Button
+              onClick={handleMakeApplication}
+              className="bg-gradient-to-r from-[#ff8000] to-[#ff6000] hover:from-[#e67300] hover:to-[#e55a00] text-white font-semibold px-6 py-3 rounded-lg transition-all duration-300 transform hover:scale-105 w-full sm:w-auto"
+            >
+              Make an Application
+            </Button>
+            <Button
+              onClick={handleExploreDashboard}
+              variant="outline"
+              className="border-2 border-[#2a3441] text-[#2a3441] hover:bg-[#2a3441] hover:text-white font-semibold px-6 py-3 rounded-lg transition-all duration-300 w-full sm:w-auto"
+            >
+              Explore Dashboard
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </PageLayout>
   );
 };

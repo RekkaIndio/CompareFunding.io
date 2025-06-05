@@ -19,7 +19,7 @@ import PageLayout from '@/components/PageLayout';
 import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { createDocument, sendSignInEmail } from '@/firebase';
-import { Github, Linkedin } from 'lucide-react'; // Assuming these icons are suitable placeholders
+import { Building2, Users, Shield, CheckCircle, Star, TrendingUp, Zap, Clock, ArrowRight, CreditCard } from 'lucide-react';
 
 const industryOptions = [
   { label: 'Technology', value: 'technology' },
@@ -122,8 +122,8 @@ const SignUp = () => {
 
   const checkFormValidity = () => {
     const formState = form.getValues();
-    console.log('Current form values:', formState);
-    console.log('Form errors:', form.formState.errors);
+
+
     
     // Manual validation check for lender
     if (formState.accountType === 'lender') {
@@ -131,20 +131,20 @@ const SignUp = () => {
       const missingFields = requiredFields.filter(field => !formState[field]);
       
       if (missingFields.length > 0) {
-        console.log('Missing required fields for lender:', missingFields);
+
         return false;
       }
       
       // Email validation
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(formState.email)) {
-        console.log('Invalid email format');
+
         return false;
       }
       
       // Password validation
       if (formState.password.length < 6) {
-        console.log('Password too short');
+
         return false;
       }
       
@@ -155,11 +155,11 @@ const SignUp = () => {
   };
 
   const onSubmit = async (values: SignUpFormValues) => {
-    console.log('Form submission started with values:', values);
+
     
     // Check form validity before submitting
     const isFormValid = checkFormValidity();
-    console.log('Is form valid?', isFormValid);
+
     
     if (!isFormValid) {
       console.error('Form validation failed');
@@ -171,7 +171,7 @@ const SignUp = () => {
 
     try {
       if (useEmailLink) {
-        console.log('Using email link for signup');
+
         await sendSignInEmail(values.email);
         toast.success("Sign-in link has been sent to your email.");
         setIsLoading(false);
@@ -185,12 +185,12 @@ const SignUp = () => {
         role: values.accountType,
       };
       
-      console.log('Calling signUp with data:', { email: values.email, userData });
+
 
       // Call Firebase Auth signup through our context
       const { error, data } = await signUp(values.email, values.password, userData);
       
-      console.log('SignUp response:', { error, data });
+
 
       if (error) {
         console.error('SignUp error:', error);
@@ -201,7 +201,7 @@ const SignUp = () => {
 
       // If user is a business, create business profile
       if (values.accountType === 'business' && data?.user) {
-        console.log('Creating business profile');
+
         const businessData = {
           business_name: values.business_name,
           industry_sector: values.industry_sector,
@@ -210,7 +210,7 @@ const SignUp = () => {
         };
 
         const profileResult = await createDocument('businesses', businessData, data.user.uid);
-        console.log('Business profile creation result:', profileResult);
+
         
         if (profileResult.error) {
           console.error('Error creating business profile:', profileResult.error);
@@ -222,7 +222,7 @@ const SignUp = () => {
       
       // If user is a lender, handle organization and profile creation
       if (values.accountType === 'lender' && data?.user) {
-        console.log('Creating lender profile');
+
         
         try {
           let organizationId = '';
@@ -246,7 +246,7 @@ const SignUp = () => {
             }
             
             organizationId = orgResult.data.id;
-            console.log('Created new organization with ID:', organizationId);
+
           } else {
             // Verify existing organization exists
             if (!values.organization_id) {
@@ -257,7 +257,7 @@ const SignUp = () => {
             // This might involve checking an invitations collection or similar
             // For now, we'll just assume the ID is valid
             organizationId = values.organization_id;
-            console.log('Joining existing organization with ID:', organizationId);
+
           }
           
           // Create lender profile linked to organization
@@ -272,7 +272,7 @@ const SignUp = () => {
           };
           
           const profileResult = await createDocument('lender_profiles', lenderData, data.user.uid);
-          console.log('Lender profile creation result:', profileResult);
+
           
           if (profileResult.error) {
             throw new Error(`Failed to create lender profile: ${profileResult.error.message}`);
@@ -301,74 +301,252 @@ const SignUp = () => {
 
   return (
     <PageLayout showSidebar={false}>
-      <div className="flex min-h-[calc(100vh-10rem)] items-center justify-center bg-white px-4 py-8 sm:px-6 lg:px-8">
-        <div className="w-full max-w-5xl rounded-lg bg-white p-6">
-          <div className="flex flex-col items-center w-full">
-            {/* Heading Section */}
-            <div className="text-center mb-8">
-              <h1 className="text-3xl font-bold tracking-tight text-fundhub-orange mb-2">
-                Welcome to Compare Funding
-              </h1>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Select your account type to get started.
-              </p>
-            </div>
-            {/* Cards Section */}
-            <div className="flex flex-col md:flex-row gap-8 w-full justify-center items-center">
-              {/* Business Card */}
-              <div className="card-shadow p-8 flex flex-col items-center w-full md:w-[360px] h-[520px] max-w-[400px]">
-                <h3 className="text-xl font-bold mb-2" style={{ color: '#ff8000' }}>Business</h3>
-                <div className="flex flex-col flex-1 w-full justify-center items-center">
-                  <p className="mb-8 text-gray-700 text-center">Sign up as a business to access funding options and manage your applications.</p>
-                  <div className="flex items-center justify-center w-full">
-                    <Button
-                      className="bg-[#ff8000] text-white w-[180px] mx-auto"
-                      onClick={() => {
-                        navigate('/signup-journey/email-password');
-                      }}
-                    >
-                      Sign Up
-                    </Button>
+      {/* Hero Section */}
+      <section className="relative min-h-screen overflow-hidden">
+        {/* Background */}
+        <div className="absolute inset-0">
+          <img 
+            src="https://images.unsplash.com/photo-1521737604893-d14cc237f11d?w=1920&auto=format&fit=crop&q=80"
+            alt="Business professionals collaborating"
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-fundhub-navy/95 via-fundhub-navy/80 to-transparent"></div>
+        </div>
+        
+        {/* Content */}
+        <div className="relative z-10 min-h-screen flex items-center">
+          <div className="container mx-auto px-4 py-16">
+            <div className="flex flex-col lg:flex-row items-center justify-between gap-12">
+              
+              {/* Left Content */}
+              <div className="flex-1 max-w-2xl text-white">
+                <div className="mb-8">
+                  <h1 className="text-4xl lg:text-5xl font-bold mb-6 leading-tight">
+                    Choose Your Path to 
+                    <span className="text-primary"> Success</span>
+                  </h1>
+                  <p className="text-xl text-white/90 mb-8 leading-relaxed">
+                    Join thousands of businesses and lenders already transforming how they handle commercial funding. 
+                    One platform, endless possibilities.
+                  </p>
+                </div>
+                
+                {/* Trust Signals */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                      <Shield className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <div className="font-semibold">Bank-Grade Security</div>
+                      <div className="text-sm text-white/70">256-bit encryption</div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                      <Clock className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <div className="font-semibold">Fast Setup</div>
+                      <div className="text-sm text-white/70">Ready in 2 minutes</div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                      <Users className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <div className="font-semibold">10,000+ Users</div>
+                      <div className="text-sm text-white/70">Trusted globally</div>
+                    </div>
                   </div>
                 </div>
-                <Button
-                  className="bg-fundhub-orange text-white w-full mt-auto"
-                  onClick={() => {
-                    navigate('/signup-journey/email-password');
-                  }}
-                  style={{ display: 'none' }}
-                >
-                  Start Business Sign Up
-                </Button>
+                
+                {/* Reviews */}
+                <div className="flex items-center space-x-6">
+                  <div className="flex items-center space-x-2">
+                    <div className="flex">
+                      {[...Array(5)].map((_, i) => (
+                        <Star key={i} className="w-4 h-4 text-yellow-400 fill-current" />
+                      ))}
+                    </div>
+                    <span className="text-sm font-medium">4.9/5</span>
+                  </div>
+                  <div className="text-sm text-white/70">
+                    Based on 2,400+ reviews
+                  </div>
+                </div>
               </div>
-              {/* Lender Card */}
-              <div className="card-shadow p-8 flex flex-col items-center w-full md:w-[360px] h-[520px] max-w-[400px]">
-                <h3 className="text-xl font-bold mb-2" style={{ color: '#ff8000' }}>Lender</h3>
-                <p className="mb-6 text-gray-700 text-center">Are you a lender? Book a call to get started and we’ll onboard you manually.</p>
-                {/* Calendly Embed */}
-                <div className="w-full flex-1 flex items-center justify-center">
-                  <iframe
-                    src="https://calendly.com/jamie-comparefunding/30min"
-                    title="Book a call with Compare Funding"
-                    width="100%"
-                    height="340"
-                    frameBorder="0"
-                    style={{ minWidth: '220px', height: '340px', border: 'none', borderRadius: '12px' }}
-                    allowFullScreen
-                  ></iframe>
+              
+              {/* Right Content - Account Selection */}
+              <div className="flex-1 max-w-2xl w-full">
+                <div className="bg-white rounded-3xl p-8 shadow-2xl">
+                  <div className="text-center mb-8">
+                    <h2 className="text-3xl font-bold text-gray-900 mb-2">
+                      Get Started Today
+                    </h2>
+                    <p className="text-gray-600">
+                      Choose the option that best describes you
+                    </p>
+                  </div>
+                  
+                  {/* Account Type Cards */}
+                  <div className="space-y-6">
+                    {/* Business Card */}
+                    <div className="group relative overflow-hidden rounded-2xl border-2 border-gray-200 hover:border-primary transition-all duration-300 hover:shadow-lg cursor-pointer"
+                         onClick={() => navigate('/signup-journey/email-password')}>
+                      <div className="p-6">
+                        <div className="flex items-start space-x-4">
+                          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                            <Building2 className="w-6 h-6 text-primary" />
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="text-xl font-bold text-gray-900 mb-2">For Businesses</h3>
+                            <p className="text-gray-600 mb-4">
+                              Access funding opportunities, compare options, and streamline your application process.
+                            </p>
+                            
+                            {/* Benefits */}
+                            <div className="space-y-2 mb-4">
+                              <div className="flex items-center space-x-2 text-sm text-gray-700">
+                                <CheckCircle className="w-4 h-4 text-green-500" />
+                                <span>Compare 50+ funding options</span>
+                              </div>
+                              <div className="flex items-center space-x-2 text-sm text-gray-700">
+                                <CheckCircle className="w-4 h-4 text-green-500" />
+                                <span>One application, multiple lenders</span>
+                              </div>
+                              <div className="flex items-center space-x-2 text-sm text-gray-700">
+                                <CheckCircle className="w-4 h-4 text-green-500" />
+                                <span>Free credit score monitoring</span>
+                              </div>
+                            </div>
+                            
+                            <Button className="w-full bg-primary hover:bg-primary/90 text-white group-hover:bg-primary/90">
+                              Start Your Application
+                              <ArrowRight className="w-4 h-4 ml-2" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Lender Card */}
+                    <div className="group relative overflow-hidden rounded-2xl border-2 border-gray-200 hover:border-primary transition-all duration-300 hover:shadow-lg">
+                      <div className="p-6">
+                        <div className="flex items-start space-x-4">
+                          <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center group-hover:bg-blue-100 transition-colors">
+                            <CreditCard className="w-6 h-6 text-blue-600" />
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="text-xl font-bold text-gray-900 mb-2">For Lenders</h3>
+                            <p className="text-gray-600 mb-4">
+                              Connect with qualified businesses and streamline your lending process with our platform.
+                            </p>
+                            
+                            {/* Benefits */}
+                            <div className="space-y-2 mb-4">
+                              <div className="flex items-center space-x-2 text-sm text-gray-700">
+                                <CheckCircle className="w-4 h-4 text-green-500" />
+                                <span>Access pre-qualified leads</span>
+                              </div>
+                              <div className="flex items-center space-x-2 text-sm text-gray-700">
+                                <CheckCircle className="w-4 h-4 text-green-500" />
+                                <span>Automated application processing</span>
+                              </div>
+                              <div className="flex items-center space-x-2 text-sm text-gray-700">
+                                <CheckCircle className="w-4 h-4 text-green-500" />
+                                <span>Portfolio management tools</span>
+                              </div>
+                            </div>
+                            
+                            {/* Calendly Embed - Expanded */}
+                            <div className="mb-4">
+                              <iframe
+                                src="https://calendly.com/jamie-comparefunding/30min"
+                                title="Book a call with Compare Funding"
+                                width="100%"
+                                height="400"
+                                frameBorder="0"
+                                style={{ borderRadius: '12px', border: '1px solid #e5e7eb', minHeight: '835px' }}
+                                allowFullScreen
+                              ></iframe>
+                            </div>
+                            
+                            <Button variant="outline" className="w-full border-gray-300 hover:bg-gray-50 text-white">
+                              Book a Demo Call
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Login Link */}
+                  <div className="text-center mt-8 pt-6 border-t border-gray-200">
+                    <p className="text-gray-600">
+                      Already have an account?{' '}
+                      <Link to="/login" className="font-medium text-primary hover:text-primary/80 transition-colors">
+                        Sign in
+                      </Link>
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
-        </div>
-        {/* Login Section */}
-        <p className="mt-10 text-center text-sm text-muted-foreground">
-          Already have an account?{' '}
-          <Link to="/login" className="font-medium text-primary hover:underline">
-            Log in
-          </Link>
-        </p>
           </div>
         </div>
+      </section>
+      
+      {/* Features Section */}
+      <section className="py-16 bg-gray-50">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+              Why Choose Compare Funding?
+            </h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              We're revolutionizing commercial finance by making it faster, more transparent, and more accessible for everyone.
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Zap className="w-8 h-8 text-primary" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Lightning Fast</h3>
+              <p className="text-gray-600">Get funding decisions in hours, not weeks. Our streamlined process cuts through red tape.</p>
+            </div>
+            
+            <div className="text-center">
+              <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <TrendingUp className="w-8 h-8 text-blue-600" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Best Rates</h3>
+              <p className="text-gray-600">Compare offers from 50+ lenders to ensure you get the most competitive rates available.</p>
+            </div>
+            
+            <div className="text-center">
+              <div className="w-16 h-16 bg-green-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Shield className="w-8 h-8 text-green-600" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Secure & Trusted</h3>
+              <p className="text-gray-600">Bank-grade security with full transparency. Your data is protected and never shared without consent.</p>
+            </div>
+            
+            <div className="text-center">
+              <div className="w-16 h-16 bg-purple-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Users className="w-8 h-8 text-purple-600" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Expert Support</h3>
+              <p className="text-gray-600">Our team of funding experts guides you through every step of the process.</p>
+            </div>
+          </div>
+        </div>
+      </section>
     </PageLayout>
   );
 };
