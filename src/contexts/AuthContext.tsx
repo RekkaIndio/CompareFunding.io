@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { User as FirebaseUser } from 'firebase/auth';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth, createUser, loginUser, logoutUser, updateUserProfile } from '@/firebase';
+import { auth, createUser, loginUser, logoutUser, updateUserProfile, signInWithGoogle } from '@/firebase';
 import { useNavigate } from 'react-router-dom';
 import { collection, doc, setDoc, getDoc } from 'firebase/firestore';
 import { firestore } from '@/firebase';
@@ -16,6 +16,7 @@ type AuthContextType = {
   isLoading: boolean;
   signUp: (email: string, password: string, userData?: any, autoLogin?: boolean) => Promise<{ error: any | null; data: any | null; }>;
   signIn: (email: string, password: string) => Promise<{ error: any | null; data: any | null; }>;
+  signInWithGoogle: () => Promise<{ error: any | null; data: any | null; }>;
   signOut: () => Promise<void>;
 };
 
@@ -180,6 +181,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     navigate('/');
   };
 
+  const signInWithGoogleSSO = async () => {
+    try {
+      const { data: userCredential, error } = await signInWithGoogle();
+      
+      if (error) {
+        return { data: null, error };
+      }
+
+      if (userCredential?.user) {
+        // Store user data in Firestore for SSO users
+        const userRef = doc(firestore, "users", userCredential.user.uid);
+        const userSnap = await getDoc(userRef);
+        
+        if (!userSnap.exists()) {
+          // New user - create user document with business role (default for signup journey)
+          await setDoc(userRef, {
+            email: userCredential.user.email,
+            firstName: userCredential.user.displayName?.split(' ')[0] || '',
+            lastName: userCredential.user.displayName?.split(' ').slice(1).join(' ') || '',
+            role: 'business',
+            createdAt: new Date().toISOString(),
+            provider: 'google',
+          });
+        }
+        
+        // Fetch user role for returning data
+        const updatedUserSnap = await getDoc(userRef);
+        const userData = updatedUserSnap.data();
+        
+        return { 
+          data: { ...userCredential, userRole: userData?.role || 'business' }, 
+          error: null 
+        };
+      }
+      
+      return { data: userCredential, error: null };
+    } catch (error: any) {
+      return { data: null, error: { message: error.message } };
+    }
+  };
+
   return (
     <AuthContext.Provider 
       value={{ 
@@ -187,7 +229,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoading, 
         signUp, 
         signIn, 
-        signOut 
+        signOut, 
+        signInWithGoogle: signInWithGoogleSSO 
       }}
     >
       {children}

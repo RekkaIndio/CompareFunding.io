@@ -1,3 +1,16 @@
+/**
+ * EmailPasswordPage - First step in the signup journey
+ * 
+ * Features:
+ * - Traditional email/password signup
+ * - Google SSO integration
+ * - Password strength validation
+ * - Seamless continuation to signup journey
+ * 
+ * Both email/password and SSO users are directed to the next step (/signup-journey/apply)
+ * with proper user identification data passed through React Router state.
+ */
+
 import { useEffect, useState } from 'react';
 import { Eye, EyeOff, Mail, Lock, Check, X } from 'lucide-react';
 import { useNavbar } from '@/contexts/NavbarContext';
@@ -5,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import SignUpLayout from '@/components/SignUpLayout';
+import SSOButtons from '@/components/SSOButtons';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -13,7 +27,7 @@ import '../../styles/animations.css';
 const EmailPasswordPage = () => {
   const navigate = useNavigate();
   const { showNavbar, hideNavbar } = useNavbar();
-  const { signUp } = useAuth();
+  const { signUp, signInWithGoogle } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -137,15 +151,33 @@ const EmailPasswordPage = () => {
     }
   };
 
+  // Handle SSO success - continue the signup journey
+  const handleSSOSuccess = (userData: any) => {
+    // Continue to the next step in the signup journey with SSO user data
+    navigate('/signup-journey/apply', { 
+      state: { 
+        userId: userData.userId,
+        ssoProvider: userData.provider,
+        email: userData.email,
+        displayName: userData.displayName
+      } 
+    });
+  };
+
+  // Handle SSO error
+  const handleSSOError = (error: string) => {
+    toast.error(error);
+  };
+
   const sidebarProps = {
     title: "Create Your Account",
     description: "Start your funding journey by creating a secure account. We'll help you find the best funding options for your business.",
     highlight: "Trusted by 10,000+ businesses",
     tips: [
-      "Use a business email address if possible",
+      "Use Google Sign-In for quick account creation",
+      "Or create account with email and secure password",
       "Choose a strong password with at least 6 characters",
-      "Include uppercase letters, numbers, and special characters",
-      "Make sure your passwords match before submitting"
+      "Include uppercase letters, numbers, and special characters"
     ]
   };
 
@@ -182,6 +214,15 @@ const EmailPasswordPage = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6 animate-fadeIn delay-200">
+          {/* SSO Buttons Section */}
+          <SSOButtons
+            onSuccess={handleSSOSuccess}
+            onError={handleSSOError}
+            isLoading={isLoading}
+            setIsLoading={setIsLoading}
+            signInWithGoogle={signInWithGoogle}
+          />
+
           <div className="space-y-1 sm:space-y-2">
             <Label htmlFor="email" className="text-[#2a3441] text-sm sm:text-base font-medium flex items-center gap-2">
               <Mail className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#ff8000]" />
@@ -292,7 +333,7 @@ const EmailPasswordPage = () => {
                 <span>Creating Account...</span>
               </div>
             ) : (
-              'Create Account & Continue'
+              'Create Account with Email'
             )}
           </Button>
 
