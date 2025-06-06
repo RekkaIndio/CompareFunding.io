@@ -8,17 +8,15 @@ import {
 } from "@/components/ui/card";
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { HandCoins, ThumbsUp, MessageSquare, BarChart4 } from 'lucide-react';
+import { HandCoins, ThumbsUp, BarChart4 } from 'lucide-react';
 
 interface OffersSectionProps {
   application: any;
-  selectLenderConversation: (lenderId: string, lenderName: string, offerId?: string) => void;
   handleRespondToInterest: (lender: any, response: 'accepted' | 'rejected') => Promise<void>;
 }
 
 const OffersSection: React.FC<OffersSectionProps> = ({ 
   application, 
-  selectLenderConversation,
   handleRespondToInterest
 }) => {
   if (!application) return null;
@@ -181,18 +179,6 @@ const OffersSection: React.FC<OffersSectionProps> = ({
                         Decline
                       </Button>
                     </div>
-                  )}
-                  
-                  {offer.id && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="mt-3 text-[#212936] hover:bg-slate-100 hover:text-[#212936]/80"
-                      onClick={() => selectLenderConversation(offer.lender_id, offer.lender_name, offer.id)}
-                    >
-                      <MessageSquare className="mr-1 h-3 w-3" />
-                      <span className="text-xs">Message Lender</span>
-                    </Button>
                   )}
                 </div>
               </div>

@@ -1,9 +1,6 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
-import { getDocument, updateDocument, getDocuments, createDocument, deductCredits } from '@/firebase';
-import { getFirestore, collection, query, where, getDocs } from 'firebase/firestore';
 import { toast } from 'sonner';
 import PageLayout from '@/components/PageLayout';
 import { Button } from '@/components/ui/button';
@@ -25,24 +22,7 @@ import BusinessProfileCard from '@/pages/Applications/ApplicationDetail/componen
 import CreditScoreCard from '@/pages/Applications/ApplicationDetail/components/CreditScoreCard';
 import FinancialDocumentsSection from '@/pages/Applications/ApplicationDetail/components/FinancialDocumentsSection';
 import OffersSection from '@/pages/Applications/ApplicationDetail/components/OffersSection';
-import CommunicationSection from '@/pages/Applications/ApplicationDetail/components/CommunicationSection';
 import { useApplicationData, useLenderCredits } from '@/pages/Applications/ApplicationDetail/hooks';
-
-interface Conversation {
-  id: string;
-  lenderId: string;
-  lenderName: string;
-}
-
-interface Message {
-  id?: string;
-  conversation_id: string;
-  message: string;
-  sender_id: string;
-  timestamp: string;
-  read: boolean;
-  [key: string]: any;
-}
 
 const ApplicationDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -51,8 +31,6 @@ const ApplicationDetail = () => {
   const [hasViewedDetails, setHasViewedDetails] = useState<boolean>(false);
   const [isDeductingCredits, setIsDeductingCredits] = useState<boolean>(false);
   const [showLowCreditsDialog, setShowLowCreditsDialog] = useState<boolean>(false);
-  const [newMessage, setNewMessage] = useState<string>('');
-  const [selectedLenderConversation, setSelectedLenderConversation] = useState<Conversation | null>(null);
   
   // Use our custom hooks
   const { 
@@ -89,78 +67,10 @@ const ApplicationDetail = () => {
   // Check if user is a matched lender for this application
   const isMatchedLender = application?.matched_lenders?.includes(user?.uid) || false;
 
-  // Fetch messages for selected conversation
-  const { data: messages, isLoading: messagesLoading, refetch: refetchMessages } = useQuery<Message[]>({
-    queryKey: ['messages', selectedLenderConversation?.id],
-    queryFn: async () => {
-      if (!selectedLenderConversation?.id) return [];
-      
-      const { data } = await getDocuments(
-        'messages',
-        [{ field: 'conversation_id', operator: '==', value: selectedLenderConversation.id }],
-        [{ field: 'timestamp', direction: 'asc' }]
-      );
-      
-      return data || [];
-    },
-    enabled: !!selectedLenderConversation?.id
-  });
-
-  // Function to select a lender for conversation
-  const selectLenderConversation = (lenderId: string, lenderName: string, offerId?: string) => {
-    setSelectedLenderConversation({
-      id: offerId || lenderId, // Use offer ID if available, otherwise use lender ID
-      lenderId: lenderId,
-      lenderName: lenderName
-    });
-  };
-
-  // Function to send a message
-  const sendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newMessage.trim() || !selectedLenderConversation || !user || !id) return;
-
-    try {
-      // Create the message
-      const messageData = {
-        conversation_id: selectedLenderConversation.id,
-        offer_id: selectedLenderConversation.id, // If using offer ID as conversation ID
-        application_id: id,
-        sender_id: user.uid,
-        sender_type: 'business',
-        recipient_id: selectedLenderConversation.lenderId,
-        message: newMessage.trim(),
-        timestamp: new Date().toISOString(),
-        read: false
-      };
-
-      const result = await createDocument('messages', messageData);
-      if (result.error) throw result.error;
-
-      // Create a notification for the lender
-      await createDocument('notifications', {
-        recipient_id: selectedLenderConversation.lenderId,
-        type: 'new_message',
-        title: 'New message',
-        message: `New message from Application #${application.application_number || id?.substring(0, 8)}`,
-        related_entity_id: selectedLenderConversation.id,
-        related_entity_type: 'conversation',
-        read: false,
-        sent_at: new Date().toISOString()
-      });
-
-      setNewMessage('');
-      refetchMessages();
-    } catch (err) {
-      console.error('Error sending message:', err);
-      toast.error('Failed to send message');
-    }
-  };
-
   return (
     <PageLayout>
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-gray-100">
-        <div className="w-full py-8 px-6">
+        <div className="w-full max-w-7xl mx-auto py-8 px-6">
           <Button
             variant="ghost"
             className="mb-6 hover:bg-white/60 text-slate-700 hover:text-slate-900 border border-slate-200/50 backdrop-blur-sm"
@@ -231,22 +141,31 @@ const ApplicationDetail = () => {
                 {application.offers && application.offers.length > 0 && (
                   <OffersSection 
                     application={application} 
-                    selectLenderConversation={selectLenderConversation}
                     handleRespondToInterest={handleRespondToInterest}
                   />
                 )}
 
-                {/* Communication Section */}
-                <CommunicationSection
-                  application={application}
-                  user={user}
-                  selectedLenderConversation={selectedLenderConversation}
-                  selectLenderConversation={selectLenderConversation}
-                  messages={messages}
-                  newMessage={newMessage}
-                  setNewMessage={setNewMessage}
-                  sendMessage={sendMessage}
-                />
+                {/* Continue to Review Button - for non-lenders */}
+                {!application?.isLender && application.status !== 'draft' && (
+                  <div className="mt-8 text-center">
+                    <Button 
+                      className="bg-[#212936] hover:bg-[#212936]/90 border-b-2 border-[#ff8000] px-8 py-3 text-lg"
+                      onClick={() => navigate(`/applications/${id}/review`)}
+                    >
+                      Continue to Review
+                    </Button>
+                  </div>
+                )}
+
+                {/* Additional Continue to Review Button at Bottom - for all users */}
+                <div className="mt-12 pt-8 border-t border-slate-200/50 text-center">
+                  <Button 
+                    className="bg-[#212936] hover:bg-[#212936]/90 border-b-2 border-[#ff8000] px-8 py-3 text-lg"
+                    onClick={() => navigate(`/applications/${id}/review`)}
+                  >
+                    Continue to Review
+                  </Button>
+                </div>
 
                 {/* Low Credits Dialog */}
                 {showLowCreditsDialog && (

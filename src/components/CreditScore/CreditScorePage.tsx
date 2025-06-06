@@ -125,80 +125,95 @@ const CreditScorePage: React.FC = () => {
   const loadSavedCreditReport = async () => {
     if (user?.uid) {
       try {
-
         setIsLoading(true);
         
-        // First try to get data from the credit_score subcollection
+        // First try to get data from the credit_score subcollection (NEW PATH)
         const creditScoreDoc = await getDocument('businesses', `${user.uid}/credit_score/latest`);
+        // If that fails, try the financials subcollection (OLD PATH)
+        let financialsDoc = null;
+        if (!creditScoreDoc?.data || Object.keys(creditScoreDoc.data).length === 0) {
+          financialsDoc = await getDocument('businesses', `${user.uid}/financials/credit_score`);
+        }
 
-        
-        // If we found data in the subcollection, use that
-        if (creditScoreDoc?.data && Object.keys(creditScoreDoc.data).length > 0) {
+        // Use whichever document we found
+        const foundDoc = creditScoreDoc?.data && Object.keys(creditScoreDoc.data).length > 0 
+          ? creditScoreDoc 
+          : financialsDoc;
 
+        // If we found data in either location, use that
+        if (foundDoc?.data && Object.keys(foundDoc.data).length > 0) {
           setReportSaved(true);
           
           // Create a company object from the saved data
           const savedCompany: Company = {
-            name: creditScoreDoc.data.company_name || '',
-            registrationNumber: creditScoreDoc.data.company_number || '',
-            status: creditScoreDoc.data.company_status || '',
+            name: foundDoc.data.data?.company_name || foundDoc.data.company_name || '',
+            registrationNumber: foundDoc.data.data?.company_number || foundDoc.data.company_number || '',
+            status: foundDoc.data.data?.company_status || foundDoc.data.company_status || '',
             // If we have a connect ID, save that too for potential future API calls
-            connectId: creditScoreDoc.data.connect_id
+            connectId: foundDoc.data.data?.connect_id || foundDoc.data.connect_id
           };
           
           // Create a credit report object from the saved data
-          const savedReport: CreditReport = {
-            report: creditScoreDoc.data.raw_report || {
-              companyIdentification: {
-                basicInformation: {
+          let savedReport: CreditReport;
+          
+          // First, try to use the raw_data if it exists (this is the original API response)
+          if (foundDoc.data.raw_data) {
+            savedReport = foundDoc.data.raw_data;
+          } else {
+            // Fallback: reconstruct from normalized data
+            savedReport = {
+              report: {
+                companyIdentification: {
+                  basicInformation: {
+                    businessName: savedCompany.name,
+                    companyRegistrationNumber: savedCompany.registrationNumber,
+                    companyRegistrationDate: foundDoc.data.data?.registration_date || foundDoc.data.registration_date || foundDoc.data.data?.incorporation_date,
+                    companyStatus: { 
+                      description: foundDoc.data.data?.status || foundDoc.data.status || foundDoc.data.data?.company_status || foundDoc.data.company_status || ''
+                    },
+                    legalForm: {
+                      description: foundDoc.data.data?.legal_form || foundDoc.data.legal_form || foundDoc.data.data?.company_type || foundDoc.data.company_type || ''
+                    }
+                  }
+                },
+                companySummary: {
                   businessName: savedCompany.name,
                   companyRegistrationNumber: savedCompany.registrationNumber,
-                  companyRegistrationDate: creditScoreDoc.data.registration_date || creditScoreDoc.data.incorporation_date,
                   companyStatus: { 
-                    description: creditScoreDoc.data.status || creditScoreDoc.data.company_status || ''
-                  },
-                  legalForm: {
-                    description: creditScoreDoc.data.legal_form || creditScoreDoc.data.company_type || ''
-                  }
-                }
-              },
-              companySummary: {
-                businessName: savedCompany.name,
-                companyRegistrationNumber: savedCompany.registrationNumber,
-                companyStatus: { 
-                  description: creditScoreDoc.data.status || '' 
-                }
-              },
-              creditScore: {
-                currentCreditRating: {
-                  providerValue: { 
-                    value: creditScoreDoc.data.credit_score
-                  },
-                  commonValue: creditScoreDoc.data.common_value,
-                  commonDescription: creditScoreDoc.data.common_description || creditScoreDoc.data.risk,
-                  creditLimit: {
-                    value: creditScoreDoc.data.credit_limit
+                    description: foundDoc.data.data?.status || foundDoc.data.status || '' 
                   }
                 },
-                previousCreditRating: {
-                  commonValue: creditScoreDoc.data.previous_rating,
-                  commonDescription: creditScoreDoc.data.previous_rating_description
+                creditScore: {
+                  currentCreditRating: {
+                    providerValue: { 
+                      value: foundDoc.data.data?.score || foundDoc.data.score || foundDoc.data.data?.credit_score || foundDoc.data.credit_score
+                    },
+                    commonValue: foundDoc.data.data?.common_value || foundDoc.data.common_value,
+                    commonDescription: foundDoc.data.data?.common_description || foundDoc.data.common_description || foundDoc.data.data?.risk || foundDoc.data.risk,
+                    creditLimit: {
+                      value: foundDoc.data.data?.credit_limit || foundDoc.data.credit_limit
+                    }
+                  },
+                  previousCreditRating: {
+                    commonValue: foundDoc.data.data?.previous_rating || foundDoc.data.previous_rating,
+                    commonDescription: foundDoc.data.data?.previous_rating_description || foundDoc.data.previous_rating_description
+                  },
+                  latestRatingChangeDate: foundDoc.data.data?.latest_rating_change || foundDoc.data.latest_rating_change
                 },
-                latestRatingChangeDate: creditScoreDoc.data.latest_rating_change
-              },
-              additionalInformation: {
-                negativeInformation: creditScoreDoc.data.negative_information
-              },
-              contactInformation: {
-                mainAddress: {
-                  simpleValue: creditScoreDoc.data.contact_address || 
-                    (creditScoreDoc.data.address ? 
-                      `${creditScoreDoc.data.address.street || ''} ${creditScoreDoc.data.address.house_number || ''}, ${creditScoreDoc.data.address.city || ''}, ${creditScoreDoc.data.address.postal_code || ''}` : 
-                      '')
+                additionalInformation: {
+                  negativeInformation: foundDoc.data.data?.negative_information || foundDoc.data.negative_information
+                },
+                contactInformation: {
+                  mainAddress: {
+                    simpleValue: foundDoc.data.data?.contact_address || foundDoc.data.contact_address || 
+                      (foundDoc.data.data?.address || foundDoc.data.address ? 
+                        `${(foundDoc.data.data?.address || foundDoc.data.address)?.street || ''} ${(foundDoc.data.data?.address || foundDoc.data.address)?.house_number || ''}, ${(foundDoc.data.data?.address || foundDoc.data.address)?.city || ''}, ${(foundDoc.data.data?.address || foundDoc.data.address)?.postal_code || ''}` : 
+                        '')
+                  }
                 }
               }
-            }
-          };
+            };
+          }
           
           // Set the state with the saved data
           setSelectedCompany(savedCompany);
@@ -207,10 +222,7 @@ const CreditScorePage: React.FC = () => {
         } else {
           // Fallback to the old method - try to get data from the main business document
           const userProfile = await getDocument('businesses', user.uid);
-
-          
           if (userProfile?.data?.credit_info && Object.keys(userProfile.data.credit_info).length > 0) {
-
             setReportSaved(true);
             
             // Create a company object from the saved data
@@ -247,41 +259,28 @@ const CreditScorePage: React.FC = () => {
                 creditScore: {
                   currentCreditRating: {
                     providerValue: { 
-                      value: userProfile.data.credit_info.credit_score
+                      value: userProfile.data.credit_info.credit_score || userProfile.data.credit_info.score
                     },
                     commonValue: userProfile.data.credit_info.common_value,
-                    commonDescription: userProfile.data.credit_info.common_description || userProfile.data.credit_info.risk
+                    commonDescription: userProfile.data.credit_info.common_description || userProfile.data.credit_info.risk,
+                    creditLimit: {
+                      value: userProfile.data.credit_info.credit_limit
+                    }
                   }
                 }
               }
             };
             
+            // Set the state with the saved data
             setSelectedCompany(savedCompany);
             setCreditReport(savedReport);
-            
-            // Also migrate this data to the new subcollection structure for future use
-
-            try {
-              await createDocument('businesses', {
-                ...userProfile.data.credit_info,
-                raw_report: null,
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-                migrated_from_main_doc: true
-              }, `${user.uid}/credit_score/latest`);
-              
-
-            } catch (migrationError) {
-              console.error("Error migrating credit info to subcollection:", migrationError);
-            }
-            
             return true;
+          } else {
+            return false;
           }
-          
-          return false;
         }
       } catch (error) {
-        console.error("Error loading saved credit report:", error);
+        console.error("❌ Error loading saved credit report:", error);
         return false;
       } finally {
         setIsLoading(false);
@@ -536,60 +535,57 @@ const CreditScorePage: React.FC = () => {
 
   return (
     <PageLayout showSidebar={true}>
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-        <div className="container mx-auto py-8 px-4 max-w-7xl">
-          {/* Header Section */}
-          <div className="mb-8">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
-              <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-6">
-                <div>
-                  <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent mb-3">
-                    Business Credit Analysis
-                  </h1>
-                  <p className="text-gray-600 text-lg leading-relaxed">
-                    Comprehensive credit reports and financial insights for informed business decisions
-                  </p>
-                </div>
-                {user && reportSaved && (
-                  <div className="flex items-center space-x-4">
-                    <div className="flex items-center text-green-600 bg-green-50 px-4 py-2 rounded-lg">
-                      <CheckCircle className="h-5 w-5 mr-2" />
-                      <span className="font-medium">Report Saved</span>
-                    </div>
-                    <button
-                      onClick={reloadSavedReport}
-                      disabled={isLoading || isManualReload}
-                      className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 
-                               text-white px-6 py-3 rounded-lg transition-all duration-200 flex items-center 
-                               shadow-lg hover:shadow-xl transform hover:scale-105 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {isManualReload ? (
-                        <>
-                          <div className="mr-3 w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                          Refreshing...
-                        </>
-                      ) : (
-                        <>
-                          <RefreshCw className="w-5 h-5 mr-2" />
-                          Refresh Report
-                        </>
-                      )}
-                    </button>
-                  </div>
-                )}
-              </div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-gray-100" data-tour="credit-score-detail">
+        <div className="container px-6 py-8 mx-auto">
+      
+          {/* Main Header Section - matching OffersList style */}
+          <div className="bg-[#212936] text-white rounded-xl p-6 sm:p-8 mb-8 shadow-xl border-b-2 border-[#ff8000] flex flex-col md:flex-row justify-between items-start md:items-center">
+            <div>
+              <h1 className="text-3xl sm:text-4xl font-bold mb-2 tracking-tight text-white">
+                Business Credit Analysis
+              </h1>
+              <p className="text-gray-200 text-base sm:text-lg">
+                Comprehensive credit reports and financial insights for informed business decisions
+              </p>
             </div>
+            {user && reportSaved && (
+              <div className="flex items-center space-x-4 mt-4 md:mt-0">
+                <div className="flex items-center text-emerald-400 bg-emerald-500/20 px-4 py-2 rounded-lg border border-emerald-500/30">
+                  <CheckCircle className="h-5 w-5 mr-2" />
+                  <span className="font-medium">Report Saved</span>
+                </div>
+                <button
+                  onClick={reloadSavedReport}
+                  disabled={isLoading || isManualReload}
+                  className="bg-gradient-to-r from-[#ff8800] to-[#ffaa00] hover:from-[#ff9900] hover:to-[#ffbb00] 
+                           text-white px-6 py-3 rounded-lg transition-all duration-200 flex items-center 
+                           shadow-md hover:shadow-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isManualReload ? (
+                    <>
+                      <div className="mr-3 w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Refreshing...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="w-5 h-5 mr-2" />
+                      Refresh Report
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Empty State - when no company data is available */}
           {!isLoading && !selectedCompany && !creditReport && (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12">
+            <div className="bg-gradient-to-br from-slate-800 to-slate-900 border-slate-700 rounded-xl shadow-xl border p-12">
               <div className="text-center">
-                <div className="bg-gray-100 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-6">
-                  <Building2 className="h-10 w-10 text-gray-400" />
+                <div className="bg-slate-700/50 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-6 border border-slate-600">
+                  <Building2 className="h-10 w-10 text-slate-400" />
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">No Credit Report Available</h3>
-                <p className="text-gray-600 max-w-md mx-auto">
+                <h3 className="text-xl font-semibold text-white mb-2">No Credit Report Available</h3>
+                <p className="text-slate-300 max-w-md mx-auto">
                   Complete your business details form to automatically generate and view your company's credit report.
                 </p>
               </div>
@@ -598,16 +594,16 @@ const CreditScorePage: React.FC = () => {
 
           {/* Loading State */}
           {isLoading && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-16">
+            <div className="bg-gradient-to-br from-slate-800 to-slate-900 border-slate-700 rounded-xl shadow-xl border p-16">
               <div className="flex flex-col items-center justify-center">
                 <div className="relative mb-6">
-                  <div className="h-16 w-16 border-4 border-blue-200 rounded-full animate-spin"></div>
-                  <div className="absolute top-0 left-0 h-16 w-16 border-4 border-blue-600 rounded-full animate-spin border-t-transparent"></div>
+                  <div className="h-16 w-16 border-4 border-slate-600 rounded-full animate-spin"></div>
+                  <div className="absolute top-0 left-0 h-16 w-16 border-4 border-[#ff8000] rounded-full animate-spin border-t-transparent"></div>
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                <h3 className="text-xl font-semibold text-white mb-2">
                   {selectedCompany ? 'Generating Credit Report' : 'Loading Credit Data'}
                 </h3>
-                <p className="text-gray-600 text-center max-w-md">
+                <p className="text-slate-300 text-center max-w-md">
                   {selectedCompany 
                     ? 'Please wait while we fetch the latest credit information and risk analysis...'
                     : isManualReload 
@@ -624,31 +620,21 @@ const CreditScorePage: React.FC = () => {
             <div className="space-y-8">
               {/* Status Alerts */}
               {reportSaved && isManualReload && (
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
+                <div className="bg-blue-500/20 border border-blue-500/30 rounded-xl p-6">
                   <div className="flex items-start">
-                    <Info className="h-6 w-6 text-blue-600 mt-0.5 mr-4 flex-shrink-0" />
+                    <Info className="h-6 w-6 text-blue-400 mt-0.5 mr-4 flex-shrink-0" />
                     <div>
-                      <h4 className="text-blue-900 font-semibold mb-2">Loaded from Profile</h4>
-                      <p className="text-blue-800">You are viewing the credit report saved to your business profile.</p>
+                      <h4 className="text-blue-300 font-semibold mb-2">Loaded from Profile</h4>
+                      <p className="text-blue-200">You are viewing the credit report saved to your business profile.</p>
                     </div>
                   </div>
                 </div>
               )}
               
-              {reportSaved && !isManualReload && (
-                <div className="bg-green-50 border border-green-200 rounded-xl p-6">
-                  <div className="flex items-start">
-                    <CheckCircle2 className="h-6 w-6 text-green-600 mt-0.5 mr-4 flex-shrink-0" />
-                    <div>
-                      <h4 className="text-green-900 font-semibold mb-2">Report Saved Successfully</h4>
-                      <p className="text-green-800">This credit report has been saved to your business profile for future reference.</p>
-                    </div>
-                  </div>
-                </div>
-              )}
+              {/* FOr ac */}
               
               {/* Main Credit Report Card */}
-              <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+              <div className="bg-gradient-to-br from-slate-800 to-slate-900 border-slate-700 rounded-xl shadow-xl border overflow-hidden">
                 <CompanyHeader
                   creditReport={creditReport}
                   selectedCompany={selectedCompany}
@@ -657,13 +643,13 @@ const CreditScorePage: React.FC = () => {
                 
                 {/* Enhanced Tabs */}
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                  <div className="bg-gray-50 border-b border-gray-200 px-6">
+                  <div className="bg-slate-700/50 border-b border-slate-600 px-6">
                     <TabsList className="bg-transparent h-auto space-x-2 py-4">
                       <TabsTrigger 
                         value="overview" 
-                        className="data-[state=active]:bg-blue-600 data-[state=active]:text-white 
-                                 data-[state=inactive]:text-gray-700 data-[state=inactive]:hover:text-gray-900
-                                 data-[state=inactive]:hover:bg-white data-[state=inactive]:bg-transparent
+                        className="data-[state=active]:bg-[#ff8000] data-[state=active]:text-white 
+                                 data-[state=inactive]:text-slate-300 data-[state=inactive]:hover:text-white
+                                 data-[state=inactive]:hover:bg-slate-600 data-[state=inactive]:bg-transparent
                                  px-6 py-3 rounded-lg font-medium transition-all duration-200 border-0 shadow-sm"
                       >
                         <BarChart3 className="h-4 w-4 mr-2" />
@@ -671,9 +657,9 @@ const CreditScorePage: React.FC = () => {
                       </TabsTrigger>
                       <TabsTrigger 
                         value="negative" 
-                        className="data-[state=active]:bg-blue-600 data-[state=active]:text-white 
-                                 data-[state=inactive]:text-gray-700 data-[state=inactive]:hover:text-gray-900
-                                 data-[state=inactive]:hover:bg-white data-[state=inactive]:bg-transparent
+                        className="data-[state=active]:bg-[#ff8000] data-[state=active]:text-white 
+                                 data-[state=inactive]:text-slate-300 data-[state=inactive]:hover:text-white
+                                 data-[state=inactive]:hover:bg-slate-600 data-[state=inactive]:bg-transparent
                                  px-6 py-3 rounded-lg font-medium transition-all duration-200 border-0 shadow-sm"
                       >
                         <AlertTriangle className="h-4 w-4 mr-2" />
@@ -681,9 +667,9 @@ const CreditScorePage: React.FC = () => {
                       </TabsTrigger>
                       <TabsTrigger 
                         value="risk" 
-                        className="data-[state=active]:bg-blue-600 data-[state=active]:text-white 
-                                 data-[state=inactive]:text-gray-700 data-[state=inactive]:hover:text-gray-900
-                                 data-[state=inactive]:hover:bg-white data-[state=inactive]:bg-transparent
+                        className="data-[state=active]:bg-[#ff8000] data-[state=active]:text-white 
+                                 data-[state=inactive]:text-slate-300 data-[state=inactive]:hover:text-white
+                                 data-[state=inactive]:hover:bg-slate-600 data-[state=inactive]:bg-transparent
                                  px-6 py-3 rounded-lg font-medium transition-all duration-200 border-0 shadow-sm"
                       >
                         <Shield className="h-4 w-4 mr-2" />
@@ -693,7 +679,7 @@ const CreditScorePage: React.FC = () => {
                   </div>
                   
                   {/* Tab Content */}
-                  <div className="bg-white">
+                  <div className="bg-gradient-to-br from-slate-800 to-slate-900">
                     <TabsContent value="overview" className="p-0 m-0">
                       <OverviewTab creditReport={creditReport} />
                     </TabsContent>

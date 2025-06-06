@@ -11,14 +11,31 @@ import { serverTimestamp } from 'firebase/firestore';
 export const normalizeCreditScoreData = (creditInfo: any) => {
   if (!creditInfo) return null;
   
+  // Parse credit_score safely if it exists, ensuring we handle string or number types
+  let score = null;
+  if (creditInfo.credit_score !== undefined && creditInfo.credit_score !== null) {
+    // First ensure we have a value to work with
+    if (creditInfo.credit_score !== '' && creditInfo.credit_score !== 'N/A') {
+      // Convert to number if it's a string or already a number
+      score = typeof creditInfo.credit_score === 'string' 
+        ? parseInt(creditInfo.credit_score, 10) 
+        : Number(creditInfo.credit_score);
+      
+      // If conversion fails or results in NaN, set to null
+      if (isNaN(score)) {
+        score = null;
+      }
+    }
+  }
+  
   // Standard format we want to return
   const normalized = {
-    score: creditInfo.credit_score,
-    risk_level: creditInfo.risk || creditInfo.common_description,
-    company_status: creditInfo.status || creditInfo.company_status,
-    international_score: creditInfo.international_score || creditInfo.international_value,
-    credit_limit: creditInfo.credit_limit,
-    negative_information: creditInfo.negative_information,
+    score: score,
+    risk_level: creditInfo.risk || creditInfo.common_description || '',
+    company_status: creditInfo.status || creditInfo.company_status || '',
+    international_score: creditInfo.international_score || creditInfo.international_value || '',
+    credit_limit: creditInfo.credit_limit || '',
+    negative_information: creditInfo.negative_information || '',
     last_updated: new Date().toISOString(),
     details: { ...creditInfo }, // Keep all original data in a details sub-object
     _dataVersion: '1.0',

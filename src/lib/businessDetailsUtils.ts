@@ -20,29 +20,38 @@ interface CompanySearchResult {
 
 // Fetch credit data for a company
 export const fetchCreditData = async (companyName: string, countryCode: string = 'GB') => {
+  console.log('🔍 Starting fetchCreditData for:', { companyName, countryCode });
+  
   try {
+    console.log('🔐 Authenticating with CreditSafe...');
     const token = await authenticateWithCreditSafe();
+    console.log('✅ CreditSafe authentication successful');
+    
+    console.log('🔍 Searching for company...');
     const searchResults: { companies?: Array<CompanySearchResult> } = await searchCompanyByNameDirect(companyName, countryCode);
-
-
+    console.log('📋 Company search results:', searchResults);
 
     if (searchResults.companies && searchResults.companies.length > 0) {
       const company = searchResults.companies[0];
+      console.log('🏢 Selected company:', company);
+      
       // Now TypeScript knows that 'identification' might exist on company
       const connectId = company.connectId || company.id || 
         (company.identification && (company.identification.connectId || company.identification.id));
-        
-
+      
+      console.log('🔗 Connect ID found:', connectId);
 
       if (!connectId) {
-        console.warn('connectId is missing in the company search results:', JSON.stringify(searchResults));
+        console.warn('❌ connectId is missing in the company search results:', JSON.stringify(searchResults));
         return { 
           error: 'Missing connectId',
           company: company // Return the company info we have
         };
       }
 
+      console.log('📊 Fetching credit report...');
       const creditReport = await getCreditReportDirect(connectId);
+      console.log('✅ Credit report fetched successfully:', creditReport);
       
       // Set flag in session storage to indicate we need to save the credit report when user visits CreditScore page
       sessionStorage.setItem('from_business_form', 'true');
@@ -50,14 +59,14 @@ export const fetchCreditData = async (companyName: string, countryCode: string =
       
       return creditReport;
     } else {
-      console.warn('No companies found matching the provided name:', companyName);
+      console.warn('❌ No companies found matching the provided name:', companyName);
       return {
         error: 'No companies found',
         searchQuery: companyName
       };
     }
   } catch (error) {
-    console.error('Error fetching credit data:', error);
+    console.error('❌ Error fetching credit data:', error);
     // Return partial error information instead of throwing
     return {
       error: error instanceof Error ? error.message : 'Unknown error fetching credit data',

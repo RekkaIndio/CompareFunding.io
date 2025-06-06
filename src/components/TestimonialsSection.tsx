@@ -2,125 +2,153 @@
 import { useState } from 'react';
 import TestimonialCard from './TestimonialCard';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { Star } from 'lucide-react';
 
 const TestimonialsSection = () => {
   const testimonials = [
     {
-      quote: "FundHub completely transformed how we secure financing. The platform connected us with multiple lenders who competed for our business, resulting in much better terms than we've ever had before.",
-      author: "Sarah Johnson",
-      role: "CFO",
-      company: "TechGrowth Solutions",
+      quote: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.",
+      author: "Morten Andersen",
+      date: "20.05.2025",
+      rating: 4.7,
+      source: "all"
     },
     {
-      quote: "As a lender, FundHub has dramatically reduced our customer acquisition costs. The quality of businesses on the platform is excellent, and the transparent matching system works brilliantly.",
-      author: "David Chen",
-      role: "Director of SME Lending",
-      company: "Horizon Capital",
+      quote: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.",
+      author: "Charlotte Mortensen",
+      date: "20.05.2025",
+      rating: 4.7,
+      source: "trustpilot"
     },
     {
-      quote: "We were struggling to find fair financing until we found FundHub. Within days, we had multiple offers and secured the capital we needed to expand our production line.",
-      author: "Michael Okafor",
-      role: "Managing Director",
-      company: "Premium Packaging Ltd",
+      quote: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.",
+      author: "Mia Sørensen",
+      date: "20.05.2025",
+      rating: 4.7,
+      source: "trustpilot"
     },
     {
-      quote: "The FundHub platform is intuitive and powerful. We can now manage all our financing applications in one place and get funding decisions much faster than with traditional brokers.",
-      author: "Emma Richards",
-      role: "Finance Manager",
-      company: "Sustainable Living Co.",
+      quote: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.",
+      author: "Thomas Madsen",
+      date: "20.05.2025",
+      rating: 4.7,
+      source: "google"
     },
     {
-      quote: "What sets FundHub apart is their technology. The accounting integration and matching algorithm helped us find the perfect lender for our specific industry and needs.",
-      author: "Robert Patel",
-      role: "CEO",
-      company: "Innovative Manufacturing",
-    },
-    {
-      quote: "We've been able to reach qualified borrowers at a fraction of the cost. The subscription model aligns FundHub's interests with ours - quality matches rather than pushing large loans.",
-      author: "Jessica Wong",
-      role: "Head of Business Development",
-      company: "Alliance Finance",
+      quote: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.",
+      author: "Jeff Hansen",
+      date: "20.05.2025",
+      rating: 4.7,
+      source: "google"
     },
   ];
   
   const [activeIndex, setActiveIndex] = useState(0);
+  const [activeFilter, setActiveFilter] = useState("all");
   
-  const nextSlide = () => {
-    setActiveIndex((prevIndex) => 
-      prevIndex + 3 >= testimonials.length ? 0 : prevIndex + 3
-    );
-  };
+  const filteredTestimonials = activeFilter === "all" 
+    ? testimonials 
+    : testimonials.filter(t => t.source === activeFilter);
   
-  const prevSlide = () => {
-    setActiveIndex((prevIndex) => 
-      prevIndex - 3 < 0 ? Math.max(0, testimonials.length - 3) : prevIndex - 3
-    );
+  const handleDotClick = (index: number) => {
+    setActiveIndex(index);
   };
   
   return (
-    <section className="py-16 md:py-24 bg-white">
+    <section className="py-12 md:py-16 lg:py-24 bg-white">
       <div className="container mx-auto px-4">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-12">
-          <div className="max-w-2xl">
-            <p className="text-fundhub-blue font-medium mb-3">Testimonials</p>
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              What our clients say
-            </h2>
-            <p className="text-lg text-muted-foreground">
-              Businesses and lenders alike are transforming how they connect through our platform.
-            </p>
-          </div>
+        <div className="text-center mb-8 sm:mb-12">
+          <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold mb-4">
+            We have helped over 20 000 businesses
+          </h2>
+          <p className="text-base sm:text-lg px-2">
+            Apply today and join our community of happy customers!
+          </p>
           
-          <div className="flex space-x-2 mt-6 md:mt-0">
+          <div className="flex flex-wrap justify-center mt-6 sm:mt-8 gap-2">
             <Button
-              variant="outline"
-              size="icon"
-              onClick={prevSlide}
-              className="rounded-full"
-              aria-label="Previous testimonials"
+              variant={activeFilter === "all" ? "default" : "outline"}
+              onClick={() => setActiveFilter("all")}
+              className={`rounded-full px-4 sm:px-8 text-sm sm:text-base ${activeFilter === "all" ? "bg-orange-500 hover:bg-orange-600" : ""}`}
+              size="sm"
             >
-              <ChevronLeft className="h-5 w-5" />
+              All
             </Button>
             <Button
-              variant="outline"
-              size="icon"
-              onClick={nextSlide}
-              className="rounded-full"
-              aria-label="Next testimonials"
+              variant={activeFilter === "trustpilot" ? "default" : "outline"}
+              onClick={() => setActiveFilter("trustpilot")}
+              className={`rounded-full px-4 sm:px-8 text-sm sm:text-base ${activeFilter === "trustpilot" ? "bg-orange-500 hover:bg-orange-600" : ""}`}
+              size="sm"
             >
-              <ChevronRight className="h-5 w-5" />
+              Trustpilot
+            </Button>
+            <Button
+              variant={activeFilter === "google" ? "default" : "outline"}
+              onClick={() => setActiveFilter("google")}
+              className={`rounded-full px-4 sm:px-8 text-sm sm:text-base ${activeFilter === "google" ? "bg-orange-500 hover:bg-orange-600" : ""}`}
+              size="sm"
+            >
+              Google
             </Button>
           </div>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {testimonials.slice(activeIndex, activeIndex + 3).map((testimonial, index) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 sm:gap-6 overflow-hidden">
+          {filteredTestimonials.slice(activeIndex, activeIndex + 5).map((testimonial, index) => (
             <TestimonialCard
               key={index + activeIndex}
               quote={testimonial.quote}
               author={testimonial.author}
-              role={testimonial.role}
-              company={testimonial.company}
+              date={testimonial.date}
+              rating={testimonial.rating}
+              source={testimonial.source}
               className="animate-fade-in"
               style={{ animationDelay: `${index * 100}ms` }}
             />
           ))}
           
           {/* If we don't have enough testimonials to fill the row */}
-          {testimonials.slice(activeIndex, activeIndex + 3).length < 3 && 
-            testimonials.slice(0, 3 - testimonials.slice(activeIndex, activeIndex + 3).length).map((testimonial, index) => (
+          {filteredTestimonials.slice(activeIndex, activeIndex + 5).length < 5 && 
+            filteredTestimonials.slice(0, 5 - filteredTestimonials.slice(activeIndex, activeIndex + 5).length).map((testimonial, index) => (
               <TestimonialCard
                 key={`extra-${index}`}
                 quote={testimonial.quote}
                 author={testimonial.author}
-                role={testimonial.role}
-                company={testimonial.company}
+                date={testimonial.date}
+                rating={testimonial.rating}
+                source={testimonial.source}
                 className="animate-fade-in"
-                style={{ animationDelay: `${(index + testimonials.slice(activeIndex, activeIndex + 3).length) * 100}ms` }}
+                style={{ animationDelay: `${(index + filteredTestimonials.slice(activeIndex, activeIndex + 5).length) * 100}ms` }}
               />
             ))
           }
+        </div>
+        
+        {/* Pagination dots */}
+        <div className="flex justify-center mt-6 sm:mt-8">
+          {/* We show different number of dots based on screen size */}
+          <div className="block xl:hidden">
+            {/* Mobile, tablet, and small desktop: fewer dots */}
+            {Array.from({ length: Math.ceil(filteredTestimonials.length / (window.innerWidth < 640 ? 1 : window.innerWidth < 1024 ? 2 : 3)) }).map((_, index) => (
+              <button
+                key={index}
+                onClick={() => handleDotClick(index)}
+                className={`h-2 w-2 mx-1 rounded-full ${index === activeIndex ? 'bg-orange-500' : 'bg-gray-300'}`}
+                aria-label={`Go to slide ${index + 1}`}
+              />
+            ))}
+          </div>
+          <div className="hidden xl:flex">
+            {/* Large desktop: all 5 dots */}
+            {Array.from({ length: Math.ceil(filteredTestimonials.length / 5) }).map((_, index) => (
+              <button
+                key={index}
+                onClick={() => handleDotClick(index)}
+                className={`h-2 w-2 mx-1 rounded-full ${index === activeIndex ? 'bg-orange-500' : 'bg-gray-300'}`}
+                aria-label={`Go to slide ${index + 1}`}
+              />
+            ))}
+          </div>
         </div>
       </div>
     </section>

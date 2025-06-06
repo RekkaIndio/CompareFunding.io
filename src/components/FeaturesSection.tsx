@@ -199,6 +199,110 @@ const FeaturesSection = () => {
             </div>
           </div>
         </div>
+
+        {/* Team Section */}
+        <div className="mt-24 mb-16">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
+            {/* Scott Kirby */}
+            <div className="relative">
+              <div className="aspect-square rounded-lg overflow-hidden bg-gradient-to-br from-blue-900 to-blue-800">
+                <img 
+                  src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=300&h=300&fit=crop&crop=face&auto=format&q=80"
+                  alt="Scott Kirby"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div className="absolute bottom-3 left-3 text-white">
+                <p className="text-xs opacity-80">Co-Founder & CEO</p>
+                <p className="font-semibold text-sm">Scott Kirby</p>
+              </div>
+            </div>
+
+            {/* Robin Souter */}
+            <div className="relative">
+              <div className="aspect-square rounded-lg overflow-hidden">
+                <img 
+                  src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&h=300&fit=crop&crop=face&auto=format&q=80"
+                  alt="Robin Souter"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div className="absolute bottom-3 left-3 text-white">
+                <p className="text-xs opacity-80">CEO</p>
+                <p className="font-semibold text-sm">Robin Souter</p>
+              </div>
+            </div>
+
+            {/* Michael Jacobson */}
+            <div className="relative">
+              <div className="aspect-square rounded-lg overflow-hidden bg-gradient-to-br from-gray-800 to-gray-700">
+                <img 
+                  src="https://images.unsplash.com/photo-1560250097-0b93528c311a?w=300&h=300&fit=crop&crop=face&auto=format&q=80"
+                  alt="Michael Jacobson"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div className="absolute bottom-3 left-3 text-white">
+                <p className="text-xs opacity-80">Head of Software Engineering</p>
+                <p className="font-semibold text-sm">Michael Jacobson</p>
+              </div>
+            </div>
+
+            {/* Jamie Mason-Wright */}
+            <div className="relative">
+              <div className="aspect-square rounded-lg overflow-hidden bg-gradient-to-br from-blue-800 to-orange-500">
+                <img 
+                  src="https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=300&h=300&fit=crop&crop=face&auto=format&q=80"
+                  alt="Jamie Mason-Wright"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div className="absolute bottom-3 left-3 text-white">
+                <p className="text-xs opacity-80">Co-Founder & CTO</p>
+                <p className="font-semibold text-sm">Jamie Mason-Wright</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Transparent Access Section */}
+        <div className="text-center">
+          <h3 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+            Transparent access to finance, no hidden fees
+          </h3>
+          <p className="text-gray-600 text-lg mb-12">
+            Remove the broker, access all products with Compare Funding and see the savings!
+          </p>
+          
+          {/* Lender Logos */}
+          <div className="flex flex-wrap items-center justify-center gap-8 md:gap-12 opacity-60">
+            <div className="h-8 flex items-center">
+              <span className="text-2xl font-bold text-gray-800">LUNAR</span>
+            </div>
+            <div className="h-8 flex items-center">
+              <span className="text-xl font-semibold text-gray-800">Revolut</span>
+            </div>
+            <div className="h-8 flex items-center">
+              <div className="w-8 h-8 bg-red-600 rounded-full flex items-center justify-center mr-2">
+                <span className="text-white text-xs font-bold">NW</span>
+              </div>
+              <span className="text-xl font-semibold text-gray-800">NatWest</span>
+            </div>
+            <div className="h-8 flex items-center">
+              <div className="w-8 h-8 bg-red-600 rounded mr-2"></div>
+              <span className="text-xl font-semibold text-gray-800">Santander</span>
+            </div>
+            <div className="h-8 flex items-center">
+              <div className="w-8 h-8 bg-black rounded-full mr-2 flex items-center justify-center">
+                <span className="text-white text-xs">🐎</span>
+              </div>
+              <span className="text-xl font-bold text-gray-800">LLOYDS</span>
+            </div>
+            <div className="h-8 flex items-center">
+              <span className="text-xl font-bold text-pink-600 bg-pink-100 px-3 py-1 rounded">Klarna.</span>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
   );

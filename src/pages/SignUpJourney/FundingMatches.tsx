@@ -104,75 +104,75 @@ const FundingMatches = () => {
       canGoNext={true}
       sidebarProps={sidebarProps}
     >
-      <div className="space-y-8">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-[#2a3441] mb-3 animate-fadeIn">
+      <div className="space-y-6 sm:space-y-8 px-1 sm:px-3 md:px-0">
+        <div className="text-center mb-5 sm:mb-6 md:mb-8">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-[#2a3441] mb-2 md:mb-3 animate-fadeIn">
             We've Found Your Perfect Matches
           </h1>
-          <p className="text-gray-600 text-lg animate-fadeIn delay-100">
+          <p className="text-gray-600 text-sm sm:text-base md:text-lg animate-fadeIn delay-100">
             These trusted banking partners are ready to provide competitive funding for your business
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 animate-fadeIn delay-200">
-          <Card className="p-8 text-center border-2 border-gray-200 hover:border-[#ff8000] bg-white hover:shadow-lg transition-all duration-300">
-            <div className="flex items-center justify-center h-16 mb-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 md:gap-6 mb-5 sm:mb-6 md:mb-8 animate-fadeIn delay-200">
+          <Card className="p-3 sm:p-5 md:p-8 text-center border-2 border-gray-200 hover:border-[#ff8000] bg-white hover:shadow-lg transition-all duration-300">
+            <div className="flex items-center justify-center h-10 sm:h-12 md:h-16 mb-2 md:mb-4">
               <img 
                 src={metroLogo} 
                 alt="Metro Bank" 
-                className="max-h-12 max-w-full object-contain"
+                className="max-h-8 sm:max-h-10 md:max-h-12 max-w-full object-contain"
               />
             </div>
-            <h3 className="text-lg font-semibold text-[#2a3441]">Metro Bank</h3>
+            <h3 className="text-sm sm:text-base md:text-lg font-semibold text-[#2a3441]">Metro Bank</h3>
           </Card>
 
-          <Card className="p-8 text-center border-2 border-gray-200 hover:border-[#ff8000] bg-white hover:shadow-lg transition-all duration-300">
-            <div className="flex items-center justify-center h-16 mb-4">
+          <Card className="p-3 sm:p-5 md:p-8 text-center border-2 border-gray-200 hover:border-[#ff8000] bg-white hover:shadow-lg transition-all duration-300">
+            <div className="flex items-center justify-center h-10 sm:h-12 md:h-16 mb-2 md:mb-4">
               <img 
                 src={natwestLogo} 
                 alt="NatWest" 
-                className="max-h-12 max-w-full object-contain"
+                className="max-h-8 sm:max-h-10 md:max-h-12 max-w-full object-contain"
               />
             </div>
-            <h3 className="text-lg font-semibold text-[#2a3441]">NatWest</h3>
+            <h3 className="text-sm sm:text-base md:text-lg font-semibold text-[#2a3441]">NatWest</h3>
           </Card>
 
-          <Card className="p-8 text-center border-2 border-gray-200 hover:border-[#ff8000] bg-white hover:shadow-lg transition-all duration-300">
-            <div className="flex items-center justify-center h-16 mb-4">
+          <Card className="p-3 sm:p-5 md:p-8 text-center border-2 border-gray-200 hover:border-[#ff8000] bg-white hover:shadow-lg transition-all duration-300 col-span-2 md:col-span-1">
+            <div className="flex items-center justify-center h-10 sm:h-12 md:h-16 mb-2 md:mb-4">
               <img 
                 src={lloydsLogo} 
                 alt="Lloyds Bank" 
-                className="max-h-12 max-w-full object-contain"
+                className="max-h-8 sm:max-h-10 md:max-h-12 max-w-full object-contain"
               />
             </div>
-            <h3 className="text-lg font-semibold text-[#2a3441]">Lloyds Bank</h3>
+            <h3 className="text-sm sm:text-base md:text-lg font-semibold text-[#2a3441]">Lloyds Bank</h3>
           </Card>
         </div>
 
-        <div className="text-center py-8 animate-fadeIn delay-300">
-          <h3 className="text-xl font-semibold text-[#2a3441] mb-4">
+        <div className="text-center py-4 sm:py-6 md:py-8 animate-fadeIn delay-300">
+          <h3 className="text-base sm:text-lg md:text-xl font-semibold text-[#2a3441] mb-2 sm:mb-3 md:mb-4">
             Your Funding Partners
           </h3>
-          <p className="text-gray-600 text-lg mb-6">
+          <p className="text-gray-600 text-sm sm:text-base md:text-lg mb-3 sm:mb-4 md:mb-5">
             We've connected you with trusted lenders who are ready to provide competitive funding options for your business.
           </p>
-          <div className="flex justify-center items-center gap-2 text-sm text-gray-500">
-            <Check className="w-4 h-4 text-green-500" />
+          <div className="flex flex-wrap justify-center items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-gray-500">
+            <Check className="w-3 h-3 sm:w-4 sm:h-4 text-green-500 flex-shrink-0" />
             <span>Pre-qualified matches based on your requirements</span>
           </div>
         </div>
 
-        <div className="bg-gradient-to-r from-blue-50 to-green-50 p-6 rounded-xl border border-blue-200 text-center animate-fadeIn delay-400">
-          <Users className="w-8 h-8 text-blue-600 mx-auto mb-3" />
-          <h3 className="text-lg font-semibold text-[#2a3441] mb-2">
+        <div className="bg-gradient-to-r from-blue-50 to-green-50 p-4 sm:p-5 md:p-6 rounded-lg sm:rounded-xl border border-blue-200 text-center animate-fadeIn delay-400">
+          <Users className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 text-blue-600 mx-auto mb-1.5 sm:mb-2 md:mb-3" />
+          <h3 className="text-sm sm:text-base md:text-lg font-semibold text-[#2a3441] mb-1.5 sm:mb-2">
             Ready to Get Detailed Offers?
           </h3>
-          <p className="text-gray-600 mb-4">
+          <p className="text-gray-600 text-xs sm:text-sm md:text-base mb-3 sm:mb-4">
             Complete your business profile to receive personalised rates, terms, and pre-approval decisions from our partner lenders.
           </p>
           <Button
             onClick={handleNext}
-            className="bg-gradient-to-r from-[#ff8000] to-[#ff6000] hover:from-[#e67300] hover:to-[#e55a00] text-white font-semibold px-8 py-3 rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg"
+            className="w-full sm:w-auto bg-gradient-to-r from-[#ff8000] to-[#ff6000] hover:from-[#e67300] hover:to-[#e55a00] text-white font-medium sm:font-semibold px-4 sm:px-6 md:px-8 py-2 md:py-3 text-sm sm:text-base rounded-lg sm:rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg"
           >
             Continue to Business Details
           </Button>

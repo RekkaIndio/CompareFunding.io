@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { getDocuments, getLenderApplications, getDocument } from '@/firebase';
@@ -7,6 +7,7 @@ import PageLayout from '@/components/PageLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Filter, Lightbulb } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 // Import sub-components
 import SearchFilterControls from './components/SearchFilterControls';
@@ -14,7 +15,6 @@ import StatsCards from './components/StatsCards';
 import ApplicationsList from './components/ApplicationsList';
 import ApplicationDetailsDialog from './components/ApplicationDetailsDialog';
 import TipsSection from './components/TipsSection';
-import { useNavigate } from 'react-router-dom';
 
 const MatchedApplicationsPage = () => {
   const { user } = useAuth();
@@ -26,6 +26,16 @@ const MatchedApplicationsPage = () => {
   
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Use query parameter to set the initial filter state
+  useEffect(() => {
+    const queryParams = new URLSearchParams(location.search);
+    const filterParam = queryParams.get('filter');
+    if (filterParam && ['all', 'submitted', 'matched', 'approved', 'declined'].includes(filterParam)) {
+      setStatusFilter(filterParam);
+    }
+  }, [location]);
   
   // Fetch lender profile
   const { data: lenderProfile } = useQuery({
@@ -198,16 +208,14 @@ const MatchedApplicationsPage = () => {
     return !isInMatchedLenders && !hasInteractedWith;
   }) || [];
 
-  // Combine all applications for filtering
-  const allApplications = statusFilter === 'all'
-    ? (lenderApplications || [])
-    : [...(matchedApplications || []), ...(availableApplications || [])];
+  // Ensure we always use all applications when filtering
+  const allApplications = lenderApplications || [];
 
   // Check if an application is declined
   const isApplicationDeclined = (app) => {
     if (!app || !user?.uid) return false;
     const interestStatus = app.interested_lenders?.find(l => l.lender_id === user?.uid)?.status?.toLowerCase();
-    return interestStatus === 'rejected';
+    return interestStatus === 'rejected' || interestStatus === 'declined' || interestStatus === 'interest_declined';
   };
 
   // Check if lender is matched with the application
@@ -253,8 +261,7 @@ const MatchedApplicationsPage = () => {
   // Filter and sort applications
   const filteredApplications = allApplications?.filter(app => {
     // For declined applications, only search by ID/number
-    const isDeclined = app.interested_lenders?.find(l => 
-      l.lender_id === user?.uid)?.status?.toLowerCase() === 'rejected';
+    const isDeclined = isApplicationDeclined(app);
     
     const matchesSearch = searchQuery === '' || 
       (!isDeclined && canSeeBusinessDetails(app) && app.business_name?.toLowerCase().includes(searchQuery.toLowerCase())) ||
@@ -262,6 +269,7 @@ const MatchedApplicationsPage = () => {
       app.loan_amount?.toString().includes(searchQuery) ||
       app.id?.toLowerCase().includes(searchQuery.toLowerCase());
 
+    // Show all applications when "all" filter is selected
     if (statusFilter === 'all') return matchesSearch;
       
     // New - fresh applications that haven't been matched yet

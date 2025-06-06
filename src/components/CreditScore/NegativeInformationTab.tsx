@@ -16,13 +16,13 @@ export const NegativeInformationTab: React.FC<NegativeInformationTabProps> = ({ 
       return (
         <ul className="list-disc pl-5 space-y-2">
           {Object.entries(parsed).map(([key, value], i) => (
-            <li key={`neg-item-${i}`} className="text-sm text-amber-700">
+            <li key={`neg-item-${i}`} className="text-sm text-amber-300">
               <span className="font-medium">{key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}</span>: {
                 typeof value === 'object' && value !== null ? 
                   (Array.isArray(value) ? (
                     <ul className="list-disc pl-4 mt-1">
                       {value.map((item, idx) => (
-                        <li key={idx} className="text-sm text-amber-700">
+                        <li key={idx} className="text-sm text-amber-300">
                           {typeof item === 'object' ? 
                             Object.entries(item).map(([itemKey, itemValue]) => (
                               <div key={itemKey}>
@@ -35,7 +35,7 @@ export const NegativeInformationTab: React.FC<NegativeInformationTabProps> = ({ 
                       ))}
                     </ul>
                   ) : (
-                    <div className="ml-4 mt-1 border-l-2 border-amber-200 pl-2">
+                    <div className="ml-4 mt-1 border-l-2 border-amber-500/30 pl-2">
                       {Object.entries(value).map(([nestedKey, nestedValue]) => (
                         <div key={nestedKey} className="text-sm">
                           <span className="font-medium">{nestedKey.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())}</span>: {
@@ -55,7 +55,7 @@ export const NegativeInformationTab: React.FC<NegativeInformationTabProps> = ({ 
       );
     }
     return (
-      <p className="text-sm text-amber-700">{String(info)}</p>
+      <p className="text-sm text-amber-300">{String(info)}</p>
     );
   };
 
@@ -80,15 +80,15 @@ export const NegativeInformationTab: React.FC<NegativeInformationTabProps> = ({ 
       return (
         <div className="space-y-4">
           {/* CCJ Summary */}
-          <div className="p-3 border border-orange-200 bg-orange-50 rounded-md">
-            <h4 className="font-medium text-gray-700 mb-2">CCJ Summary:</h4>
+          <div className="p-4 border border-amber-500/30 bg-amber-500/20 rounded-lg">
+            <h4 className="font-medium text-amber-300 mb-2">CCJ Summary:</h4>
             <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2">
               {Object.entries(ccjSummary).map(([key, value]) => (
                 <div key={key}>
-                  <dt className="text-sm font-medium text-gray-700">
+                  <dt className="text-sm font-medium text-amber-200">
                     {key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1')}
                   </dt>
-                  <dd className="text-sm text-gray-600">{String(value)}</dd>
+                  <dd className="text-sm text-white">{String(value)}</dd>
                 </div>
               ))}
             </dl>
@@ -96,11 +96,11 @@ export const NegativeInformationTab: React.FC<NegativeInformationTabProps> = ({ 
 
           {/* Legal Events, CCJs and Other Events */}
           {legalEvents?.length > 0 && (
-            <div className="p-3 border border-orange-200 bg-orange-50 rounded-md">
-              <p className="font-medium text-sm text-orange-700 mb-2">Legal Events:</p>
+            <div className="p-4 border border-amber-500/30 bg-amber-500/20 rounded-lg">
+              <p className="font-medium text-sm text-amber-300 mb-2">Legal Events:</p>
               <ul className="list-disc pl-5 space-y-1 mb-3">
                 {legalEvents.map((event: any, index: number) => (
-                  <li key={`legal-event-${index}`} className="text-sm text-orange-700">
+                  <li key={`legal-event-${index}`} className="text-sm text-amber-200">
                     {event.type}: {event.description} 
                     {event.date && ` (${new Date(event.date).toLocaleDateString()})`}
                     {event.status && ` - ${event.status}`}
@@ -111,11 +111,11 @@ export const NegativeInformationTab: React.FC<NegativeInformationTabProps> = ({ 
           )}
 
           {ccjs?.length > 0 && (
-            <div className="p-3 border border-red-200 bg-red-50 rounded-md">
-              <p className="font-medium text-sm text-red-700 mb-2">County Court Judgments:</p>
+            <div className="p-4 border border-red-500/30 bg-red-500/20 rounded-lg">
+              <p className="font-medium text-sm text-red-300 mb-2">County Court Judgments:</p>
               <ul className="list-disc pl-5 space-y-1 mb-3">
                 {ccjs.map((ccj: any, index: number) => (
-                  <li key={`ccj-${index}`} className="text-sm text-red-700">
+                  <li key={`ccj-${index}`} className="text-sm text-red-200">
                     Amount: {ccj.amount?.value} {ccj.amount?.currency}
                     {ccj.date && ` (${new Date(ccj.date).toLocaleDateString()})`}
                     {ccj.caseNumber && ` - Case: ${ccj.caseNumber}`}
@@ -126,11 +126,11 @@ export const NegativeInformationTab: React.FC<NegativeInformationTabProps> = ({ 
           )}
 
           {otherEvents?.length > 0 && (
-            <div className="p-3 border border-red-200 bg-red-50 rounded-md">
-              <p className="font-medium text-sm text-red-700 mb-2">Other Events:</p>
+            <div className="p-4 border border-red-500/30 bg-red-500/20 rounded-lg">
+              <p className="font-medium text-sm text-red-300 mb-2">Other Events:</p>
               <ul className="list-disc pl-5 space-y-1">
                 {otherEvents.map((event: any, index: number) => (
-                  <li key={`other-event-${index}`} className="text-sm text-red-700">
+                  <li key={`other-event-${index}`} className="text-sm text-red-200">
                     {event.type}: {event.description}
                     {event.date && ` (${new Date(event.date).toLocaleDateString()})`}
                   </li>
@@ -147,11 +147,11 @@ export const NegativeInformationTab: React.FC<NegativeInformationTabProps> = ({ 
       return (
         <div className="space-y-4">
           {legalEvents?.length > 0 && (
-            <div className="p-3 border border-orange-200 bg-orange-50 rounded-md">
-              <p className="font-medium text-sm text-orange-700 mb-2">Legal Events:</p>
+            <div className="p-4 border border-amber-500/30 bg-amber-500/20 rounded-lg">
+              <p className="font-medium text-sm text-amber-300 mb-2">Legal Events:</p>
               <ul className="list-disc pl-5 space-y-1 mb-3">
                 {legalEvents.map((event: any, index: number) => (
-                  <li key={`legal-event-${index}`} className="text-sm text-orange-700">
+                  <li key={`legal-event-${index}`} className="text-sm text-amber-200">
                     {event.type}: {event.description}
                     {event.date && ` (${new Date(event.date).toLocaleDateString()})`}
                     {event.status && ` - ${event.status}`}
@@ -162,11 +162,11 @@ export const NegativeInformationTab: React.FC<NegativeInformationTabProps> = ({ 
           )}
 
           {ccjs?.length > 0 && (
-            <div className="p-3 border border-red-200 bg-red-50 rounded-md">
-              <p className="font-medium text-sm text-red-700 mb-2">County Court Judgments:</p>
+            <div className="p-4 border border-red-500/30 bg-red-500/20 rounded-lg">
+              <p className="font-medium text-sm text-red-300 mb-2">County Court Judgments:</p>
               <ul className="list-disc pl-5 space-y-1 mb-3">
                 {ccjs.map((ccj: any, index: number) => (
-                  <li key={`ccj-${index}`} className="text-sm text-red-700">
+                  <li key={`ccj-${index}`} className="text-sm text-red-200">
                     Amount: {ccj.amount?.value} {ccj.amount?.currency}
                     {ccj.date && ` (${new Date(ccj.date).toLocaleDateString()})`}
                     {ccj.caseNumber && ` - Case: ${ccj.caseNumber}`}
@@ -177,11 +177,11 @@ export const NegativeInformationTab: React.FC<NegativeInformationTabProps> = ({ 
           )}
 
           {otherEvents?.length > 0 && (
-            <div className="p-3 border border-red-200 bg-red-50 rounded-md">
-              <p className="font-medium text-sm text-red-700 mb-2">Other Events:</p>
+            <div className="p-4 border border-red-500/30 bg-red-500/20 rounded-lg">
+              <p className="font-medium text-sm text-red-300 mb-2">Other Events:</p>
               <ul className="list-disc pl-5 space-y-1">
                 {otherEvents.map((event: any, index: number) => (
-                  <li key={`other-event-${index}`} className="text-sm text-red-700">
+                  <li key={`other-event-${index}`} className="text-sm text-red-200">
                     {event.type}: {event.description}
                     {event.date && ` (${new Date(event.date).toLocaleDateString()})`}
                   </li>
@@ -204,11 +204,11 @@ export const NegativeInformationTab: React.FC<NegativeInformationTabProps> = ({ 
     
     if (negativeInfo && !hasNegativeInfo) {
       return (
-        <div className="p-3 border border-orange-200 bg-orange-50 rounded-md">
+        <div className="p-4 border border-amber-500/30 bg-amber-500/20 rounded-lg">
           {Array.isArray(negativeInfo) ? (
             <ul className="list-disc pl-5 space-y-2">
               {negativeInfo.map((item: any, index: number) => (
-                <li key={`negative-${index}`} className="text-sm text-amber-700">
+                <li key={`negative-${index}`} className="text-sm text-amber-200">
                   {formatNegativeInfo(item.text || item.value || item.description || item.warning || item)}
                 </li>
               ))}
@@ -220,10 +220,10 @@ export const NegativeInformationTab: React.FC<NegativeInformationTabProps> = ({ 
       );
     } else if (!hasNegativeInfo) {
       return (
-        <Alert className="bg-green-50 text-green-700 border-green-300">
+        <Alert className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30">
           <CheckCircle2 className="h-4 w-4" />
-          <AlertTitle>No Negative Information</AlertTitle>
-          <AlertDescription>
+          <AlertTitle className="text-emerald-200">No Negative Information</AlertTitle>
+          <AlertDescription className="text-emerald-300">
             No negative information has been reported for this company.
           </AlertDescription>
         </Alert>
@@ -232,32 +232,24 @@ export const NegativeInformationTab: React.FC<NegativeInformationTabProps> = ({ 
   };
 
   return (
-    <Card className="bg-white rounded-none">
-      <CardHeader className="bg-[#212936]">
-        <CardTitle className="text-white">Negative Information</CardTitle>
-        <CardDescription>
-          <span className="text-gray-300">Legal events, CCJs, and other risk factors</span>
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {/* Credit Commentary Section */}
-        <div className="mb-4">
-          <h4 className="font-medium text-gray-700 mb-2">Credit Commentary:</h4>
-          {creditReport.report?.creditScore?.commentary ? (
-            <div className="p-3 border border-blue-100 bg-blue-50 rounded-md">
-              <p className="text-gray-800">
-                {creditReport.report.creditScore.commentary}
-              </p>
-            </div>
-          ) : (
-            <p className="text-gray-600 mb-4">No credit commentary available.</p>
-          )}
-        </div>
-        
-        {/* Negative Information */}
-        {renderNegativeInformation()}
-      </CardContent>
-    </Card>
+    <div className="p-6 space-y-6 bg-gradient-to-br from-slate-800 to-slate-900">
+      {/* Credit Commentary Section */}
+      <div className="mb-6">
+        <h4 className="font-medium text-white mb-3">Credit Commentary:</h4>
+        {creditReport.report?.creditScore?.commentary ? (
+          <div className="p-4 border border-blue-500/30 bg-blue-500/20 rounded-lg">
+            <p className="text-blue-100">
+              {creditReport.report.creditScore.commentary}
+            </p>
+          </div>
+        ) : (
+          <p className="text-slate-300 mb-4">No credit commentary available.</p>
+        )}
+      </div>
+      
+      {/* Negative Information */}
+      {renderNegativeInformation()}
+    </div>
   );
 };
 

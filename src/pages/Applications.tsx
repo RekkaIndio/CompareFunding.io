@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Separator } from '@/components/ui/separator';
 import { 
   PlusCircle, 
   AlertCircle, 
@@ -19,7 +20,7 @@ import {
   CreditCard,
   Users,
   Calendar,
-  DollarSign,
+  PoundSterling,
   Target,
   Eye,
   Edit3,
@@ -27,9 +28,11 @@ import {
   Edit,
   Star,
   Building,
-  BarChart3
+  BarChart3,
+  Activity,
+  Upload
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { getFirestore, collection, query, where, getDocs } from 'firebase/firestore';
@@ -57,8 +60,35 @@ export type Application = {
   status_updated_at?: string;
 }
 
+// Helper function to format currency
+const formatCurrency = (amount: number | undefined) => {
+  if (amount === undefined) return 'N/A';
+  return `£${amount.toLocaleString('en-GB')}`;
+};
+
+// Helper functions for financial calculations (matching OffersList)
+const calculateMonthlyPayment = (amount: number, interestRate: number, termMonths: number) => {
+  if (!amount || !interestRate || !termMonths) return 0;
+  const monthlyRate = interestRate / 100 / 12;
+  const monthlyPayment = (amount * monthlyRate * Math.pow(1 + monthlyRate, termMonths)) / 
+    (Math.pow(1 + monthlyRate, termMonths) - 1);
+  return Math.round(monthlyPayment * 100) / 100;
+};
+
+const calculateTotalCost = (amount: number, interestRate: number, termMonths: number) => {
+  if (!amount || !interestRate || !termMonths) return 0;
+  const monthlyPayment = calculateMonthlyPayment(amount, interestRate, termMonths);
+  return Math.round(monthlyPayment * termMonths);
+};
+
+const calculateTotalInterest = (amount: number, interestRate: number, termMonths: number) => {
+  const totalRepayment = calculateTotalCost(amount, interestRate, termMonths);
+  return totalRepayment - amount;
+};
+
 const Applications = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   
   // Debug user authentication
   useEffect(() => {
@@ -90,6 +120,40 @@ const Applications = () => {
       }
 
       return null;
+    },
+    enabled: !!user?.uid
+  });
+
+  // Fetch offers data to filter out applications that have received offers
+  const { data: offers } = useQuery({
+    queryKey: ['offers', user?.uid],
+    queryFn: async () => {
+      if (!user?.uid) return [];
+      
+      // Get applications first to get application IDs
+      const { data: apps } = await getDocuments(
+        'applications',
+        [{ field: 'user_id', operator: '==', value: user.uid }]
+      );
+      
+      if (!apps || apps.length === 0) return [];
+      
+      const applicationIds = apps.map(app => app.id);
+      const allOffers: any[] = [];
+      
+      // Get offers for these applications
+      for (const appId of applicationIds) {
+        const { data: appOffers } = await getDocuments(
+          'offers',
+          [{ field: 'application_id', operator: '==', value: appId }]
+        );
+        
+        if (appOffers) {
+          allOffers.push(...appOffers);
+        }
+      }
+      
+      return allOffers;
     },
     enabled: !!user?.uid
   });
@@ -143,35 +207,55 @@ const Applications = () => {
         // Sort the applications in memory instead
         const processedData = (data || [])
           .map(app => {
+            // Determine if the application actually has documents
+            const hasDocuments = financialDocs.length > 0 || 
+              (app.financialDocuments && Object.keys(app.financialDocuments).length > 0) ||
+              (app.financialDocumentsTab && Object.keys(app.financialDocumentsTab).length > 0) ||
+              (app.financial_documents && app.financial_documents.length > 0);
+              
             // Calculate application completeness
             const checks = [
               { name: 'Business profile', value: !!businessProfile }, // We've already fetched the businessProfile
               { name: 'Credit score', value: !!businessProfile?.credit_info?.credit_score },
-              { name: 'Financial documents', value: financialDocs.length > 0 },
+              { name: 'Financial documents', value: hasDocuments },
               { name: 'Application details', value: !!app.loan_amount && !!app.loan_term_months && !!app.purpose }
             ];
             
             const completed = checks.filter(check => check.value).length;
             const percentage = Math.round((completed / checks.length) * 100);
             
+            // If the application status is submitted, check that we actually have documents before marking as 100%
+            const finalPercentage = app.status === 'submitted' && !hasDocuments ? 
+              Math.min(percentage, 75) : // Cap at 75% if missing documents but submitted
+              percentage;
+            
             return {
               ...app,
               application_date: app.application_date || app.created_at || new Date().toISOString(),
               status: app.status || 'draft',
-              completeness_percentage: percentage,
-              has_documents: financialDocs.length > 0
+              completeness_percentage: finalPercentage,
+              has_documents: hasDocuments
             };
           })
           .sort((a, b) => new Date(b.application_date).getTime() - new Date(a.application_date).getTime());
         
 
-        return processedData as Application[];
+        // Filter out applications that have received offers
+        const applicationsWithOffers = new Set(
+          (offers || []).map(offer => offer.application_id)
+        );
+        
+        const applicationsWithoutOffers = processedData.filter(app => 
+          !applicationsWithOffers.has(app.id)
+        );
+
+        return applicationsWithoutOffers as Application[];
       } catch (err) {
         console.error('Error in queryFn:', err);
         throw err;
       }
     },
-    enabled: !!user?.uid, // Don't wait for business profile, we'll check it inside the queryFn
+    enabled: !!user?.uid && offers !== undefined, // Wait for offers data
     staleTime: 30000, // 30 seconds - reduce this to refresh more frequently
     refetchOnWindowFocus: true,
     retry: 2
@@ -187,30 +271,78 @@ const Applications = () => {
     }
   }, [applications]);
 
-  // Group applications by status - using normalized status values
-  const activeApplications = applications?.filter(app => {
-    // Normalize status by converting to lowercase and handle both underscore and hyphen formats
+  // Filter for pending applications (applications without offers)
+  const pendingApplications = applications?.filter(app => {
+    // Show applications that are in active status and don't have offers
     const normalizedStatus = app.status?.toLowerCase?.();
     return [
       'draft', 'submitted', 'matching', 'matched', 'in_review', 'in-review',
-      'pending', 'processing', 'reviewing'
+      'pending', 'processing', 'reviewing', 'documents_requested', 'under_review'
     ].includes(normalizedStatus);
   }) || [];
+
+  // Define variables used in overview cards
+  const activeApplications = pendingApplications?.filter(app => 
+    ['submitted', 'matching', 'matched', 'in_review', 'in-review', 'under_review'].includes(app.status?.toLowerCase?.())
+  ) || [];
   
-  const completedApplications = applications?.filter(app => {
-    // Normalize status by converting to lowercase and handle both underscore and hyphen formats
-    const normalizedStatus = app.status?.toLowerCase?.();
-    return [
-      'approved', 'funded', 'rejected', 'cancelled', 'expired',
-      'completed', 'declined', 'withdrawn'
-    ].includes(normalizedStatus);
-  }) || [];
+  const completedApplications = []; // Empty since this page only shows pending applications
+
+  // Helper function to get status styling for applications
+  const getApplicationStatusStyling = (status: string) => {
+    const statusStyles = {
+      'pending': { 
+        gradient: 'from-amber-500 to-amber-600', 
+        bgClass: 'bg-amber-50', 
+        textClass: 'text-amber-700',
+        label: 'Pending Review',
+        icon: <Clock className="h-4 w-4" />
+      },
+      'under_review': { 
+        gradient: 'from-blue-500 to-blue-600', 
+        bgClass: 'bg-blue-50', 
+        textClass: 'text-blue-700',
+        label: 'Under Review',
+        icon: <Eye className="h-4 w-4" />
+      },
+      'documents_requested': { 
+        gradient: 'from-purple-500 to-purple-600', 
+        bgClass: 'bg-purple-50', 
+        textClass: 'text-purple-700',
+        label: 'Documents Requested',
+        icon: <FileText className="h-4 w-4" />
+      },
+      'submitted': { 
+        gradient: 'from-slate-500 to-slate-600', 
+        bgClass: 'bg-slate-50', 
+        textClass: 'text-slate-700',
+        label: 'Submitted',
+        icon: <CheckCircle className="h-4 w-4" />
+      },
+      'draft': { 
+        gradient: 'from-gray-500 to-gray-600', 
+        bgClass: 'bg-gray-50', 
+        textClass: 'text-gray-700',
+        label: 'Draft',
+        icon: <Edit3 className="h-4 w-4" />
+      },
+      'matching': { 
+        gradient: 'from-indigo-500 to-indigo-600', 
+        bgClass: 'bg-indigo-50', 
+        textClass: 'text-indigo-700',
+        label: 'Finding Matches',
+        icon: <Target className="h-4 w-4" />
+      }
+    };
+    
+    return statusStyles[status as keyof typeof statusStyles] || statusStyles['pending'];
+  };
 
   // This businessProfile query is already declared earlier in the file
 
   return (
     <PageLayout showSidebar={true}>
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100" data-tour="applications-main">
         <div className="container px-6 py-8 mx-auto">
           {/* Enhanced Header Section */}
           <div className="relative bg-gradient-to-r from-[#212936] via-[#2a3441] to-[#212936] text-white rounded-2xl p-8 mb-8 shadow-2xl border border-slate-200/20 overflow-hidden">
@@ -249,13 +381,12 @@ const Applications = () => {
                     <span className="text-sm font-medium">
                       {activeApplications?.length || 0} In Progress
                     </span>
-                  </div>
-                  <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-lg px-3 py-2 border border-white/20">
-                    <DollarSign className="h-4 w-4 text-blue-400" />
-                    <span className="text-sm font-medium">
-                      £{applications?.reduce((sum, app) => sum + (app.loan_amount || 0), 0).toLocaleString() || '0'} Applied
-                    </span>
-                  </div>
+                  </div>                    <div className="bg-white/10 backdrop-blur-sm rounded-lg px-3 py-2 border border-white/20">
+                      <PoundSterling className="h-4 w-4 text-blue-400" />
+                      <span className="text-sm font-medium">
+                        £{applications?.reduce((sum, app) => sum + (app.loan_amount || 0), 0).toLocaleString() || '0'} Applied
+                      </span>
+                    </div>
                 </div>
               </div>
               
@@ -285,600 +416,342 @@ const Applications = () => {
             </div>
           </div>
 
-          {/* Enhanced Application Summary */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-            {/* Summary Cards */}
-            <div className="lg:col-span-2">
-              <Card className="bg-white/95 backdrop-blur-sm border border-slate-200/50 shadow-xl">
-                <CardHeader className="bg-gradient-to-r from-[#212936] to-[#2a3441] text-white rounded-t-lg">
-                  <CardTitle className="flex items-center">
-                    <div className="p-2 bg-[#ff8000]/20 rounded-lg mr-3">
-                      <Target className="w-5 h-5 text-[#ff8000]" />
-                    </div>
-                    <span className="text-white">Applications Overview</span>
-                  </CardTitle>
-                  <CardDescription className="text-gray-200">
-                    Your funding application statistics and progress
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="p-6">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-4 text-center group hover:shadow-md transition-all duration-200">
-                      <div className="flex items-center justify-center mb-2">
-                        <div className="p-2 bg-blue-100 rounded-lg group-hover:bg-blue-200 transition-colors">
-                          <FileText className="h-5 w-5 text-blue-600" />
-                        </div>
-                      </div>
-                      <div className="text-2xl font-bold text-blue-700 mb-1">
-                        {isLoading ? (
-                          <div className="h-6 w-12 mx-auto bg-blue-200 animate-pulse rounded"></div>
-                        ) : (
-                          applications?.length || 0
-                        )}
-                      </div>
-                      <p className="text-blue-600 font-medium text-sm">Total Applications</p>
-                    </div>
-
-                    <div className="bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-200 rounded-xl p-4 text-center group hover:shadow-md transition-all duration-200">
-                      <div className="flex items-center justify-center mb-2">
-                        <div className="p-2 bg-amber-100 rounded-lg group-hover:bg-amber-200 transition-colors">
-                          <Clock className="h-5 w-5 text-amber-600" />
-                        </div>
-                      </div>
-                      <div className="text-2xl font-bold text-amber-600 mb-1">
-                        {isLoading ? (
-                          <div className="h-6 w-12 mx-auto bg-amber-200 animate-pulse rounded"></div>
-                        ) : (
-                          activeApplications?.length || 0
-                        )}
-                      </div>
-                      <p className="text-amber-600 font-medium text-sm">Active Applications</p>
-                    </div>
-
-                    <div className="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-xl p-4 text-center group hover:shadow-md transition-all duration-200">
-                      <div className="flex items-center justify-center mb-2">
-                        <div className="p-2 bg-green-100 rounded-lg group-hover:bg-green-200 transition-colors">
-                          <Users className="h-5 w-5 text-green-600" />
-                        </div>
-                      </div>
-                      <div className="text-2xl font-bold text-green-600 mb-1">
-                        {isLoading ? (
-                          <div className="h-6 w-12 mx-auto bg-green-200 animate-pulse rounded"></div>
-                        ) : (
-                          applications?.filter(app => app.matched_lenders?.length > 0).length || 0
-                        )}
-                      </div>
-                      <p className="text-green-600 font-medium text-sm">With Matches</p>
-                    </div>
-
-                    <div className="bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 rounded-xl p-4 text-center group hover:shadow-md transition-all duration-200">
-                      <div className="flex items-center justify-center mb-2">
-                        <div className="p-2 bg-purple-100 rounded-lg group-hover:bg-purple-200 transition-colors">
-                          <CheckCircle className="h-5 w-5 text-purple-600" />
-                        </div>
-                      </div>
-                      <div className="text-2xl font-bold text-purple-600 mb-1">
-                        {isLoading ? (
-                          <div className="h-6 w-12 mx-auto bg-purple-200 animate-pulse rounded"></div>
-                        ) : (
-                          completedApplications?.filter(app => ['approved', 'funded'].includes(app.status)).length || 0
-                        )}
-                      </div>
-                      <p className="text-purple-600 font-medium text-sm">Approved</p>
-                    </div>
-                  </div>
-
-                  {/* Application Value Summary */}
-                  <div className="bg-gradient-to-r from-slate-50 to-gray-50 p-4 rounded-xl border border-slate-200">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
-                      <div>
-                        <p className="text-sm text-slate-600 mb-1">Total Applied</p>
-                        <p className="text-xl font-bold text-slate-800">
-                          £{applications?.reduce((sum, app) => sum + (app.loan_amount || 0), 0).toLocaleString() || '0'}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-slate-600 mb-1">Average Amount</p>
-                        <p className="text-xl font-bold text-slate-800">
-                          £{applications?.length ? Math.round(applications.reduce((sum, app) => sum + (app.loan_amount || 0), 0) / applications.length).toLocaleString() : '0'}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-slate-600 mb-1">Success Rate</p>
-                        <p className="text-xl font-bold text-slate-800">
-                          {applications?.length ? Math.round((completedApplications?.filter(app => ['approved', 'funded'].includes(app.status)).length || 0) / applications.length * 100) : 0}%
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Profile Completion Card */}
-            <div>
-              <Card className="bg-white/95 backdrop-blur-sm border border-slate-200/50 shadow-xl h-full">
-                <CardHeader className="bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-t-lg">
-                  <CardTitle className="flex items-center text-base">
-                    <div className="p-2 bg-white/20 rounded-lg mr-3">
-                      <CreditCard className="w-4 h-4 text-white" />
-                    </div>
-                    Profile Strength
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-6">
-                  <div className="space-y-4">
-                    {/* Overall Progress */}
-                    <div>
-                      <div className="flex justify-between mb-2">
-                        <span className="text-sm font-medium text-slate-700">Overall Progress</span>
-                        <span className="text-sm font-bold text-slate-900">
-                          {Math.round(([
-                            !!businessProfile,
-                            !!businessProfile?.credit_info?.credit_score,
-                            applications?.some(app => app.has_documents),
-                            applications?.some(app => app.loan_amount && app.purpose)
-                          ].filter(Boolean).length / 4) * 100)}%
-                        </span>
-                      </div>
-                      <Progress 
-                        value={([
-                          !!businessProfile,
-                          !!businessProfile?.credit_info?.credit_score,
-                          applications?.some(app => app.has_documents),
-                          applications?.some(app => app.loan_amount && app.purpose)
-                        ].filter(Boolean).length / 4) * 100} 
-                        className="h-2"
-                      />
-                    </div>
-
-                    {/* Individual Items */}
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          {businessProfile ? (
-                            <CheckCircle className="h-4 w-4 text-green-500" />
-                          ) : (
-                            <XCircle className="h-4 w-4 text-red-500" />
-                          )}
-                          <span className="text-sm">Business Profile</span>
-                        </div>
-                        <Badge variant={businessProfile ? "default" : "destructive"} className="text-xs">
-                          {businessProfile ? "Complete" : "Missing"}
-                        </Badge>
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          {businessProfile?.credit_info?.credit_score ? (
-                            <CheckCircle className="h-4 w-4 text-green-500" />
-                          ) : (
-                            <XCircle className="h-4 w-4 text-red-500" />
-                          )}
-                          <span className="text-sm">Credit Score</span>
-                        </div>
-                        <Badge variant={businessProfile?.credit_info?.credit_score ? "default" : "destructive"} className="text-xs">
-                          {businessProfile?.credit_info?.credit_score ? "Available" : "Check Needed"}
-                        </Badge>
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          {applications?.some(app => app.has_documents) ? (
-                            <CheckCircle className="h-4 w-4 text-green-500" />
-                          ) : (
-                            <XCircle className="h-4 w-4 text-red-500" />
-                          )}
-                          <span className="text-sm">Documents</span>
-                        </div>
-                        <Badge variant={applications?.some(app => app.has_documents) ? "default" : "destructive"} className="text-xs">
-                          {applications?.some(app => app.has_documents) ? "Uploaded" : "Required"}
-                        </Badge>
-                      </div>
-                    </div>
-
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="w-full mt-4 border-indigo-200 text-indigo-700 hover:bg-indigo-50"
-                      onClick={() => window.location.href = '/business/profile'}
-                    >
-                      <Edit3 className="mr-2 h-3 w-3" />
-                      Improve Profile
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-
           {isLoading ? (
-            <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-2">
-              {[1, 2, 3, 4].map(i => (
-                <Card key={i} className="animate-pulse bg-white/80 backdrop-blur-sm border border-slate-200/50 shadow-lg">
-                  <div className="h-16 bg-slate-100 rounded-t-lg"></div>
-                  <CardContent className="pt-6">
-                    <div className="h-6 bg-slate-100 rounded w-3/4 mb-3"></div>
-                    <div className="h-4 bg-slate-100 rounded w-1/2 mb-2"></div>
-                    <div className="h-4 bg-slate-100 rounded w-1/3"></div>
+            <div className="grid gap-6">
+              {[1, 2, 3].map(i => (
+                <Card key={i} className="animate-pulse bg-white/80 backdrop-blur-sm border border-slate-200/50 shadow-lg rounded-xl">
+                  <div className="h-3 bg-slate-300 rounded-t-xl"></div>
+                  <div className="h-32 bg-slate-100 rounded-t-lg"></div>
+                  <CardContent className="pt-6 space-y-4">
+                    <div className="h-6 bg-slate-100 rounded w-3/4"></div>
+                    <div className="grid grid-cols-4 gap-4">
+                      {[1, 2, 3, 4].map(j => (
+                        <div key={j} className="h-16 bg-slate-100 rounded-lg"></div>
+                      ))}
+                    </div>
+                    <div className="h-4 bg-slate-100 rounded w-1/2"></div>
                   </CardContent>
                 </Card>
               ))}
             </div>
           ) : error ? (
-            <Card className="bg-red-50/90 backdrop-blur-sm border-red-200/60 shadow-lg">
+            <Card className="bg-red-50/90 backdrop-blur-sm border-red-200/60 shadow-lg rounded-xl">
               <CardContent className="pt-6 flex items-center">
                 <AlertCircle className="text-red-500 mr-2" />
                 <span className="text-red-800">There was an error loading your applications. Please try again later.</span>
               </CardContent>
             </Card>
-          ) : applications?.length === 0 ? (
-            <Card className="bg-white/90 backdrop-blur-sm border border-slate-200/50 shadow-lg">
-              <CardHeader className="bg-[#212936] text-white rounded-t-lg">
-                <CardTitle className="text-white">No Applications Yet</CardTitle>
+          ) : !applications || applications.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 px-4">
+              <div className="text-center max-w-md mx-auto">
+                <div className="mb-8">
+                  <FileText className="h-20 w-20 text-gray-300 mx-auto mb-6" />
+                  <h3 className="text-2xl font-bold text-gray-900 mb-4">
+                    No Applications Yet
+                  </h3>
+                  <p className="text-gray-600 text-lg leading-relaxed mb-8">
+                    You haven't created any funding applications yet. Start your business funding journey by creating your first application.
+                  </p>
+                </div>
+                
+                <Button 
+                  asChild 
+                  size="lg"
+                  className="bg-gradient-to-r from-[#ff8800] to-[#ffaa00] hover:from-[#ff9900] hover:to-[#ffbb00] text-white font-bold py-4 px-8 text-lg shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 hover:scale-105 rounded-xl"
+                >
+                  <Link to="/applications/new" className="flex items-center gap-2">
+                    <Target className="h-6 w-6" />
+                    Create Your First Application
+                    <ArrowRight className="h-5 w-5" />
+                  </Link>
+                </Button>
+                
+                <p className="text-sm text-gray-500 mt-4">
+                  Get matched with multiple lenders and receive competitive funding offers
+                </p>
+              </div>
+            </div>
+          ) : pendingApplications?.length === 0 ? (
+            <Card className="bg-white/90 backdrop-blur-sm border border-slate-200/50 shadow-lg rounded-xl">
+              <CardHeader className="bg-gradient-to-r from-[#212936] to-[#2a3441] text-white rounded-t-xl">
+                <CardTitle className="text-white">No Pending Applications</CardTitle>
                 <CardDescription className="text-gray-200">
-                  Get started by creating your first funding application
+                  All your applications have received offers or are completed
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-6 text-center">
                 <div className="mb-4 p-6 bg-slate-50 rounded-lg border border-slate-100">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-16 h-16 mx-auto text-slate-400 mb-3">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
-                  </svg>
-                  <p className="text-slate-600 mb-4">Start your funding journey by creating an application</p>
+                  <CheckCircle className="w-16 h-16 mx-auto text-green-400 mb-3" />
+                  <p className="text-slate-600 mb-4">Great news! All your applications are progressing well.</p>
+                  <p className="text-sm text-slate-500 mb-4">Check your dashboard to view applications with offers, or create a new application.</p>
                 </div>
-                <Button asChild className="bg-[#212936] hover:bg-[#212936]/90 border-b-2 border-[#ff8000] shadow-md">
-                  <Link to="/applications/new">
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Create First Application
-                  </Link>
-                </Button>
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  <Button asChild className="bg-[#212936] hover:bg-[#212936]/90 border-b-2 border-[#ff8000] shadow-md">
+                    <Link to="/business-dashboard">
+                      <ArrowRight className="mr-2 h-4 w-4" />
+                      View Dashboard
+                    </Link>
+                  </Button>
+                  <Button asChild variant="outline">
+                    <Link to="/applications/new">
+                      <PlusCircle className="mr-2 h-4 w-4" />
+                      New Application
+                    </Link>
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           ) : (
-            <>
-              {activeApplications.length > 0 && (
-                <div className="mb-10">
-                  <Card className="bg-white/90 backdrop-blur-sm border border-slate-200/50 shadow-lg overflow-hidden">
-                    <CardHeader className="bg-gradient-to-r from-[#212936] to-[#2a3441] text-white">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 bg-[#ff8000]/20 rounded-lg border border-[#ff8000]/30">
-                            <Clock className="h-5 w-5 text-[#ff8000]" />
-                          </div>
-                          <div>
-                            <CardTitle className="text-xl font-bold">Active Applications</CardTitle>
-                            <CardDescription className="text-gray-200">
-                              {activeApplications.length} application{activeApplications.length !== 1 ? 's' : ''} in progress
-                            </CardDescription>
-                          </div>
-                        </div>
-                        <Badge variant="secondary" className="bg-[#ff8000]/20 text-[#ff8000] border-[#ff8000]/30">
-                          {activeApplications.length} Active
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="p-6 space-y-4">
-                      {activeApplications.map((application) => (
-                        <div key={application.id} className="group">
-                          <Card className="border border-slate-200/60 hover:border-[#ff8000]/40 transition-all duration-300 hover:shadow-md bg-gradient-to-r from-white to-slate-50/50">
-                            <CardContent className="p-6">
-                              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                                {/* Left Section - Application Info */}
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-start gap-4">
-                                    <div className="p-3 bg-[#ff8000]/10 rounded-xl border border-[#ff8000]/20 shrink-0">
-                                      <FileText className="h-6 w-6 text-[#ff8000]" />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                      <div className="flex items-center gap-3 mb-2">
-                                        <h3 className="text-lg font-semibold text-gray-900 truncate">
-                                          Application #{application.application_number}
-                                        </h3>
-                                        <Badge 
-                                          variant="outline" 
-                                          className={`
-                                            ${application.status === 'draft' ? 'bg-amber-50 text-amber-700 border-amber-200' : 
-                                              application.status === 'submitted' ? 'bg-blue-50 text-blue-700 border-blue-200' : 
-                                              application.status === 'matching' ? 'bg-purple-50 text-purple-700 border-purple-200' : 
-                                              application.status === 'matched' ? 'bg-green-50 text-green-700 border-green-200' : 
-                                              'bg-slate-50 text-slate-700 border-slate-200'}
-                                          `}
-                                        >
-                                          {application.status === 'draft' ? 'Draft' : 
-                                           application.status === 'submitted' ? 'Submitted' : 
-                                           application.status === 'matching' ? 'Matching' : 
-                                           application.status === 'matched' ? 'Matched' : 
-                                           application.status.charAt(0).toUpperCase() + application.status.slice(1)}
-                                        </Badge>
-                                      </div>
-                                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm text-gray-600 mb-4">
-                                        <div className="flex items-center gap-2">
-                                          <DollarSign className="h-4 w-4 text-green-600" />
-                                          <span className="font-medium">
-                                            £{application.loan_amount?.toLocaleString() || 'Not specified'}
-                                          </span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                          <Calendar className="h-4 w-4 text-blue-600" />
-                                          <span>
-                                            {application.loan_term_months || 'Not specified'} months
-                                          </span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                          <Building className="h-4 w-4 text-purple-600" />
-                                          <span className="truncate">
-                                            {application.purpose || 'Purpose not specified'}
-                                          </span>
-                                        </div>
-                                      </div>
-                                      
-                                      {/* Progress Section */}
-                                      <div className="mb-4">
-                                        <div className="flex items-center justify-between mb-2">
-                                          <span className="text-sm font-medium text-gray-700">
-                                            Application Strength
-                                          </span>
-                                          <span className="text-sm font-semibold text-[#ff8000]">
-                                            {application.completeness_percentage || 0}%
-                                          </span>
-                                        </div>
-                                        <Progress 
-                                          value={application.completeness_percentage || 0} 
-                                          className="h-2 bg-gray-200" 
-                                        />
-                                        <p className="text-xs text-gray-500 mt-1">
-                                          {application.completeness_percentage >= 80 
-                                            ? 'Strong application - ready for matching' 
-                                            : application.completeness_percentage >= 60 
-                                            ? 'Good progress - add more details' 
-                                            : 'Needs improvement - complete missing sections'
-                                          }
-                                        </p>
-                                      </div>
-
-                                      {/* Application Details */}
-                                      <div className="flex flex-wrap gap-2 mb-4">
-                                        {application.has_documents && (
-                                          <Badge variant="outline" className="text-green-700 border-green-200 bg-green-50">
-                                            <FileText className="h-3 w-3 mr-1" />
-                                            Documents uploaded
-                                          </Badge>
-                                        )}
-                                        {application.matched_lenders && application.matched_lenders.length > 0 && (
-                                          <Badge variant="outline" className="text-blue-700 border-blue-200 bg-blue-50">
-                                            <Users className="h-3 w-3 mr-1" />
-                                            {application.matched_lenders.length} lender{application.matched_lenders.length !== 1 ? 's' : ''} matched
-                                          </Badge>
-                                        )}
-                                        {application.offers && application.offers.length > 0 && (
-                                          <Badge variant="outline" className="text-purple-700 border-purple-200 bg-purple-50">
-                                            <TrendingUp className="h-3 w-3 mr-1" />
-                                            {application.offers.length} offer{application.offers.length !== 1 ? 's' : ''}
-                                          </Badge>
-                                        )}
-                                      </div>
-
-                                      {/* Dates */}
-                                      <div className="text-xs text-gray-500">
-                                        <div className="flex items-center gap-4">
-                                          <span>Applied: {format(new Date(application.application_date), 'MMM d, yyyy')}</span>
-                                          {application.expires_at && (
-                                            <span className="text-amber-600">
-                                              Expires: {format(new Date(application.expires_at), 'MMM d, yyyy')}
-                                            </span>
-                                          )}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {/* Right Section - Actions */}
-                                <div className="flex flex-col sm:flex-row lg:flex-col gap-2 shrink-0">
-                                  <Button 
-                                    asChild 
-                                    className="bg-[#ff8000] hover:bg-[#ff8000]/90 text-white shadow-sm group"
-                                  >
-                                    <Link to={`/applications/${application.id}`}>
-                                      <Eye className="h-4 w-4 mr-2 group-hover:scale-110 transition-transform" />
-                                      View Details
-                                    </Link>
-                                  </Button>
-                                  
-                                  {application.status === 'draft' && (
-                                    <Button 
-                                      asChild 
-                                      variant="outline" 
-                                      className="border-[#ff8000]/30 text-[#ff8000] hover:bg-[#ff8000]/5"
-                                    >
-                                      <Link to={`/applications/${application.id}/edit`}>
-                                        <Edit className="h-4 w-4 mr-2" />
-                                        Continue
-                                      </Link>
-                                    </Button>
-                                  )}
-                                  
-                                  {application.offers && application.offers.length > 0 && (
-                                    <Button 
-                                      asChild 
-                                      variant="outline" 
-                                      className="border-green-200 text-green-700 hover:bg-green-50"
-                                    >
-                                      <Link to={`/applications/${application.id}/offers`}>
-                                        <Star className="h-4 w-4 mr-2" />
-                                        View Offers
-                                      </Link>
-                                    </Button>
-                                  )}
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        </div>
-                      ))}
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
-
-              {completedApplications.length > 0 && (
+            <div className="space-y-8">
+              <div className="flex items-center justify-between">
                 <div>
-                  <Card className="bg-white/90 backdrop-blur-sm border border-slate-200/50 shadow-lg overflow-hidden">
-                    <CardHeader className="bg-gradient-to-r from-slate-600 to-slate-700 text-white">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 bg-slate-200/20 rounded-lg border border-slate-200/30">
-                            <CheckCircle className="h-5 w-5 text-slate-200" />
+                  <h2 className="text-2xl font-bold text-gray-900">Pending Applications</h2>
+                  <p className="text-gray-600">Applications awaiting lender responses</p>
+                </div>
+              </div>
+              
+              <div className="grid gap-8">
+                {pendingApplications.map((application) => {
+                  const statusStyling = getApplicationStatusStyling(application.status);
+                  
+                  // Calculate financial projections with estimated rates
+                  const displayAmount = application.loan_amount;
+                  const estimatedRate = 8.5; // Default estimated rate for applications without offers
+                  const displayTerm = application.loan_term_months || 60; // Default 5 years
+                  
+                  const monthlyPayment = calculateMonthlyPayment(displayAmount, estimatedRate, displayTerm);
+                  const totalCost = calculateTotalCost(displayAmount, estimatedRate, displayTerm);
+                  const totalInterest = calculateTotalInterest(displayAmount, estimatedRate, displayTerm);
+                  
+                  return (
+                    <Card 
+                      key={application.id} 
+                      className="overflow-hidden transition-all duration-300 transform hover:-translate-y-1 rounded-xl shadow-lg hover:shadow-xl bg-white/95 backdrop-blur-sm border-slate-200/50 hover:shadow-2xl cursor-pointer"
+                      onClick={() => navigate(`/applications/${application.id}`)}
+                    >
+                      {/* Enhanced status indicator bar with premium gradient - matching OffersList */}
+                      <div className={`h-3 w-full bg-gradient-to-r ${statusStyling.gradient}`}></div>
+                      
+                      {/* Enhanced header with sophisticated styling matching OffersList */}
+                      <CardHeader className="relative overflow-hidden bg-gradient-to-br from-[#212936] to-[#2c3c53] text-white">
+                        <div className="relative z-10">
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-3">
+                              <div className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium backdrop-blur-sm ${statusStyling.bgClass} ${statusStyling.textClass} border border-white/20`}>
+                                {statusStyling.icon}
+                                <span className="ml-1.5">{statusStyling.label}</span>
+                              </div>
+                            </div>
+                            <ArrowRight className="h-5 w-5 text-white/70 hover:text-white transition-colors" />
                           </div>
-                          <div>
-                            <CardTitle className="text-xl font-bold">Completed Applications</CardTitle>
-                            <CardDescription className="text-gray-200">
-                              {completedApplications.length} application{completedApplications.length !== 1 ? 's' : ''} finished
-                            </CardDescription>
+                          
+                          <CardTitle className="text-xl font-bold text-white mb-2">
+                            {application.application_number ? 
+                              `Application #${application.application_number}` : 
+                              `Application #${application.id.substring(0, 8).toUpperCase()}`
+                            }
+                          </CardTitle>
+                          
+                          <div className="flex items-center gap-6 text-white/80 text-sm">
+                            <div className="flex items-center gap-2">
+                              <Calendar className="h-4 w-4" />
+                              <span>Applied {new Date(application.application_date).toLocaleDateString()}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Building className="h-4 w-4" />
+                              <span className="font-semibold">{businessProfile?.company_name || 'Your Business'}</span>
+                            </div>
                           </div>
                         </div>
-                        <Badge variant="secondary" className="bg-slate-200/20 text-slate-200 border-slate-200/30">
-                          {completedApplications.length} Complete
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="p-6 space-y-4">
-                      {completedApplications.map((application) => (
-                        <div key={application.id} className="group">
-                          <Card className="border border-slate-200/60 hover:border-slate-400/40 transition-all duration-300 hover:shadow-md bg-gradient-to-r from-white to-slate-50/30">
-                            <CardContent className="p-6">
-                              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                                {/* Left Section - Application Info */}
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-start gap-4">
-                                    <div className={`p-3 rounded-xl border shrink-0 ${
-                                      application.status === 'approved' || application.status === 'funded' 
-                                        ? 'bg-green-100 border-green-200' 
-                                        : application.status === 'rejected' || application.status === 'declined'
-                                        ? 'bg-red-100 border-red-200'
-                                        : 'bg-slate-100 border-slate-200'
-                                    }`}>
-                                      {application.status === 'approved' || application.status === 'funded' ? (
-                                        <CheckCircle className="h-6 w-6 text-green-600" />
-                                      ) : application.status === 'rejected' || application.status === 'declined' ? (
-                                        <XCircle className="h-6 w-6 text-red-600" />
-                                      ) : (
-                                        <FileText className="h-6 w-6 text-slate-600" />
-                                      )}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                      <div className="flex items-center gap-3 mb-2">
-                                        <h3 className="text-lg font-semibold text-gray-900 truncate">
-                                          Application #{application.application_number}
-                                        </h3>
-                                        <Badge 
-                                          variant="outline" 
-                                          className={`
-                                            ${application.status === 'approved' || application.status === 'funded' 
-                                              ? 'bg-green-50 text-green-700 border-green-200' 
-                                              : application.status === 'rejected' || application.status === 'declined'
-                                              ? 'bg-red-50 text-red-700 border-red-200'
-                                              : 'bg-slate-50 text-slate-700 border-slate-200'}
-                                          `}
-                                        >
-                                          {application.status === 'approved' ? 'Approved' : 
-                                           application.status === 'funded' ? 'Funded' : 
-                                           application.status === 'rejected' ? 'Rejected' : 
-                                           application.status === 'declined' ? 'Declined' : 
-                                           application.status === 'cancelled' ? 'Cancelled' : 
-                                           application.status === 'withdrawn' ? 'Withdrawn' : 
-                                           application.status.charAt(0).toUpperCase() + application.status.slice(1)}
-                                        </Badge>
-                                      </div>
-                                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm text-gray-600 mb-4">
-                                        <div className="flex items-center gap-2">
-                                          <DollarSign className="h-4 w-4 text-green-600" />
-                                          <span className="font-medium">
-                                            £{application.loan_amount?.toLocaleString() || 'Not specified'}
-                                          </span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                          <Calendar className="h-4 w-4 text-blue-600" />
-                                          <span>
-                                            {application.loan_term_months || 'Not specified'} months
-                                          </span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                          <Building className="h-4 w-4 text-purple-600" />
-                                          <span className="truncate">
-                                            {application.purpose || 'Purpose not specified'}
-                                          </span>
-                                        </div>
-                                      </div>
-
-                                      {/* Application Details */}
-                                      <div className="flex flex-wrap gap-2 mb-4">
-                                        {application.offers && application.offers.length > 0 && (
-                                          <Badge variant="outline" className="text-purple-700 border-purple-200 bg-purple-50">
-                                            <TrendingUp className="h-3 w-3 mr-1" />
-                                            {application.offers.length} offer{application.offers.length !== 1 ? 's' : ''} received
-                                          </Badge>
-                                        )}
-                                        {application.matched_lenders && application.matched_lenders.length > 0 && (
-                                          <Badge variant="outline" className="text-blue-700 border-blue-200 bg-blue-50">
-                                            <Users className="h-3 w-3 mr-1" />
-                                            {application.matched_lenders.length} lender{application.matched_lenders.length !== 1 ? 's' : ''} matched
-                                          </Badge>
-                                        )}
-                                      </div>
-
-                                      {/* Dates */}
-                                      <div className="text-xs text-gray-500">
-                                        <div className="flex items-center gap-4">
-                                          <span>Applied: {format(new Date(application.application_date), 'MMM d, yyyy')}</span>
-                                          {application.status_updated_at && (
-                                            <span>
-                                              Completed: {format(new Date(application.status_updated_at), 'MMM d, yyyy')}
-                                            </span>
-                                          )}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {/* Right Section - Actions */}
-                                <div className="flex flex-col gap-2 shrink-0">
-                                  <Button 
-                                    asChild 
-                                    variant="outline"
-                                    className="border-slate-300 text-slate-700 hover:bg-slate-50"
-                                  >
-                                    <Link to={`/applications/${application.id}`}>
-                                      <Eye className="h-4 w-4 mr-2" />
-                                      View Details
-                                    </Link>
-                                  </Button>
-                                  
-                                  {application.status === 'funded' && (
-                                    <Button 
-                                      asChild 
-                                      variant="outline" 
-                                      className="border-green-200 text-green-700 hover:bg-green-50"
-                                    >
-                                      <Link to={`/applications/${application.id}/funding-details`}>
-                                        <BarChart3 className="h-4 w-4 mr-2" />
-                                        Funding Details
-                                      </Link>
-                                    </Button>
-                                  )}
+                        
+                        {/* Background pattern matching OffersList */}
+                        <div className="absolute inset-0 bg-gradient-to-br from-blue-600/5 to-purple-600/5"></div>
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-white/5 to-transparent rounded-full -translate-y-16 translate-x-16"></div>
+                      </CardHeader>
+                      
+                      <CardContent className="p-6 space-y-6 bg-white">
+                        {/* Application purpose and details */}
+                        <div className="space-y-4">
+                          <div>
+                            <h4 className="text-sm font-semibold text-gray-700 mb-1">Funding Purpose</h4>
+                            <p className="text-gray-900 font-medium">{application.purpose}</p>
+                            {application.purpose_details && (
+                              <p className="text-sm text-gray-600 mt-1">{application.purpose_details}</p>
+                            )}
+                          </div>
+                          
+                          {/* Financial Overview Grid - matching OffersList exact styling */}
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <div className="group bg-gradient-to-br from-slate-50 to-slate-100 p-3 rounded-xl border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5">
+                              <div className="flex justify-between items-start mb-2">
+                                <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Amount</p>
+                                <div className="bg-gradient-to-br from-[#212936] to-[#2c3c53] rounded-full p-1.5 shadow-sm group-hover:shadow-md transition-shadow">
+                                  <PoundSterling className="h-3.5 w-3.5 text-white" />
                                 </div>
                               </div>
-                            </CardContent>
-                          </Card>
+                              <p className="font-bold text-lg text-[#212936]">{formatCurrency(application.loan_amount)}</p>
+                              <div className="w-full bg-slate-200/50 h-1 rounded-full mt-2">
+                                <div className="bg-gradient-to-r from-[#212936] to-[#ff8000] h-1 rounded-full w-full"></div>
+                              </div>
+                            </div>
+                            
+                            <div className="group bg-gradient-to-br from-slate-50 to-slate-100 p-3 rounded-xl border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5">
+                              <div className="flex justify-between items-start mb-2">
+                                <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Monthly</p>
+                                <div className="bg-gradient-to-br from-[#212936] to-[#2c3c53] rounded-full p-1.5 shadow-sm group-hover:shadow-md transition-shadow">
+                                  <Calendar className="h-3.5 w-3.5 text-white" />
+                                </div>
+                              </div>
+                              <p className="font-bold text-lg text-[#212936]">~{formatCurrency(monthlyPayment)}</p>
+                              <div className="w-full bg-slate-200/50 h-1 rounded-full mt-2">
+                                <div className="bg-gradient-to-r from-[#212936] to-[#ff8000] h-1 rounded-full w-4/5"></div>
+                              </div>
+                            </div>
+                            
+                            <div className="group bg-gradient-to-br from-slate-50 to-slate-100 p-3 rounded-xl border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5">
+                              <div className="flex justify-between items-start mb-2">
+                                <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Term</p>
+                                <div className="bg-gradient-to-br from-[#212936] to-[#2c3c53] rounded-full p-1.5 shadow-sm group-hover:shadow-md transition-shadow">
+                                  <Target className="h-3.5 w-3.5 text-white" />
+                                </div>
+                              </div>
+                              <p className="font-bold text-lg text-[#212936]">{displayTerm}m</p>
+                              <div className="w-full bg-slate-200/50 h-1 rounded-full mt-2">
+                                <div className="bg-gradient-to-r from-[#212936] to-[#ff8000] h-1 rounded-full w-3/5"></div>
+                              </div>
+                            </div>
+                            
+                            <div className="group bg-gradient-to-br from-slate-50 to-slate-100 p-3 rounded-xl border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5">
+                              <div className="flex justify-between items-start mb-2">
+                                <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Est. APR</p>
+                                <div className="bg-gradient-to-br from-[#212936] to-[#2c3c53] rounded-full p-1.5 shadow-sm group-hover:shadow-md transition-shadow">
+                                  <TrendingUp className="h-3.5 w-3.5 text-white" />
+                                </div>
+                              </div>
+                              <p className="font-bold text-lg text-[#212936]">{estimatedRate}%</p>
+                              <div className="w-full bg-slate-200/50 h-1 rounded-full mt-2">
+                                <div className="bg-gradient-to-r from-[#212936] to-[#ff8000] h-1 rounded-full w-2/3"></div>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Estimated financial breakdown - matching OffersList styling */}
+                          <div className="group bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-4 border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200">
+                            <div className="flex items-center gap-2 mb-3">
+                              <div className="bg-gradient-to-br from-[#212936] to-[#2c3c53] rounded-full p-1.5 shadow-sm group-hover:shadow-md transition-shadow">
+                                <BarChart3 className="h-4 w-4 text-white" />
+                              </div>
+                              <span className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Financial Breakdown</span>
+                            </div>
+                            
+                            <div className="grid grid-cols-3 gap-4 text-center">
+                              <div>
+                                <p className="text-xs text-slate-600 mb-1 font-medium">Total Cost</p>
+                                <p className="text-sm font-bold text-[#212936]">{formatCurrency(totalCost)}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-slate-600 mb-1 font-medium">Total Interest</p>
+                                <p className="text-sm font-bold text-[#212936]">{formatCurrency(totalInterest)}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-slate-600 mb-1 font-medium">Completion</p>
+                                <p className="text-sm font-bold text-[#212936]">{application.completeness_percentage || 0}%</p>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Application progress indicators - matching OffersList styling */}
+                          <div className="group bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-4 border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200">
+                            <div className="flex items-center gap-2 mb-3">
+                              <div className="bg-gradient-to-br from-[#212936] to-[#2c3c53] rounded-full p-1.5 shadow-sm group-hover:shadow-md transition-shadow">
+                                <Activity className="h-4 w-4 text-white" />
+                              </div>
+                              <span className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Application Status</span>
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <div className="flex justify-between items-center text-xs">
+                                <span className="text-slate-600 font-medium">Matched Lenders</span>
+                                <span className="font-bold text-[#212936]">
+                                  {application.matched_lenders?.length || 0}
+                                </span>
+                              </div>
+                              <div className="flex justify-between items-center text-xs">
+                                <span className="text-slate-600 font-medium">Documents Status</span>
+                                <span className="font-bold text-[#212936]">
+                                  {application.has_documents ? 'Complete' : 'Required'}
+                                </span>
+                              </div>
+                              <div className="flex justify-between items-center text-xs">
+                                <span className="text-slate-600 font-medium">Days Active</span>
+                                <span className="font-bold text-[#212936]">
+                                  {Math.floor((new Date().getTime() - new Date(application.application_date).getTime()) / (1000 * 60 * 60 * 24))} days
+                                </span>
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                      ))}
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
-            </>
+                        
+                        <Separator className="my-6 bg-gray-200" />
+                        
+                        {/* Action buttons matching OffersList style */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/applications/${application.id}`);
+                              }}
+                              className="hover:bg-blue-50 border-blue-200 text-blue-700"
+                            >
+                              <Eye className="h-4 w-4 mr-1" />
+                              View Details
+                            </Button>
+                            
+                            {application.status === 'draft' && (
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/applications/${application.id}/edit`);
+                                }}
+                                className="hover:bg-amber-50 border-amber-200 text-amber-700"
+                              >
+                                <Edit3 className="h-4 w-4 mr-1" />
+                                Edit
+                              </Button>
+                            )}
+                            
+                            {!application.has_documents && (
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/applications/${application.id}?tab=documents`);
+                                }}
+                                className="hover:bg-purple-50 border-purple-200 text-purple-700"
+                              >
+                                <Upload className="h-4 w-4 mr-1" />
+                                Upload Docs
+                              </Button>
+                            )}
+                          </div>
+                          
+                          <div className="flex items-center gap-2 text-sm text-gray-500">
+                            <Clock className="h-4 w-4" />
+                            <span>Updated {new Date(application.status_updated_at || application.created_at || application.application_date).toLocaleDateString()}</span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
           )}
         </div>
       </div>

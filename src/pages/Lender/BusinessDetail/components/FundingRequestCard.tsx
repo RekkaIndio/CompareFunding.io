@@ -1,22 +1,21 @@
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
-import { FileText, ThumbsUp } from 'lucide-react';
+import { FileText } from 'lucide-react';
 import { Application } from '../types';
+import { useNavigate } from 'react-router-dom';
 
 interface FundingRequestCardProps {
   application: Application | null | undefined;
-  handleExpressInterest: () => void;
   isLenderMatched: boolean;
-  hasExpressedInterest: boolean;
 }
 
 export const FundingRequestCard: React.FC<FundingRequestCardProps> = ({
   application,
-  handleExpressInterest,
   isLenderMatched,
-  hasExpressedInterest
 }) => {
+  const navigate = useNavigate();
+
   const getFinancialMetric = (value?: number) => {
     if (!value) return '£0';
     return new Intl.NumberFormat('en-GB', {
@@ -30,8 +29,10 @@ export const FundingRequestCard: React.FC<FundingRequestCardProps> = ({
   // Get action button based on match status
   const getActionButton = () => {
     if (!application) return null;
+    
+    const applicationId = application.id || application.application_number;
 
-    // Check if lender is matched
+    // If lender is matched, show the make offer button
     if (isLenderMatched) {
       return (
         <Button className="bg-[#212936] hover:bg-[#212936]/90 text-white shadow-lg w-full">
@@ -40,36 +41,15 @@ export const FundingRequestCard: React.FC<FundingRequestCardProps> = ({
         </Button>
       );
     }
-    
-    // Check if interest has been expressed but not yet accepted
-    if (hasExpressedInterest) {
-      return (
-        <Button variant="outline" disabled className="border-blue-200 bg-gray-600 text-white w-full">
-          <ThumbsUp className="mr-2 h-4 w-4" />
-          Interest Sent
-        </Button>
-      );
-    }
 
-    // Check for declined interest
-    const interestStatus = application.interested_lenders?.find(
-      l => l.lender_id === localStorage.getItem('userId')
-    )?.status;
-
-    if (interestStatus === 'declined') {
-      return (
-        <Button variant="outline" disabled className="border-red-200 bg-red-50 text-red-700 w-full">
-          <FileText className="mr-2 h-4 w-4" />
-          Interest Declined
-        </Button>
-      );
-    }
-
-    // Default: show Express Interest button
+    // Default: show Create Offer button
     return (
-      <Button onClick={handleExpressInterest} className="bg-[#ff8000] hover:bg-[#ff8000]/90 text-white shadow-lg w-full">
-        <ThumbsUp className="mr-2 h-4 w-4" />
-        Express Interest
+      <Button 
+        onClick={() => navigate(`/create-offer/${applicationId}`)} 
+        className="bg-[#ff8000] hover:bg-[#ff8000]/90 text-white shadow-lg w-full"
+      >
+        <FileText className="mr-2 h-4 w-4" />
+        Create Offer
       </Button>
     );
   };

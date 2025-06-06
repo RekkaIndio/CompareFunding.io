@@ -138,48 +138,58 @@ const CustomizeOffers = () => {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             <div className="lg:col-span-8">
               {/* Progress Bar & Steps */}
-              <div className="mb-10">
-                <div className="flex items-center gap-2 mb-2">
+              <div className="mb-6 sm:mb-8 md:mb-10">
+                <div className="flex items-center gap-1 sm:gap-2 mb-1 sm:mb-2">
                   {steps.map((step, idx) => (
                     <div
                       key={step.label}
-                      className={`flex-1 h-2 rounded ${idx <= currentStep ? 'bg-[#ff8000]' : 'bg-gray-300'}`}
+                      className={`flex-1 h-1.5 sm:h-2 rounded ${idx <= currentStep ? 'bg-[#ff8000]' : 'bg-gray-300'}`}
                     ></div>
                   ))}
                 </div>
-                <div className="grid grid-cols-3 text-center text-sm font-medium text-[#2a3441]">
-                  {steps.map((step, idx) => (
-                    <span key={step.label} className={idx === currentStep ? 'font-bold text-[#ff8000]' : ''}>{step.label}</span>
-                  ))}
+                <div className="grid grid-cols-3 text-center text-xs sm:text-sm font-medium text-[#2a3441]">
+                  {steps.map((step, idx) => {
+                    // Display abbreviated labels on mobile
+                    const mobileLabel = step.label.split(' ')[0];
+                    return (
+                      <span key={step.label} className={idx === currentStep ? 'font-bold text-[#ff8000]' : ''}>
+                        <span className="hidden sm:inline">{step.label}</span>
+                        <span className="sm:hidden">{mobileLabel}</span>
+                      </span>
+                    );
+                  })}
                 </div>
               </div>
 
               {/* Navigation Arrows */}
-              <div className="flex justify-between items-center mb-6">
+              <div className="flex justify-between items-center mb-4 sm:mb-6">
                 <button
                   type="button"
                   onClick={() => goToStep(currentStep - 1)}
                   disabled={currentStep === 0}
-                  className={`flex items-center gap-1 px-4 py-2 rounded-full border border-gray-200 bg-white text-[#2a3441] hover:bg-gray-50 transition disabled:opacity-40 disabled:cursor-not-allowed`}
+                  className={`flex items-center gap-1 px-2 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm rounded-full border border-gray-200 bg-white text-[#2a3441] hover:bg-gray-50 transition disabled:opacity-40 disabled:cursor-not-allowed`}
                 >
-                  <ArrowLeft className="w-5 h-5" />
-                  Back
+                  <ArrowLeft className="w-3.5 h-3.5 sm:w-5 sm:h-5" />
+                  <span className="hidden sm:inline">Back</span>
                 </button>
+                <div className="text-xs sm:text-sm text-gray-500">
+                  Step {currentStep + 1} of {steps.length}
+                </div>
                 <button
                   type="button"
                   onClick={() => goToStep(currentStep + 1)}
                   disabled={currentStep === steps.length - 1}
-                  className={`flex items-center gap-1 px-4 py-2 rounded-full border border-gray-200 bg-white text-[#2a3441] hover:bg-gray-50 transition disabled:opacity-40 disabled:cursor-not-allowed`}
+                  className={`flex items-center gap-1 px-2 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm rounded-full border border-gray-200 bg-white text-[#2a3441] hover:bg-gray-50 transition disabled:opacity-40 disabled:cursor-not-allowed`}
                 >
-                  Next
-                  <ArrowRight className="w-5 h-5" />
+                  <span className="hidden sm:inline">Next</span>
+                  <ArrowRight className="w-3.5 h-3.5 sm:w-5 sm:h-5" />
                 </button>
               </div>
 
-              <div className="space-y-8 animate-fadeIn">
-                <div className="mb-8">
-                  <h1 className="text-3xl md:text-4xl font-bold text-[#2a3441] mb-2">Customize Your Funding Options</h1>
-                  <p className="text-lg text-[#2a3441]">Tailor your funding search to match your specific business needs</p>
+              <div className="space-y-6 sm:space-y-8 animate-fadeIn">
+                <div className="mb-6 sm:mb-8">
+                  <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-[#2a3441] mb-1 sm:mb-2">Customize Your Funding</h1>
+                  <p className="text-sm sm:text-base md:text-lg text-[#2a3441]">Tailor your funding search to match your specific business needs</p>
                 </div>
                 
                 <form onSubmit={handleSubmit}>
@@ -274,9 +284,9 @@ const CustomizeOffers = () => {
                     {includeLoans && (
                       <div className="space-y-6">
                         <div>
-                          <div className="flex justify-between mb-2">
-                            <Label className="text-[#2a3441]">Loan Amount</Label>
-                            <span className="text-[#2a3441]">{formatCurrency(loanAmount[0])}</span>
+                          <div className="flex justify-between mb-1 sm:mb-2">
+                            <Label className="text-[#2a3441] text-xs sm:text-sm">Loan Amount</Label>
+                            <span className="text-[#2a3441] text-xs sm:text-sm font-medium">{formatCurrency(loanAmount[0])}</span>
                           </div>
                           <Slider
                             value={loanAmount}
@@ -286,15 +296,15 @@ const CustomizeOffers = () => {
                             className="[&>span]:bg-[#ff8000]"
                           />
                           <div className="flex justify-between mt-1">
-                            <span className="text-xs text-[#2a3441]">£10,000</span>
-                            <span className="text-xs text-[#2a3441]">£1,000,000</span>
+                            <span className="text-[10px] sm:text-xs text-[#2a3441]">£10,000</span>
+                            <span className="text-[10px] sm:text-xs text-[#2a3441]">£1,000,000</span>
                           </div>
                         </div>
                         
                         <div>
-                          <div className="flex justify-between mb-2">
-                            <Label className="text-[#2a3441]">Loan Term</Label>
-                            <span className="text-[#2a3441]">{formatTerm(loanTerm[0])}</span>
+                          <div className="flex justify-between mb-1 sm:mb-2">
+                            <Label className="text-[#2a3441] text-xs sm:text-sm">Loan Term</Label>
+                            <span className="text-[#2a3441] text-xs sm:text-sm font-medium">{formatTerm(loanTerm[0])}</span>
                           </div>
                           <Slider
                             value={loanTerm}
@@ -331,9 +341,9 @@ const CustomizeOffers = () => {
                     {includeEquity && (
                       <div className="space-y-6">
                         <div>
-                          <div className="flex justify-between mb-2">
-                            <Label className="text-[#2a3441]">Investment Amount</Label>
-                            <span className="text-[#2a3441]">{formatCurrency(equityAmount[0])}</span>
+                          <div className="flex justify-between mb-1 sm:mb-2">
+                            <Label className="text-[#2a3441] text-xs sm:text-sm">Investment Amount</Label>
+                            <span className="text-[#2a3441] text-xs sm:text-sm font-medium">{formatCurrency(equityAmount[0])}</span>
                           </div>
                           <Slider
                             value={equityAmount}
@@ -343,15 +353,15 @@ const CustomizeOffers = () => {
                             className="[&>span]:bg-[#ff8000]"
                           />
                           <div className="flex justify-between mt-1">
-                            <span className="text-xs text-[#2a3441]">£50,000</span>
-                            <span className="text-xs text-[#2a3441]">£2,000,000</span>
+                            <span className="text-[10px] sm:text-xs text-[#2a3441]">£50,000</span>
+                            <span className="text-[10px] sm:text-xs text-[#2a3441]">£2,000,000</span>
                           </div>
                         </div>
                         
                         <div>
-                          <div className="flex justify-between mb-2">
-                            <Label className="text-[#2a3441]">Equity Stake</Label>
-                            <span className="text-[#2a3441]">{equityStake[0]}%</span>
+                          <div className="flex justify-between mb-1 sm:mb-2">
+                            <Label className="text-[#2a3441] text-xs sm:text-sm">Equity Stake</Label>
+                            <span className="text-[#2a3441] text-xs sm:text-sm font-medium">{equityStake[0]}%</span>
                           </div>
                           <Slider
                             value={equityStake}
@@ -361,8 +371,8 @@ const CustomizeOffers = () => {
                             className="[&>span]:bg-[#ff8000]"
                           />
                           <div className="flex justify-between mt-1">
-                            <span className="text-xs text-[#2a3441]">5%</span>
-                            <span className="text-xs text-[#2a3441]">49%</span>
+                            <span className="text-[10px] sm:text-xs text-[#2a3441]">5%</span>
+                            <span className="text-[10px] sm:text-xs text-[#2a3441]">49%</span>
                           </div>
                         </div>
                       </div>
@@ -407,10 +417,10 @@ const CustomizeOffers = () => {
                     )}
                   </Card>
                   
-                  <div className="flex justify-center mt-8">
+                  <div className="flex justify-center mt-6 sm:mt-8">
                     <Button 
                       type="submit" 
-                      className="bg-[#ff8000] hover:bg-[#e67300] text-white px-14 py-5 text-lg h-auto rounded-full font-medium shadow-md transition-all hover:shadow-lg hover:scale-[1.02] animate-fadeIn delay-500"
+                      className="bg-[#ff8000] hover:bg-[#e67300] text-white px-8 sm:px-14 py-3 sm:py-4 md:py-5 text-sm sm:text-base md:text-lg h-auto rounded-xl sm:rounded-full font-medium shadow-md transition-all hover:shadow-lg hover:scale-[1.02] animate-fadeIn delay-500 w-full sm:w-auto"
                     >
                       Find My Matches
                     </Button>

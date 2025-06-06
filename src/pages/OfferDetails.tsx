@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { getDocument, updateDocument, createDocument } from '@/firebase';
+import { getDocument, updateDocument, createDocument, serverTimestamp, getDocuments } from '@/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import PageLayout from '@/components/PageLayout';
+import ConversationsUI from '@/components/ConversationsUI';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -13,6 +14,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { 
   AlertCircle, 
   ArrowLeft, 
@@ -64,6 +66,8 @@ const OfferDetails = () => {
   const { user } = useAuth();
   const [declineReason, setDeclineReason] = useState('');
   const [isDeclineDialogOpen, setIsDeclineDialogOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('details');
+  const [isLenderProfileModalOpen, setIsLenderProfileModalOpen] = useState(false);
   const isLender = user?.role === 'lender';
   
   // Fetch offer details using Firebase
@@ -95,6 +99,32 @@ const OfferDetails = () => {
         }
       }
       
+      // Get lender details if not already in offer
+      let lenderData = null;
+      if (offerData.lender_id && (!offerData.lender_name || offerData.lender_name === 'Unnamed Lender')) {
+        try {
+          // Try to get from lender_profiles collection
+          const { data: lenderProfile } = await getDocument('lender_profiles', offerData.lender_id);
+          if (lenderProfile) {
+            lenderData = {
+              lender_name: lenderProfile.lender_name || lenderProfile.company_name || 'Unnamed Lender',
+              company_logo: lenderProfile.logo_url || ''
+            };
+          } else {
+            // Fallback: try to get from users collection
+            const { data: userData } = await getDocument('users', offerData.lender_id);
+            if (userData) {
+              lenderData = {
+                lender_name: userData.company_name || userData.name || 'Unnamed Lender',
+                company_logo: userData.logo_url || userData.logo || ''
+              };
+            }
+          }
+        } catch (error) {
+          console.warn('Could not fetch lender details:', error);
+        }
+      }
+      
       // Get business details if we're the lender viewing our offer
       let businessData = null;
       if (isLender && applicationData && applicationData.business_id) {
@@ -107,12 +137,124 @@ const OfferDetails = () => {
       // Return combined data (similar to Supabase join)
       return {
         ...offerData,
+        // Override with fetched lender data if available
+        ...(lenderData && {
+          lender_name: lenderData.lender_name,
+          company_logo: lenderData.company_logo
+        }),
         applications: applicationData,
         business: businessData
       };
     },
     enabled: !!id && !!user,
   });
+
+  // Fetch messages for this specific application/offer
+  const { data: messages, refetch: refetchMessages } = useQuery({
+    queryKey: ['messages', offer?.application_id, user?.uid],
+    queryFn: async () => {
+      if (!offer?.application_id || !user?.uid) return [];
+      
+      try {
+        const { data: messageData } = await getDocuments('messages', [
+          { field: 'application_id', operator: '==', value: offer.application_id }
+        ]);
+        
+        if (!messageData) return [];
+        
+        // Filter messages for this specific conversation (business <-> lender for this offer)
+        return messageData
+          .filter(msg => 
+            (msg.sender_id === user.uid && msg.recipient_id === (isLender ? offer.applications?.user_id : offer.lender_id)) ||
+            (msg.sender_id === (isLender ? offer.applications?.user_id : offer.lender_id) && msg.recipient_id === user.uid)
+          )
+          .sort((a, b) => new Date(a.sent_at).getTime() - new Date(b.sent_at).getTime());
+      } catch (error) {
+        console.error('Error fetching messages:', error);
+        return [];
+      }
+    },
+    enabled: !!offer?.application_id && !!user?.uid && activeTab === 'messages',
+  });
+
+  // Fetch detailed lender profile for modal
+  const { data: lenderProfile, isLoading: isLoadingLenderProfile } = useQuery({
+    queryKey: ['lenderProfile', offer?.lender_id],
+    queryFn: async () => {
+      if (!offer?.lender_id) return null;
+      
+      try {
+        // First try to get from lender_profiles collection
+        const { data: lenderData } = await getDocument('lender_profiles', offer.lender_id);
+        if (lenderData) {
+          return {
+            ...lenderData,
+            source: 'lender_profiles'
+          };
+        }
+        
+        // Fallback to users collection
+        const { data: userData } = await getDocument('users', offer.lender_id);
+        if (userData) {
+          return {
+            ...userData,
+            lender_name: userData.company_name || userData.name || 'Unnamed Lender',
+            source: 'users'
+          };
+        }
+        
+        return null;
+      } catch (error) {
+        console.error('Error fetching lender profile:', error);
+        return null;
+      }
+    },
+    enabled: !!offer?.lender_id && isLenderProfileModalOpen,
+  });
+
+  // Message handlers
+  const handleSendMessage = async (applicationId: string, recipientId: string, content: string) => {
+    try {
+      await createDocument('messages', {
+        application_id: applicationId,
+        sender_id: user.uid,
+        recipient_id: recipientId,
+        content: content.trim(),
+        sent_at: serverTimestamp(),
+        read: false,
+      });
+      
+      // Refetch messages to update UI
+      refetchMessages();
+      toast.success('Message sent successfully!');
+    } catch (error) {
+      console.error('Error sending message:', error);
+      toast.error('Failed to send message');
+    }
+  };
+
+  const handleFetchMessages = async (conversationId: string, applicationId: string, lenderId: string) => {
+    // This is handled by the useQuery above, but we need to provide this function for ConversationsUI
+    return messages || [];
+  };
+
+  // Create conversation data for ConversationsUI
+  const conversation = offer ? {
+    id: `${offer.application_id}-${offer.lender_id}`,
+    userId: isLender ? offer.applications?.user_id || '' : user?.uid || '',
+    lenderId: isLender ? user?.uid || '' : offer.lender_id,
+    lenderName: isLender ? (offer.business?.business_name || 'Business') : offer.lender_name,
+    lenderAvatar: isLender ? '' : (offer.company_logo || ''),
+    applicationId: offer.application_id,
+    applicationPurpose: offer.applications?.purpose || 'Business Funding',
+    lastMessage: messages?.[messages.length - 1]?.content || 'No messages yet',
+    lastMessageTime: messages?.[messages.length - 1]?.sent_at ? new Date(messages[messages.length - 1].sent_at) : new Date(),
+    unreadCount: 0,
+    applicationAmount: offer.offered_amount,
+    offerStatus: offer.status,
+    businessName: offer.business?.business_name,
+    businessId: offer.applications?.business_id,
+  } : null;
 
   // Accept offer
   const handleAcceptOffer = async () => {
@@ -147,7 +289,9 @@ const OfferDetails = () => {
           lender_id: offer.lender_id,
           is_visible_to_lender: true,
           application_stage: 'accepted',
-          last_activity_date: new Date().toISOString()
+          last_activity_date: new Date().toISOString(),
+          // Ensure the lender is in matched_lenders array for messaging
+          matched_lenders: [offer.lender_id] // This enables messaging between business and lender
         }
       );
       
@@ -174,18 +318,26 @@ const OfferDetails = () => {
         action_url: `/business/${offer.application_id}`
       });
       
-      // Create a conversation entry if it doesn't already exist
-      // We'll use the offer ID as the conversation ID for simplicity
-      await createDocument('conversations', {
-        id: id, // Same as offer ID
-        business_id: user.uid,
-        lender_id: offer.lender_id,
-        application_id: offer.application_id,
-        offer_id: id,
-        status: 'active',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      });
+      // No need to create a conversation document - our Messages.tsx system builds conversations virtually
+
+      // Create a welcome message to kickstart the conversation
+      try {
+        // Create the initial message using serverTimestamp for proper ordering
+        const { error: messageError } = await createDocument('messages', {
+          application_id: offer.application_id,
+          sender_id: user.uid, // Business sends the welcome message
+          recipient_id: offer.lender_id,
+          content: `Hello! I've accepted your financing offer. Looking forward to working with you on this application.`,
+          sent_at: serverTimestamp(), // Use serverTimestamp for consistent ordering
+          read: false,
+        });
+        
+        if (messageError) {
+          console.error('Error creating welcome message:', messageError);
+        }
+      } catch (messageError) {
+        console.error('Error creating welcome message:', messageError);
+      }
       
       toast.success('Offer accepted successfully! The lender has been notified.');
       
@@ -407,62 +559,116 @@ const OfferDetails = () => {
               </div>
             </div>
             
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
               {/* Main content - 2/3 width on desktop */}
-              <div className="lg:col-span-2 space-y-6">
-                <Card className="bg-white/90 backdrop-blur-sm border border-slate-200/50 shadow-lg">
-                  <CardHeader className="bg-[#1a2436] text-white rounded-t-lg">
-                    <CardTitle className="text-white text-lg">Loan Details</CardTitle>
-                    <CardDescription className="text-gray-100">Terms and conditions for this funding offer</CardDescription>
+              <div className="lg:col-span-2 space-y-10">
+                <Card className="bg-white/95 backdrop-blur-sm border-slate-200/50 shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl">
+                  <CardHeader className="bg-gradient-to-br from-[#212936] to-[#2c3c53] text-white rounded-t-xl">
+                    <CardTitle className="text-white text-xl">Loan Details</CardTitle>
+                    <CardDescription className="text-gray-200">Terms and conditions for this funding offer</CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent className="p-10 space-y-10">
+                    {/* Enhanced metric cards matching OffersList styling */}
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                      <div>
-                        <p className="text-sm text-slate-700">Loan Amount</p>
-                        <p className="font-semibold text-xl flex items-center text-slate-900">
-                          <PoundSterling className="h-4 w-4 text-slate-600 mr-1" />
-                          {formatCurrency(loanAmount)}
-                        </p>
+                      <div className="group bg-gradient-to-br from-slate-50 to-slate-100 p-3 rounded-xl border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5">
+                        <div className="flex justify-between items-start mb-2">
+                          <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Amount</p>
+                          <div className="bg-gradient-to-br from-[#212936] to-[#2c3c53] rounded-full p-1.5 shadow-sm group-hover:shadow-md transition-shadow">
+                            <PoundSterling className="h-3.5 w-3.5 text-white" />
+                          </div>
+                        </div>
+                        <p className="font-bold text-lg text-[#212936]">{formatCurrency(loanAmount)}</p>
+                        <div className="w-full bg-slate-200/50 h-1 rounded-full mt-2">
+                          <div className="bg-gradient-to-r from-[#212936] to-[#ff8000] h-1 rounded-full w-full"></div>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm text-slate-700">Interest Rate</p>
-                        <p className="font-semibold text-xl text-slate-900">{interestRate}%</p>
+                      
+                      <div className="group bg-gradient-to-br from-slate-50 to-slate-100 p-3 rounded-xl border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5">
+                        <div className="flex justify-between items-start mb-2">
+                          <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Rate</p>
+                          <div className="bg-gradient-to-br from-[#212936] to-[#2c3c53] rounded-full p-1.5 shadow-sm group-hover:shadow-md transition-shadow">
+                            <CreditCard className="h-3.5 w-3.5 text-white" />
+                          </div>
+                        </div>
+                        <p className="font-bold text-lg text-[#212936]">{interestRate}%</p>
+                        <div className="w-full bg-slate-200/50 h-1 rounded-full mt-2">
+                          <div className="bg-gradient-to-r from-[#212936] to-[#ff8000] h-1 rounded-full w-4/5"></div>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm text-slate-700">Term</p>
-                        <p className="font-semibold text-xl flex items-center text-slate-900">
-                          <CalendarDays className="h-4 w-4 text-slate-600 mr-1" />
-                          {termMonths} months
-                        </p>
+                      
+                      <div className="group bg-gradient-to-br from-slate-50 to-slate-100 p-3 rounded-xl border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5">
+                        <div className="flex justify-between items-start mb-2">
+                          <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Term</p>
+                          <div className="bg-gradient-to-br from-[#212936] to-[#2c3c53] rounded-full p-1.5 shadow-sm group-hover:shadow-md transition-shadow">
+                            <CalendarDays className="h-3.5 w-3.5 text-white" />
+                          </div>
+                        </div>
+                        <p className="font-bold text-lg text-[#212936]">{termMonths}m</p>
+                        <div className="w-full bg-slate-200/50 h-1 rounded-full mt-2">
+                          <div className="bg-gradient-to-r from-[#212936] to-[#ff8000] h-1 rounded-full w-3/5"></div>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm text-slate-700">Monthly Payment</p>
-                        <p className="font-semibold text-lg text-slate-900">{formatCurrency(monthlyPayment)}</p>
+                      
+                      <div className="group bg-gradient-to-br from-slate-50 to-slate-100 p-3 rounded-xl border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5">
+                        <div className="flex justify-between items-start mb-2">
+                          <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Monthly</p>
+                          <div className="bg-gradient-to-br from-[#212936] to-[#2c3c53] rounded-full p-1.5 shadow-sm group-hover:shadow-md transition-shadow">
+                            <CalendarDays className="h-3.5 w-3.5 text-white" />
+                          </div>
+                        </div>
+                        <p className="font-bold text-lg text-[#212936]">{formatCurrency(monthlyPayment)}</p>
+                        <div className="w-full bg-slate-200/50 h-1 rounded-full mt-2">
+                          <div className="bg-gradient-to-r from-[#212936] to-[#ff8000] h-1 rounded-full w-4/5"></div>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm text-slate-700">APR</p>
-                        <p className="font-semibold text-lg text-slate-900">{offer.apr || (interestRate * 1.2).toFixed(1)}%</p>
+                      
+                      <div className="group bg-gradient-to-br from-slate-50 to-slate-100 p-3 rounded-xl border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5">
+                        <div className="flex justify-between items-start mb-2">
+                          <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">APR</p>
+                          <div className="bg-gradient-to-br from-[#212936] to-[#2c3c53] rounded-full p-1.5 shadow-sm group-hover:shadow-md transition-shadow">
+                            <CreditCard className="h-3.5 w-3.5 text-white" />
+                          </div>
+                        </div>
+                        <p className="font-bold text-lg text-[#212936]">{offer.apr || (interestRate * 1.2).toFixed(1)}%</p>
+                        <div className="w-full bg-slate-200/50 h-1 rounded-full mt-2">
+                          <div className="bg-gradient-to-r from-[#212936] to-[#ff8000] h-1 rounded-full w-3/4"></div>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm text-slate-700">Repayment Frequency</p>
-                        <p className="font-semibold text-lg text-slate-900">{formatRepaymentFrequency(offer.repayment_frequency)}</p>
+                      
+                      <div className="group bg-gradient-to-br from-slate-50 to-slate-100 p-3 rounded-xl border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5">
+                        <div className="flex justify-between items-start mb-2">
+                          <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Frequency</p>
+                          <div className="bg-gradient-to-br from-[#212936] to-[#2c3c53] rounded-full p-1.5 shadow-sm group-hover:shadow-md transition-shadow">
+                            <Clock className="h-3.5 w-3.5 text-white" />
+                          </div>
+                        </div>
+                        <p className="font-bold text-lg text-[#212936]">{formatRepaymentFrequency(offer.repayment_frequency)}</p>
+                        <div className="w-full bg-slate-200/50 h-1 rounded-full mt-2">
+                          <div className="bg-gradient-to-r from-[#212936] to-[#ff8000] h-1 rounded-full w-2/3"></div>
+                        </div>
                       </div>
                     </div>
                     
-                    <Separator />
+                    <Separator className="my-6 bg-gray-200" />
                     
-                    <div>
-                      <h3 className="font-semibold mb-2 text-slate-900">Fees & Additional Costs</h3>
+                    {/* Fees section with enhanced styling */}
+                    <div className="group bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-4 border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200">
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="bg-gradient-to-br from-[#212936] to-[#2c3c53] rounded-full p-1.5 shadow-sm group-hover:shadow-md transition-shadow">
+                          <FileEdit className="h-4 w-4 text-white" />
+                        </div>
+                        <h3 className="font-semibold text-slate-900 uppercase tracking-wide text-sm">Fees & Additional Costs</h3>
+                      </div>
                       <div className="space-y-2">
                         <div className="flex justify-between items-center">
-                          <span className="text-sm text-slate-700">Arrangement Fee ({arrangementFeePercent}%)</span>
-                          <span className="font-medium text-slate-900">{formatCurrency(arrangementFeeAmount)}</span>
+                          <span className="text-sm text-slate-600 font-medium">Arrangement Fee ({arrangementFeePercent}%)</span>
+                          <span className="font-bold text-[#212936]">{formatCurrency(arrangementFeeAmount)}</span>
                         </div>
                         
                         {earlyRepaymentFee > 0 && (
                           <div className="flex justify-between items-center">
-                            <span className="text-sm text-slate-700">Early Repayment Fee</span>
-                            <span className="font-medium text-slate-900">{earlyRepaymentFee}% of outstanding balance</span>
+                            <span className="text-sm text-slate-600 font-medium">Early Repayment Fee</span>
+                            <span className="font-bold text-[#212936]">{earlyRepaymentFee}% of outstanding balance</span>
                           </div>
                         )}
                         
@@ -471,8 +677,8 @@ const OfferDetails = () => {
                           .filter(([key]) => key !== 'arrangement_fee' && key !== 'early_repayment_fee')
                           .map(([feeName, feeAmount]) => (
                             <div key={feeName} className="flex justify-between">
-                              <span className="text-sm text-slate-700 capitalize">{feeName.replace('_', ' ')}</span>
-                              <span className="font-medium text-slate-900">
+                              <span className="text-sm text-slate-600 font-medium capitalize">{feeName.replace('_', ' ')}</span>
+                              <span className="font-bold text-[#212936]">
                                 {typeof feeAmount === 'number' 
                                   ? formatCurrency(feeAmount) 
                                   : String(feeAmount)}
@@ -482,10 +688,16 @@ const OfferDetails = () => {
                       </div>
                     </div>
                     
-                    <Separator />
+                    <Separator className="my-6 bg-gray-200" />
                     
-                    <div>
-                      <h3 className="font-semibold mb-2 text-slate-900">Conditions</h3>
+                    {/* Conditions section with enhanced styling */}
+                    <div className="group bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-4 border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200">
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="bg-gradient-to-br from-[#212936] to-[#2c3c53] rounded-full p-1.5 shadow-sm group-hover:shadow-md transition-shadow">
+                          <FileCheck className="h-4 w-4 text-white" />
+                        </div>
+                        <h3 className="font-semibold text-slate-900 uppercase tracking-wide text-sm">Conditions</h3>
+                      </div>
                       <div className="space-y-2">
                         {offer.conditions && offer.conditions.length > 0 ? (
                           <ul className="list-disc pl-5 space-y-1">
@@ -494,16 +706,21 @@ const OfferDetails = () => {
                             ))}
                           </ul>
                         ) : (
-                          <p className="text-sm text-slate-700">Standard terms and conditions apply</p>
+                          <p className="text-sm text-slate-600">No specific conditions attached to this offer.</p>
                         )}
                       </div>
                     </div>
                     
                     {offer.business_notes && (
                       <>
-                        <Separator />
-                        <div>
-                          <h3 className="font-semibold mb-2 text-slate-900">Notes from Lender</h3>
+                        <Separator className="my-6 bg-gray-200" />
+                        <div className="group bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-4 border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200">
+                          <div className="flex items-center gap-2 mb-3">
+                            <div className="bg-gradient-to-br from-[#212936] to-[#2c3c53] rounded-full p-1.5 shadow-sm group-hover:shadow-md transition-shadow">
+                              <MessageSquare className="h-4 w-4 text-white" />
+                            </div>
+                            <h3 className="font-semibold text-slate-900 uppercase tracking-wide text-sm">Notes from Lender</h3>
+                          </div>
                           <div className="bg-blue-50 p-3 rounded-md border border-blue-100">
                             <p className="text-sm text-slate-800">{offer.business_notes}</p>
                           </div>
@@ -513,41 +730,54 @@ const OfferDetails = () => {
                   </CardContent>
                 </Card>
                 
-                <Card className="bg-white/90 backdrop-blur-sm border border-slate-200/50 shadow-lg">
-                  <CardHeader className="bg-[#212936] text-white rounded-t-lg">
+                <Card className="bg-white/95 backdrop-blur-sm border-slate-200/50 shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl">
+                  <CardHeader className="bg-gradient-to-br from-[#212936] to-[#2c3c53] text-white rounded-t-xl">
                     <CardTitle>Cost Breakdown</CardTitle>
-                    <CardDescription className="text-gray-100">Detailed view of total loan costs</CardDescription>
+                    <CardDescription className="text-gray-200">Detailed view of total loan costs</CardDescription>
                   </CardHeader>
-                  <CardContent>
-                    {/* Cost Breakdown summary */}
-                    <div className="bg-blue-100/80 border border-blue-200 p-4 rounded-lg shadow-sm mb-4">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                          <div className="text-sm font-medium text-slate-800">Monthly Payment</div>
-                          <div className="text-xl font-bold text-slate-900">
-                            {formatCurrency(monthlyPayment)}
-                          </div>
-                          <div className="text-xs text-slate-700 mt-1">
-                            Base payment excluding fees
+                  <CardContent className="p-10 space-y-8">
+                    {/* Cost Breakdown summary with enhanced styling */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div className="group bg-gradient-to-br from-slate-50 to-slate-100 p-4 rounded-xl border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5">
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="text-sm font-semibold text-slate-600 uppercase tracking-wide">Monthly Payment</div>
+                          <div className="bg-gradient-to-br from-[#212936] to-[#2c3c53] rounded-full p-1.5 shadow-sm group-hover:shadow-md transition-shadow">
+                            <CalendarDays className="h-3.5 w-3.5 text-white" />
                           </div>
                         </div>
-                        <div>
-                          <div className="text-sm font-medium text-slate-800">Total Repayment</div>
-                          <div className="text-xl font-bold text-slate-900">
-                            {formatCurrency(totalPayment)}
-                          </div>
-                          <div className="text-xs text-slate-700 mt-1">
-                            Principal + Interest
+                        <div className="text-xl font-bold text-[#212936]">
+                          {formatCurrency(monthlyPayment)}
+                        </div>
+                        <div className="text-xs text-slate-600 mt-1">
+                          Base payment excluding fees
+                        </div>
+                      </div>
+                      <div className="group bg-gradient-to-br from-slate-50 to-slate-100 p-4 rounded-xl border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5">
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="text-sm font-semibold text-slate-600 uppercase tracking-wide">Total Repayment</div>
+                          <div className="bg-gradient-to-br from-[#212936] to-[#2c3c53] rounded-full p-1.5 shadow-sm group-hover:shadow-md transition-shadow">
+                            <PoundSterling className="h-3.5 w-3.5 text-white" />
                           </div>
                         </div>
-                        <div>
-                          <div className="text-sm font-medium text-slate-800">Arrangement Fee</div>
-                          <div className="text-xl font-bold text-slate-900">
-                            {formatCurrency(arrangementFeeAmount)}
+                        <div className="text-xl font-bold text-[#212936]">
+                          {formatCurrency(totalPayment)}
+                        </div>
+                        <div className="text-xs text-slate-600 mt-1">
+                          Principal + Interest
+                        </div>
+                      </div>
+                      <div className="group bg-gradient-to-br from-slate-50 to-slate-100 p-4 rounded-xl border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5">
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="text-sm font-semibold text-slate-600 uppercase tracking-wide">Arrangement Fee</div>
+                          <div className="bg-gradient-to-br from-[#212936] to-[#2c3c53] rounded-full p-1.5 shadow-sm group-hover:shadow-md transition-shadow">
+                            <FileEdit className="h-3.5 w-3.5 text-white" />
                           </div>
-                          <div className="text-xs text-slate-700 mt-1">
-                            {arrangementFeePercent}% of principal
-                          </div>
+                        </div>
+                        <div className="text-xl font-bold text-[#212936]">
+                          {formatCurrency(arrangementFeeAmount)}
+                        </div>
+                        <div className="text-xs text-slate-600 mt-1">
+                          {arrangementFeePercent}% of principal
                         </div>
                       </div>
                     </div>
@@ -593,10 +823,10 @@ const OfferDetails = () => {
                 </Card>
 
                 {isLender && offer.applications && (
-                  <Card className="bg-white/90 backdrop-blur-sm border border-slate-200/50 shadow-lg">
-                    <CardHeader className="bg-[#212936] text-white rounded-t-lg">
-                      <CardTitle>Application Details</CardTitle>
-                      <CardDescription className="text-gray-100">Information about the associated application</CardDescription>
+                  <Card className="bg-white/95 backdrop-blur-sm border-slate-200/50 shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl">
+                    <CardHeader className="bg-gradient-to-br from-[#212936] to-[#2c3c53] text-white rounded-t-xl">
+                      <CardTitle className="text-white">Application Details</CardTitle>
+                      <CardDescription className="text-gray-200">Information about the associated application</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div className="grid grid-cols-2 gap-4">
@@ -640,9 +870,9 @@ const OfferDetails = () => {
               </div>
               
               {/* Sidebar - 1/3 width on desktop */}
-              <div className="space-y-6">
+              <div className="space-y-8">
                 {/* Action card - Different for lender vs business */}
-                <Card className={`bg-white/90 backdrop-blur-sm border shadow-lg ${
+                <Card className={`bg-white/95 backdrop-blur-sm border-slate-200/50 shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl ${
                   isExpired ? 'border-gray-200' :
                   isAccepted ? 'border-green-200' :
                   isDeclined ? 'border-red-200' :
@@ -654,8 +884,8 @@ const OfferDetails = () => {
                     isAccepted ? 'bg-green-50' :
                     isDeclined ? 'bg-red-50' :
                     isWithdrawn ? 'bg-gray-100' :
-                    'bg-[#212936] text-white'
-                  } rounded-t-lg`}>
+                    'bg-gradient-to-br from-[#212936] to-[#2c3c53] text-white'
+                  } rounded-t-xl`}>
                     <CardTitle className={`${
                       isExpired || isAccepted || isDeclined || isWithdrawn ? 'text-slate-800 font-bold' : ''
                     }`}>
@@ -716,7 +946,7 @@ const OfferDetails = () => {
                         </AlertDescription>
                       </Alert>
                     ) : isPending && isLender ? (
-                      <div className="space-y-4">
+                      <div className="space-y-6">
                         <Alert>
                           <InfoIcon className="h-4 w-4" />
                           <AlertDescription>
@@ -724,7 +954,7 @@ const OfferDetails = () => {
                           </AlertDescription>
                         </Alert>
                         
-                        <div className="flex flex-col gap-2">
+                        <div className="flex flex-col gap-3">
                           <Button 
                             variant="outline" 
                             className="w-full"
@@ -767,15 +997,16 @@ const OfferDetails = () => {
                             </DialogContent>
                           </Dialog>
 
-                          {offer.business && (
+                          {offer.business && conversation && (
                             <Button 
                               className="w-full bg-[#212936] hover:bg-[#212936]/90"
                               onClick={() => {
-                                // Navigate to messages tab with this business pre-selected
-                                navigate('/lender/dashboard');
-                                // This would require additional state management to pre-select the conversation
-                                // For now, just show a toast with instructions
-                                toast.info('Go to the Messages tab to contact the business');
+                                // Scroll to messaging section
+                                const messagingCard = document.querySelector('[data-messaging-card]');
+                                if (messagingCard) {
+                                  messagingCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                }
+                                toast.info('Use the messaging section below to contact the business');
                               }}
                             >
                               <MessageSquare className="mr-2 h-4 w-4" />
@@ -785,7 +1016,7 @@ const OfferDetails = () => {
                         </div>
                       </div>
                     ) : !isLender ? (
-                      <div className="space-y-4">
+                      <div className="space-y-6">
                         <Alert>
                           <CalendarDays className="h-4 w-4" />
                           <AlertDescription>
@@ -793,7 +1024,7 @@ const OfferDetails = () => {
                           </AlertDescription>
                         </Alert>
                         
-                        <div className="flex flex-col gap-2">
+                        <div className="flex flex-col gap-3">
                           <Button 
                             className="w-full bg-[#ff8000] hover:bg-[#ff8000]/90 text-white shadow-lg hover:scale-105 transition-transform"
                             onClick={handleAcceptOffer}
@@ -840,7 +1071,19 @@ const OfferDetails = () => {
                             </DialogContent>
                           </Dialog>
                           
-                          <Button variant="link" className="w-full">
+                          <Button 
+                            variant="link" 
+                            className="w-full"
+                            onClick={() => {
+                              // Scroll to messaging section
+                              const messagingCard = document.querySelector('[data-messaging-card]');
+                              if (messagingCard) {
+                                messagingCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                              } else {
+                                toast.info('Accept the offer to start messaging with the lender');
+                              }
+                            }}
+                          >
                             <MessageSquare className="mr-2 h-4 w-4" />
                             Contact Lender
                           </Button>
@@ -851,12 +1094,25 @@ const OfferDetails = () => {
                 </Card>
                 
                 {/* Business info card for lenders / Lender info card for businesses */}
-                <Card className="bg-white/90 backdrop-blur-sm border border-slate-200/50 shadow-lg">
-                  <CardHeader className="bg-[#212936] text-white rounded-t-lg">
-                    <CardTitle>{isLender ? businessName : offer.lender_name}</CardTitle>
-                    <CardDescription className="text-gray-100">About the {isLender ? 'business' : 'lender'}</CardDescription>
+                <Card className="bg-white/95 backdrop-blur-sm border-slate-200/50 shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl">
+                  <CardHeader className="bg-gradient-to-br from-[#212936] to-[#2c3c53] text-white rounded-t-xl">
+                    <CardTitle className="text-white flex items-center gap-3">
+                      {!isLender && (
+                        <Avatar className="w-8 h-8 border-2 border-white/20">
+                          <AvatarImage 
+                            src={offer?.company_logo} 
+                            alt={`${offer.lender_name} logo`}
+                          />
+                          <AvatarFallback className="bg-white/10 text-white text-sm">
+                            <Building2 className="h-4 w-4" />
+                          </AvatarFallback>
+                        </Avatar>
+                      )}
+                      {isLender ? businessName : offer.lender_name}
+                    </CardTitle>
+                    <CardDescription className="text-gray-200">About the {isLender ? 'business' : 'lender'}</CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent className="space-y-6">
                     <div className="flex items-center gap-2">
                       {isLender ? (
                         <>
@@ -866,7 +1122,7 @@ const OfferDetails = () => {
                       ) : (
                         <>
                           <BadgeCheck className="text-blue-500" />
-                          <span className="text-sm">Verified Lender</span>
+                          <span className="text-sm text-blue-500">Verified Lender</span>
                         </>
                       )}
                     </div>
@@ -907,7 +1163,11 @@ const OfferDetails = () => {
                     )}
                     
                     {!isLender && (
-                      <Button variant="outline" className="w-full">
+                      <Button 
+                        variant="outline" 
+                        className="w-full"
+                        onClick={() => setIsLenderProfileModalOpen(true)}
+                      >
                         <Building2 className="mr-2 h-4 w-4" />
                         View Lender Profile
                       </Button>
@@ -916,12 +1176,12 @@ const OfferDetails = () => {
                 </Card>
                 
                 {/* Documents & Actions */}
-                <Card className="bg-white/90 backdrop-blur-sm border border-slate-200/50 shadow-lg">
-                  <CardHeader className="bg-[#212936] text-white rounded-t-lg">
-                    <CardTitle>Documents & {isLender ? 'Analytics' : 'Support'}</CardTitle>
-                    <CardDescription className="text-gray-100">Manage documentation and support</CardDescription>
+                <Card className="bg-white/95 backdrop-blur-sm border-slate-200/50 shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl">
+                  <CardHeader className="bg-gradient-to-br from-[#212936] to-[#2c3c53] text-white rounded-t-xl">
+                    <CardTitle className="text-white">Documents & {isLender ? 'Analytics' : 'Support'}</CardTitle>
+                    <CardDescription className="text-gray-200">Manage documentation and support</CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent className="space-y-6">
                     <Button variant="outline" className="w-full">
                       <Download className="mr-2 h-4 w-4" />
                       Download {isLender ? 'Offer Details' : 'Offer PDF'}
@@ -950,11 +1210,315 @@ const OfferDetails = () => {
                     )}
                   </CardContent>
                 </Card>
+                
+                {/* Messaging Card - Contextual to this offer */}
+                {(isAccepted || (isLender && isPending) || isNegotiating) && (
+                  <Card className="bg-white/95 backdrop-blur-sm border-slate-200/50 shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl" data-messaging-card>
+                    <CardHeader className="bg-gradient-to-br from-[#212936] to-[#2c3c53] text-white rounded-t-xl">
+                      <CardTitle className="text-white flex items-center gap-2">
+                        <MessageSquare className="h-5 w-5" />
+                        Messages
+                      </CardTitle>
+                      <CardDescription className="text-gray-200">
+                        Communicate about this offer with {isLender ? 'the business' : 'the lender'}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      {conversation ? (
+                        <div className="h-96">
+                          <ConversationsUI
+                            conversations={[conversation]}
+                            initialSelectedConversation={conversation}
+                            initialMessages={messages || []}
+                            currentUserId={user?.uid || ''}
+                            userRole={isLender ? 'lender' : 'business'}
+                            onSendMessage={handleSendMessage}
+                            onFetchMessages={handleFetchMessages}
+                            isLoadingConversations={false}
+                            isLoadingMessages={false}
+                          />
+                        </div>
+                      ) : (
+                        <div className="p-6 text-center space-y-4">
+                          <div className="bg-slate-50 rounded-lg p-4">
+                            <MessageSquare className="h-8 w-8 text-slate-400 mx-auto mb-2" />
+                            <p className="text-sm text-slate-600">
+                              {isAccepted 
+                                ? 'Messaging will be available once both parties are ready to communicate.'
+                                : isPending && isLender
+                                ? 'You can message the business once they respond to your offer.'
+                                : 'Messaging is available for this offer.'}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Lender Profile Modal */}
+      <Dialog open={isLenderProfileModalOpen} onOpenChange={setIsLenderProfileModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-[#212936]">
+              Lender Profile
+            </DialogTitle>
+            <DialogDescription>
+              Detailed information about {offer?.lender_name || 'this lender'}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {isLoadingLenderProfile ? (
+            <div className="flex justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#212936]"></div>
+            </div>
+          ) : lenderProfile ? (
+            <div className="space-y-6">
+              {/* Lender Header */}
+              <div className="flex items-start gap-4 p-4 bg-gradient-to-r from-slate-50 to-blue-50 rounded-lg border">
+                <div className="flex-shrink-0">
+                  <Avatar className="w-16 h-16 border-2 border-white shadow-sm">
+                    <AvatarImage 
+                      src={lenderProfile.logo_url || lenderProfile.company_logo || offer?.company_logo} 
+                      alt={`${lenderProfile.lender_name || lenderProfile.company_name} logo`}
+                    />
+                    <AvatarFallback className="bg-gradient-to-br from-[#212936] to-[#2c3c53] text-white text-xl">
+                      <Building2 className="h-8 w-8" />
+                    </AvatarFallback>
+                  </Avatar>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-[#212936]">
+                    {lenderProfile.lender_name || lenderProfile.company_name || offer?.lender_name || 'Unnamed Lender'}
+                  </h3>
+                  {lenderProfile.business_type && (
+                    <p className="text-sm text-slate-600 capitalize">
+                      {lenderProfile.business_type.replace('_', ' ')}
+                    </p>
+                  )}
+                  {lenderProfile.established_year && (
+                    <p className="text-sm text-slate-600">
+                      Established: {lenderProfile.established_year}
+                    </p>
+                  )}
+                </div>
+                <Badge className="bg-green-100 text-green-800 border-green-200">
+                  <BadgeCheck className="h-3 w-3 mr-1" />
+                  Verified
+                </Badge>
+              </div>
+
+              {/* Company Information */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {lenderProfile.company_size && (
+                  <div className="bg-white p-4 rounded-lg border">
+                    <h4 className="font-medium text-slate-900 mb-1">Company Size</h4>
+                    <p className="text-sm text-slate-600">{lenderProfile.company_size}</p>
+                  </div>
+                )}
+                
+                {lenderProfile.industry_focus && (
+                  <div className="bg-white p-4 rounded-lg border">
+                    <h4 className="font-medium text-slate-900 mb-1">Industry Focus</h4>
+                    <p className="text-sm text-slate-600 capitalize">
+                      {Array.isArray(lenderProfile.industry_focus) 
+                        ? lenderProfile.industry_focus.join(', ').replace(/_/g, ' ')
+                        : lenderProfile.industry_focus.replace(/_/g, ' ')
+                      }
+                    </p>
+                  </div>
+                )}
+
+                {lenderProfile.lending_criteria && (
+                  <div className="bg-white p-4 rounded-lg border md:col-span-2">
+                    <h4 className="font-medium text-slate-900 mb-3">Lending Criteria</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                      {typeof lenderProfile.lending_criteria === 'object' ? (
+                        <>
+                          {lenderProfile.lending_criteria.min_loan_amount && typeof lenderProfile.lending_criteria.min_loan_amount === 'number' && (
+                            <div>
+                              <span className="font-medium text-slate-700">Min Loan:</span>
+                              <span className="ml-2 text-slate-600">{formatCurrency(lenderProfile.lending_criteria.min_loan_amount)}</span>
+                            </div>
+                          )}
+                          {lenderProfile.lending_criteria.max_loan_amount && typeof lenderProfile.lending_criteria.max_loan_amount === 'number' && (
+                            <div>
+                              <span className="font-medium text-slate-700">Max Loan:</span>
+                              <span className="ml-2 text-slate-600">{formatCurrency(lenderProfile.lending_criteria.max_loan_amount)}</span>
+                            </div>
+                          )}
+                          {lenderProfile.lending_criteria.min_annual_revenue && typeof lenderProfile.lending_criteria.min_annual_revenue === 'number' && (
+                            <div>
+                              <span className="font-medium text-slate-700">Min Revenue:</span>
+                              <span className="ml-2 text-slate-600">{formatCurrency(lenderProfile.lending_criteria.min_annual_revenue)}/year</span>
+                            </div>
+                          )}
+                          {lenderProfile.lending_criteria.interest_rate_range && typeof lenderProfile.lending_criteria.interest_rate_range === 'string' && (
+                            <div>
+                              <span className="font-medium text-slate-700">Interest Rate:</span>
+                              <span className="ml-2 text-slate-600">{lenderProfile.lending_criteria.interest_rate_range}</span>
+                            </div>
+                          )}
+                          {lenderProfile.lending_criteria.funding_speed_days && typeof lenderProfile.lending_criteria.funding_speed_days === 'number' && (
+                            <div>
+                              <span className="font-medium text-slate-700">Funding Speed:</span>
+                              <span className="ml-2 text-slate-600">{lenderProfile.lending_criteria.funding_speed_days} days</span>
+                            </div>
+                          )}
+                          {lenderProfile.lending_criteria.min_business_age_months && typeof lenderProfile.lending_criteria.min_business_age_months === 'number' && (
+                            <div>
+                              <span className="font-medium text-slate-700">Min Business Age:</span>
+                              <span className="ml-2 text-slate-600">{Math.round(lenderProfile.lending_criteria.min_business_age_months / 12)} years</span>
+                            </div>
+                          )}
+                          {lenderProfile.lending_criteria.preferred_industries && lenderProfile.lending_criteria.preferred_industries.length > 0 && (
+                            <div className="sm:col-span-2">
+                              <span className="font-medium text-slate-700">Preferred Industries:</span>
+                              <div className="mt-1 flex flex-wrap gap-1">
+                                {lenderProfile.lending_criteria.preferred_industries.map((industry, index) => (
+                                  <Badge key={index} variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                                    {industry.replace(/_/g, ' ')}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {lenderProfile.lending_criteria.excluded_industries && lenderProfile.lending_criteria.excluded_industries.length > 0 && (
+                            <div className="sm:col-span-2">
+                              <span className="font-medium text-slate-700">Excluded Industries:</span>
+                              <div className="mt-1 flex flex-wrap gap-1">
+                                {lenderProfile.lending_criteria.excluded_industries.map((industry, index) => (
+                                  <Badge key={index} variant="outline" className="text-xs bg-red-50 text-red-700 border-red-200">
+                                    {industry.replace(/_/g, ' ')}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {lenderProfile.lending_criteria.funding_types && lenderProfile.lending_criteria.funding_types.length > 0 && (
+                            <div className="sm:col-span-2">
+                              <span className="font-medium text-slate-700">Funding Types:</span>
+                              <div className="mt-1 flex flex-wrap gap-1">
+                                {lenderProfile.lending_criteria.funding_types.map((type, index) => (
+                                  <Badge key={index} variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                    {type.replace(/_/g, ' ')}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <p className="text-slate-600">{lenderProfile.lending_criteria}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {(lenderProfile.min_loan_amount || lenderProfile.max_loan_amount) && (
+                  <div className="bg-white p-4 rounded-lg border">
+                    <h4 className="font-medium text-slate-900 mb-1">Loan Range</h4>
+                    <p className="text-sm text-slate-600">
+                      {lenderProfile.min_loan_amount && typeof lenderProfile.min_loan_amount === 'number' && formatCurrency(lenderProfile.min_loan_amount)} 
+                      {lenderProfile.min_loan_amount && lenderProfile.max_loan_amount && ' - '}
+                      {lenderProfile.max_loan_amount && typeof lenderProfile.max_loan_amount === 'number' && formatCurrency(lenderProfile.max_loan_amount)}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Contact Information */}
+              {(lenderProfile.contact_email || lenderProfile.phone || lenderProfile.website) && (
+                <div className="bg-slate-50 p-4 rounded-lg border">
+                  <h4 className="font-medium text-slate-900 mb-3">Contact Information</h4>
+                  <div className="space-y-2">
+                    {lenderProfile.contact_email && (
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                        <span className="text-sm text-slate-600">Email: {lenderProfile.contact_email}</span>
+                      </div>
+                    )}
+                    {lenderProfile.phone && (
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span className="text-sm text-slate-600">Phone: {lenderProfile.phone}</span>
+                      </div>
+                    )}
+                    {lenderProfile.website && (
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                        <span className="text-sm text-slate-600">Website: {lenderProfile.website}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Company Description */}
+              {lenderProfile.company_description && (
+                <div className="bg-white p-4 rounded-lg border">
+                  <h4 className="font-medium text-slate-900 mb-2">About</h4>
+                  <p className="text-sm text-slate-600 leading-relaxed">
+                    {lenderProfile.company_description}
+                  </p>
+                </div>
+              )}
+
+              {/* Specializations */}
+              {lenderProfile.specializations && lenderProfile.specializations.length > 0 && (
+                <div className="bg-white p-4 rounded-lg border">
+                  <h4 className="font-medium text-slate-900 mb-2">Specializations</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {lenderProfile.specializations.map((spec, index) => (
+                      <Badge key={index} variant="outline" className="text-xs">
+                        {spec.replace('_', ' ')}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <Building2 className="h-12 w-12 text-slate-400 mx-auto mb-3" />
+              <p className="text-slate-600">No detailed profile information available for this lender.</p>
+              <p className="text-sm text-slate-500 mt-1">
+                Basic information about {offer?.lender_name || 'this lender'} is available in the offer details.
+              </p>
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setIsLenderProfileModalOpen(false)}
+            >
+              Close
+            </Button>
+            {!isLender && lenderProfile && (
+              <Button 
+                className="bg-[#212936] hover:bg-[#212936]/90"
+                onClick={() => {
+                  setIsLenderProfileModalOpen(false);
+                  // Scroll to messaging section
+                  const messagingElement = document.querySelector('[data-messaging="true"]');
+                  if (messagingElement) {
+                    messagingElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }
+                }}
+              >
+                <MessageSquare className="mr-2 h-4 w-4" />
+                Contact Lender
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </PageLayout>
   );
 };

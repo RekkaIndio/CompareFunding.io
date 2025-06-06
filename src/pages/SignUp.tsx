@@ -19,7 +19,7 @@ import PageLayout from '@/components/PageLayout';
 import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { createDocument, sendSignInEmail } from '@/firebase';
-import { Building2, Users, Shield, CheckCircle, Star, TrendingUp, Zap, Clock, ArrowRight, CreditCard } from 'lucide-react';
+import { Building2, Users, Shield, CheckCircle, Star, TrendingUp, Zap, Clock, ArrowRight, CreditCard, ChevronDown } from 'lucide-react';
 
 const industryOptions = [
   { label: 'Technology', value: 'technology' },
@@ -310,7 +310,8 @@ const SignUp = () => {
             alt="Business professionals collaborating"
             className="w-full h-full object-cover"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-fundhub-navy/95 via-fundhub-navy/80 to-transparent"></div>
+          <div className="absolute inset-0 bg-gradient-to-r from-fundhub-navy/95 via-fundhub-navy/85 to-fundhub-navy/70"></div>
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/20"></div>
         </div>
         
         {/* Content */}
@@ -320,8 +321,12 @@ const SignUp = () => {
               
               {/* Left Content */}
               <div className="flex-1 max-w-2xl text-white">
-                <div className="mb-8">
-                  <h1 className="text-4xl lg:text-5xl font-bold mb-6 leading-tight">
+                <div className="mb-10">
+                  <div className="inline-flex items-center px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full text-white/90 text-sm font-medium mb-6">
+                    <Star className="w-4 h-4 mr-2 text-yellow-400" />
+                    Rated #1 Business Funding Platform
+                  </div>
+                  <h1 className="text-4xl lg:text-6xl font-bold mb-6 leading-tight">
                     Choose Your Path to 
                     <span className="text-primary"> Success</span>
                   </h1>
@@ -336,6 +341,16 @@ const SignUp = () => {
                   <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
                       <Shield className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <div className="font-semibold">Bank-Grade Security</div>
+                      <div className="text-sm text-white/70">256-bit encryption</div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                      <Clock className="w-5 h-5 text-primary" />
                     </div>
                     <div>
                       <div className="font-semibold">Bank-Grade Security</div>
@@ -382,8 +397,11 @@ const SignUp = () => {
               
               {/* Right Content - Account Selection */}
               <div className="flex-1 max-w-2xl w-full">
-                <div className="bg-white rounded-3xl p-8 shadow-2xl">
+                <div className="bg-white/95 backdrop-blur-sm rounded-3xl p-8 shadow-2xl border border-white/20">
                   <div className="text-center mb-8">
+                    <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-primary to-blue-600 rounded-2xl mb-4">
+                      <Users className="w-8 h-8 text-white" />
+                    </div>
                     <h2 className="text-3xl font-bold text-gray-900 mb-2">
                       Get Started Today
                     </h2>
@@ -395,101 +413,149 @@ const SignUp = () => {
                   {/* Account Type Cards */}
                   <div className="space-y-6">
                     {/* Business Card */}
-                    <div className="group relative overflow-hidden rounded-2xl border-2 border-gray-200 hover:border-primary transition-all duration-300 hover:shadow-lg cursor-pointer"
+                    <div className="group relative overflow-hidden rounded-2xl border-2 border-gray-200 hover:border-primary hover:shadow-xl transition-all duration-300 cursor-pointer bg-gradient-to-br from-white to-gray-50/50"
                          onClick={() => navigate('/signup-journey/email-password')}>
-                      <div className="p-6">
+                      <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-blue-600/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                      <div className="relative p-6">
                         <div className="flex items-start space-x-4">
-                          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                            <Building2 className="w-6 h-6 text-primary" />
+                          <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary/10 to-primary/20 flex items-center justify-center group-hover:from-primary/20 group-hover:to-primary/30 transition-all duration-300 shadow-lg">
+                            <Building2 className="w-7 h-7 text-primary" />
                           </div>
                           <div className="flex-1">
-                            <h3 className="text-xl font-bold text-gray-900 mb-2">For Businesses</h3>
+                            <div className="flex items-center justify-between mb-2">
+                              <h3 className="text-xl font-bold text-gray-900">For Businesses</h3>
+                              <div className="px-3 py-1 bg-primary/10 text-primary text-xs font-semibold rounded-full">
+                                Most Popular
+                              </div>
+                            </div>
                             <p className="text-gray-600 mb-4">
                               Access funding opportunities, compare options, and streamline your application process.
                             </p>
                             
                             {/* Benefits */}
-                            <div className="space-y-2 mb-4">
-                              <div className="flex items-center space-x-2 text-sm text-gray-700">
-                                <CheckCircle className="w-4 h-4 text-green-500" />
-                                <span>Compare 50+ funding options</span>
+                            <div className="space-y-3 mb-6">
+                              <div className="flex items-center space-x-3 text-sm text-gray-700">
+                                <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center">
+                                  <CheckCircle className="w-3 h-3 text-green-600" />
+                                </div>
+                                <span className="font-medium">Compare 50+ funding options</span>
                               </div>
-                              <div className="flex items-center space-x-2 text-sm text-gray-700">
-                                <CheckCircle className="w-4 h-4 text-green-500" />
-                                <span>One application, multiple lenders</span>
+                              <div className="flex items-center space-x-3 text-sm text-gray-700">
+                                <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center">
+                                  <CheckCircle className="w-3 h-3 text-green-600" />
+                                </div>
+                                <span className="font-medium">One application, multiple lenders</span>
                               </div>
-                              <div className="flex items-center space-x-2 text-sm text-gray-700">
-                                <CheckCircle className="w-4 h-4 text-green-500" />
-                                <span>Free credit score monitoring</span>
+                              <div className="flex items-center space-x-3 text-sm text-gray-700">
+                                <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center">
+                                  <CheckCircle className="w-3 h-3 text-green-600" />
+                                </div>
+                                <span className="font-medium">Free credit score monitoring</span>
                               </div>
                             </div>
                             
-                            <Button className="w-full bg-primary hover:bg-primary/90 text-white group-hover:bg-primary/90">
+                            <Button className="w-full bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 text-white shadow-lg group-hover:shadow-xl transition-all duration-300">
                               Start Your Application
-                              <ArrowRight className="w-4 h-4 ml-2" />
+                              <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
                             </Button>
                           </div>
                         </div>
                       </div>
                     </div>
                     
-                    {/* Lender Card */}
-                    <div className="group relative overflow-hidden rounded-2xl border-2 border-gray-200 hover:border-primary transition-all duration-300 hover:shadow-lg">
-                      <div className="p-6">
-                        <div className="flex items-start space-x-4">
-                          <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center group-hover:bg-blue-100 transition-colors">
-                            <CreditCard className="w-6 h-6 text-blue-600" />
+                    {/* Lender Dropdown */}
+                    <details className="group relative overflow-hidden rounded-2xl border-2 border-gray-200 hover:border-blue-500 hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-white to-blue-50/30">
+                      <summary className="relative p-6 cursor-pointer list-none">
+                        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-purple-600/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                        <div className="relative flex items-center justify-between">
+                          <div className="flex items-start space-x-4">
+                            <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center group-hover:from-blue-100 group-hover:to-blue-200 transition-all duration-300 shadow-lg">
+                              <CreditCard className="w-7 h-7 text-blue-600" />
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-2">
+                                <h3 className="text-xl font-bold text-gray-900">For Lenders</h3>
+                                <div className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full">
+                                  Enterprise
+                                </div>
+                              </div>
+                              <p className="text-gray-600">
+                                Connect with qualified businesses and streamline your lending process
+                              </p>
+                            </div>
                           </div>
-                          <div className="flex-1">
-                            <h3 className="text-xl font-bold text-gray-900 mb-2">For Lenders</h3>
-                            <p className="text-gray-600 mb-4">
-                              Connect with qualified businesses and streamline your lending process with our platform.
-                            </p>
-                            
-                            {/* Benefits */}
-                            <div className="space-y-2 mb-4">
-                              <div className="flex items-center space-x-2 text-sm text-gray-700">
-                                <CheckCircle className="w-4 h-4 text-green-500" />
-                                <span>Access pre-qualified leads</span>
-                              </div>
-                              <div className="flex items-center space-x-2 text-sm text-gray-700">
-                                <CheckCircle className="w-4 h-4 text-green-500" />
-                                <span>Automated application processing</span>
-                              </div>
-                              <div className="flex items-center space-x-2 text-sm text-gray-700">
-                                <CheckCircle className="w-4 h-4 text-green-500" />
-                                <span>Portfolio management tools</span>
-                              </div>
+                          <ChevronDown className="w-5 h-5 text-gray-400 transition-transform duration-200 group-open:rotate-180 flex-shrink-0" />
+                        </div>
+                      </summary>
+                      
+                      <div className="px-6 pb-6 border-t border-gray-100">
+                        {/* Benefits */}
+                        <div className="space-y-3 mb-6 mt-4">
+                          <div className="flex items-center space-x-3 text-sm text-gray-700">
+                            <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center">
+                              <CheckCircle className="w-3 h-3 text-blue-600" />
                             </div>
-                            
-                            {/* Calendly Embed - Expanded */}
-                            <div className="mb-4">
-                              <iframe
-                                src="https://calendly.com/jamie-comparefunding/30min"
-                                title="Book a call with Compare Funding"
-                                width="100%"
-                                height="400"
-                                frameBorder="0"
-                                style={{ borderRadius: '12px', border: '1px solid #e5e7eb', minHeight: '835px' }}
-                                allowFullScreen
-                              ></iframe>
+                            <span className="font-medium">Access pre-qualified leads</span>
+                          </div>
+                          <div className="flex items-center space-x-3 text-sm text-gray-700">
+                            <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center">
+                              <CheckCircle className="w-3 h-3 text-blue-600" />
                             </div>
-                            
-                            <Button variant="outline" className="w-full border-gray-300 hover:bg-gray-50 text-white">
-                              Book a Demo Call
-                            </Button>
+                            <span className="font-medium">Automated application processing</span>
+                          </div>
+                          <div className="flex items-center space-x-3 text-sm text-gray-700">
+                            <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center">
+                              <CheckCircle className="w-3 h-3 text-blue-600" />
+                            </div>
+                            <span className="font-medium">Portfolio management tools</span>
                           </div>
                         </div>
+                        
+                        {/* Calendly Embed - More compact and styled */}
+                        <div className="mb-4 p-4 bg-gradient-to-r from-gray-50 to-blue-50 rounded-xl border border-gray-200">
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center space-x-2">
+                              <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center">
+                                <Users className="w-4 h-4 text-white" />
+                              </div>
+                              <div>
+                                <h4 className="font-semibold text-gray-900">Jamie Mason-Wright</h4>
+                                <p className="text-sm text-gray-600">30 Minute Compare Funding</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-1 text-sm text-gray-500">
+                              <Clock className="w-4 h-4" />
+                              <span>30 min</span>
+                            </div>
+                          </div>
+                          <p className="text-sm text-gray-600 mb-3">
+                            Web conferencing details provided upon confirmation.
+                          </p>
+                          <iframe
+                            src="https://calendly.com/jamie-comparefunding/30min"
+                            title="Book a call with Compare Funding"
+                            width="100%"
+                            height="320"
+                            frameBorder="0"
+                            className="rounded-lg border border-gray-300"
+                            allowFullScreen
+                          ></iframe>
+                        </div>
+                        
+                        <Button variant="outline" className="w-full border-blue-300 hover:bg-blue-50 text-blue-700 hover:text-blue-800 transition-all duration-300">
+                          <Users className="w-4 h-4 mr-2" />
+                          Book a Demo Call
+                        </Button>
                       </div>
-                    </div>
+                    </details>
                   </div>
                   
                   {/* Login Link */}
                   <div className="text-center mt-8 pt-6 border-t border-gray-200">
                     <p className="text-gray-600">
                       Already have an account?{' '}
-                      <Link to="/login" className="font-medium text-primary hover:text-primary/80 transition-colors">
-                        Sign in
+                      <Link to="/login" className="font-semibold text-primary hover:text-primary/80 transition-colors underline decoration-2 underline-offset-2">
+                        Sign in here
                       </Link>
                     </p>
                   </div>
@@ -501,48 +567,68 @@ const SignUp = () => {
       </section>
       
       {/* Features Section */}
-      <section className="py-16 bg-gray-50">
+      <section className="py-20 bg-gradient-to-br from-gray-50 via-white to-blue-50/30">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+          <div className="text-center mb-16">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-primary to-blue-600 rounded-2xl mb-6">
+              <Shield className="w-8 h-8 text-white" />
+            </div>
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">
               Why Choose Compare Funding?
             </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
               We're revolutionizing commercial finance by making it faster, more transparent, and more accessible for everyone.
             </p>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <div className="group text-center p-6 rounded-2xl hover:bg-white hover:shadow-xl transition-all duration-300">
+              <div className="w-16 h-16 bg-gradient-to-br from-primary/10 to-primary/20 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
                 <Zap className="w-8 h-8 text-primary" />
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Lightning Fast</h3>
-              <p className="text-gray-600">Get funding decisions in hours, not weeks. Our streamlined process cuts through red tape.</p>
+              <h3 className="text-xl font-semibold text-gray-900 mb-3">Lightning Fast</h3>
+              <p className="text-gray-600 leading-relaxed">Get funding decisions in hours, not weeks. Our streamlined process cuts through red tape.</p>
             </div>
             
-            <div className="text-center">
-              <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <div className="group text-center p-6 rounded-2xl hover:bg-white hover:shadow-xl transition-all duration-300">
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
                 <TrendingUp className="w-8 h-8 text-blue-600" />
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Best Rates</h3>
-              <p className="text-gray-600">Compare offers from 50+ lenders to ensure you get the most competitive rates available.</p>
+              <h3 className="text-xl font-semibold text-gray-900 mb-3">Best Rates</h3>
+              <p className="text-gray-600 leading-relaxed">Compare offers from 50+ lenders to ensure you get the most competitive rates available.</p>
             </div>
             
-            <div className="text-center">
-              <div className="w-16 h-16 bg-green-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <div className="group text-center p-6 rounded-2xl hover:bg-white hover:shadow-xl transition-all duration-300">
+              <div className="w-16 h-16 bg-gradient-to-br from-green-50 to-green-100 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
                 <Shield className="w-8 h-8 text-green-600" />
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Secure & Trusted</h3>
-              <p className="text-gray-600">Bank-grade security with full transparency. Your data is protected and never shared without consent.</p>
+              <h3 className="text-xl font-semibold text-gray-900 mb-3">Secure & Trusted</h3>
+              <p className="text-gray-600 leading-relaxed">Bank-grade security with full transparency. Your data is protected and never shared without consent.</p>
             </div>
             
-            <div className="text-center">
-              <div className="w-16 h-16 bg-purple-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <div className="group text-center p-6 rounded-2xl hover:bg-white hover:shadow-xl transition-all duration-300">
+              <div className="w-16 h-16 bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
                 <Users className="w-8 h-8 text-purple-600" />
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Expert Support</h3>
-              <p className="text-gray-600">Our team of funding experts guides you through every step of the process.</p>
+              <h3 className="text-xl font-semibold text-gray-900 mb-3">Expert Support</h3>
+              <p className="text-gray-600 leading-relaxed">Our team of funding experts guides you through every step of the process.</p>
+            </div>
+          </div>
+          
+          {/* Additional Trust Indicators */}
+          <div className="mt-16 pt-12 border-t border-gray-200">
+            <div className="text-center mb-8">
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">Trusted by Industry Leaders</h3>
+              <p className="text-gray-600">Join thousands of satisfied businesses and lenders</p>
+            </div>
+            <div className="flex flex-wrap justify-center items-center gap-8 opacity-60">
+              <div className="text-gray-400 font-semibold text-lg">50+ Lenders</div>
+              <div className="w-px h-8 bg-gray-300"></div>
+              <div className="text-gray-400 font-semibold text-lg">10,000+ Businesses</div>
+              <div className="w-px h-8 bg-gray-300"></div>
+              <div className="text-gray-400 font-semibold text-lg">£2B+ Funded</div>
+              <div className="w-px h-8 bg-gray-300"></div>
+              <div className="text-gray-400 font-semibold text-lg">4.9★ Rating</div>
             </div>
           </div>
         </div>

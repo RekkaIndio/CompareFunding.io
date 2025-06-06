@@ -1,11 +1,9 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
-import { getDocument, expressInterestInApplication } from '@/firebase';
-import { normalizeCreditScoreData } from '@/services';
-import { getFirestore } from 'firebase/firestore';
+import { getDocument } from '@/firebase';
 import { toast } from 'sonner';
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import PageLayout from '@/components/PageLayout';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -19,22 +17,15 @@ import { FinancialDataTabs } from './components/FinancialDataTabs';
 import { FinancialDocumentsCard } from './components/FinancialDocumentsCard';
 import { CreditScoreCard } from './components/CreditScoreCard';
 import { FundingRequestCard } from './components/FundingRequestCard';
-import { InterestConfirmDialog } from './components/InterestConfirmDialog';
 
 // Import hooks directly from their files
 import { useBusinessData } from './hooks/useBusinessData';
 import { useFinancialData } from './hooks/useFinancialData';
 
-// No migration interfaces needed
-
 const BusinessDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const queryClient = useQueryClient();
-  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const db = getFirestore();
 
   // Fetch lender profile data
   const { data: lenderProfile } = useQuery({
@@ -60,49 +51,9 @@ const BusinessDetailPage = () => {
     canSeeBusinessDetails,
     isLenderMatched,
     getDisplayName,
-    hasExpressedInterest
   } = useBusinessData(id, user);
 
   const { financialData } = useFinancialData(id, applicationData);
-
-  // Migration functionality removed
-
-  // Express interest mutation
-  const expressInterestMutation = useMutation({
-    mutationFn: async () => {
-      setIsSubmitting(true);
-      const { data, error } = await expressInterestInApplication(
-        id as string, 
-        user?.uid as string,
-        lenderProfile
-      );
-      
-      if (error) {
-        throw new Error(error.message);
-      }
-      
-      return data;
-    },
-    onSuccess: () => {
-      toast.success('Interest expressed successfully! The business will be notified.');
-      setIsConfirmDialogOpen(false);
-      queryClient.invalidateQueries({ queryKey: ['businessDetail', id] });
-    },
-    onError: (error: any) => {
-      toast.error(`Failed to express interest: ${error.message}`);
-    },
-    onSettled: () => {
-      setIsSubmitting(false);
-    }
-  });
-
-  const handleExpressInterest = () => {
-    setIsConfirmDialogOpen(true);
-  };
-
-  const confirmExpressInterest = () => {
-    expressInterestMutation.mutate();
-  };
 
   // Update document title based on match status
   useEffect(() => {
@@ -217,9 +168,7 @@ const BusinessDetailPage = () => {
           <BusinessHeader 
             displayName={getDisplayName()}
             applicationData={applicationData}
-            handleExpressInterest={handleExpressInterest}
             isLenderMatched={isLenderMatched()}
-            hasExpressedInterest={hasExpressedInterest()}
           />
 
           {/* Main Content Area */}
@@ -229,14 +178,11 @@ const BusinessDetailPage = () => {
               <BusinessOverview 
                 applicationData={applicationData} 
                 canSeeBusinessDetails={canSeeBusinessDetails()}
-                handleExpressInterest={handleExpressInterest}
-                hasExpressedInterest={hasExpressedInterest()}
                 isLenderMatched={isLenderMatched()}
               />
 
               <FinancialDataTabs 
                 financialData={financialData}
-                handleExpressInterest={handleExpressInterest}
                 isLenderMatched={isLenderMatched()}
               />
             </div>
@@ -246,11 +192,8 @@ const BusinessDetailPage = () => {
               <CreditScoreCard creditScore={applicationData.creditScore} />
               <FundingRequestCard 
                 application={applicationData.application}
-                handleExpressInterest={handleExpressInterest}
                 isLenderMatched={isLenderMatched()}
-                hasExpressedInterest={hasExpressedInterest()}
               />
-              {/* Always show the Financial Documents Card, but content changes based on match status */}
               <FinancialDocumentsCard 
                 financialData={financialData}
                 isLenderMatched={isLenderMatched()}
@@ -259,16 +202,6 @@ const BusinessDetailPage = () => {
           </div>
         </div>
       </div>
-
-      {/* Confirmation Dialog */}
-      <InterestConfirmDialog 
-        isOpen={isConfirmDialogOpen}
-        setIsOpen={setIsConfirmDialogOpen}
-        applicationData={applicationData}
-        id={id}
-        confirmExpressInterest={confirmExpressInterest}
-        isSubmitting={isSubmitting}
-      />
     </PageLayout>
   );
 };

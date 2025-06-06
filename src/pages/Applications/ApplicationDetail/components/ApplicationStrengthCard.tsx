@@ -7,6 +7,7 @@ import {
   CardContent
 } from "@/components/ui/card";
 import { Shield, Loader2 } from 'lucide-react';
+import { useCreditScoreAvailability, useFinancialDocumentsAvailability } from '@/pages/Applications/ApplicationDetail/hooks';
 
 interface ApplicationStrengthCardProps {
   application: any;
@@ -14,6 +15,41 @@ interface ApplicationStrengthCardProps {
 
 const ApplicationStrengthCard: React.FC<ApplicationStrengthCardProps> = ({ application }) => {
   if (!application) return null;
+
+  // Determine which business ID to use
+  const businessId = application.business_id || application.user_id;
+  
+  // Check if credit score is available
+  const { data: creditScoreAvailability, isLoading: isLoadingCreditScore } = useCreditScoreAvailability(businessId);
+  const hasCreditScore = creditScoreAvailability?.hasScore || false;
+
+  // Check if financial documents are available
+  const { data: financialDocsAvailability, isLoading: isLoadingFinancialDocs } = useFinancialDocumentsAvailability(businessId);
+  const hasFinancialDocs = financialDocsAvailability?.hasDocuments || false;
+
+  // Calculate more accurate completeness percentage
+  const calculateActualCompleteness = () => {
+    if (isLoadingCreditScore || isLoadingFinancialDocs) {
+      // Return the existing percentage while loading
+      return application.completeness_percentage || 0;
+    }
+
+    // Check each component
+    const hasBusinessProfile = application.businesses || application.business;
+    const hasApplicationDetails = application.loan_amount && application.loan_term_months && application.purpose;
+
+    const checks = [
+      hasBusinessProfile,
+      hasCreditScore,
+      hasFinancialDocs,
+      hasApplicationDetails
+    ];
+
+    const completed = checks.filter(Boolean).length;
+    return Math.round((completed / checks.length) * 100);
+  };
+
+  const actualCompleteness = calculateActualCompleteness();
 
   return (
     <Card className="bg-white/90 backdrop-blur-sm border border-slate-200/50 shadow-lg hover:shadow-xl transition-all duration-300">
@@ -48,16 +84,16 @@ const ApplicationStrengthCard: React.FC<ApplicationStrengthCardProps> = ({ appli
                 r="45"
                 fill="none"
                 stroke={
-                  !application.completeness_percentage ? "#f97316" :
-                  application.completeness_percentage < 50 ? "#f97316" : 
-                  application.completeness_percentage < 75 ? "#facc15" : 
-                  application.completeness_percentage < 100 ? "#22c55e" : 
+                  !actualCompleteness ? "#f97316" :
+                  actualCompleteness < 50 ? "#f97316" : 
+                  actualCompleteness < 75 ? "#facc15" : 
+                  actualCompleteness < 100 ? "#22c55e" : 
                   "#10b981"
                 } 
                 strokeWidth="8"
                 strokeLinecap="round"
                 strokeDasharray={`${2 * Math.PI * 45}`}
-                strokeDashoffset={`${2 * Math.PI * 45 * (1 - (application.completeness_percentage || 0) / 100)}`}
+                strokeDashoffset={`${2 * Math.PI * 45 * (1 - (actualCompleteness || 0) / 100)}`}
                 className="transition-all duration-1000 ease-out"
               />
             </svg>
@@ -65,7 +101,7 @@ const ApplicationStrengthCard: React.FC<ApplicationStrengthCardProps> = ({ appli
             {/* Percentage in Middle */}
             <div className="absolute inset-0 flex items-center justify-center flex-col">
               <span className="text-4xl font-bold text-[#212936]">
-                {application.completeness_percentage || 0}%
+                {actualCompleteness}%
               </span>
               <span className="text-sm font-medium text-gray-500">Strength</span>
             </div>
@@ -80,31 +116,46 @@ const ApplicationStrengthCard: React.FC<ApplicationStrengthCardProps> = ({ appli
             </div>
             
             {/* Missing items - only show if not 100% complete */}
-            {application.completeness_percentage !== 100 && (
+            {actualCompleteness !== 100 && (
               <div className="mt-2 px-4">
-                {!application.businesses && (
+                {!application.businesses && !application.business && (
                   <div className="bg-amber-50 border border-amber-200/70 rounded-lg p-2 mb-2 flex items-center">
                     <div className="h-1.5 w-1.5 rounded-full bg-amber-500 mr-2"></div>
                     <p className="text-amber-800 text-xs font-medium">Business profile incomplete</p>
                   </div>
                 )}
-                {!application.credit_score && (
+                {!isLoadingCreditScore && !hasCreditScore && (
                   <div className="bg-amber-50 border border-amber-200/70 rounded-lg p-2 mb-2 flex items-center">
                     <div className="h-1.5 w-1.5 rounded-full bg-amber-500 mr-2"></div>
                     <p className="text-amber-800 text-xs font-medium">Credit score missing</p>
                   </div>
                 )}
-                {!application.has_documents && (
+                {(isLoadingCreditScore || isLoadingFinancialDocs) && (
+                  <div className="bg-gray-50 border border-gray-200/70 rounded-lg p-2 mb-2 flex items-center">
+                    <Loader2 className="h-3 w-3 animate-spin mr-2 text-gray-500" />
+                    <p className="text-gray-600 text-xs font-medium">
+                      {isLoadingCreditScore && isLoadingFinancialDocs ? 'Checking credit score and documents...' :
+                       isLoadingCreditScore ? 'Checking credit score...' : 'Checking financial documents...'}
+                    </p>
+                  </div>
+                )}
+                {!isLoadingFinancialDocs && !hasFinancialDocs && (
                   <div className="bg-amber-50 border border-amber-200/70 rounded-lg p-2 mb-2 flex items-center">
                     <div className="h-1.5 w-1.5 rounded-full bg-amber-500 mr-2"></div>
                     <p className="text-amber-800 text-xs font-medium">Financial documents missing</p>
+                  </div>
+                )}
+                {(!application.loan_amount || !application.loan_term_months || !application.purpose) && (
+                  <div className="bg-amber-50 border border-amber-200/70 rounded-lg p-2 mb-2 flex items-center">
+                    <div className="h-1.5 w-1.5 rounded-full bg-amber-500 mr-2"></div>
+                    <p className="text-amber-800 text-xs font-medium">Application details incomplete</p>
                   </div>
                 )}
               </div>
             )}
             
             {/* Complete application */}
-            {application.completeness_percentage === 100 && (
+            {actualCompleteness === 100 && (
               <div className="bg-green-50 border border-green-200 rounded-lg p-3 mt-2 mx-4">
                 <p className="text-green-800 text-sm font-medium">
                   ✓ Application complete

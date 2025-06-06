@@ -7,7 +7,9 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { NavbarProvider } from '@/contexts/NavbarContext'; // Add this line
 import { SidebarProvider } from '@/contexts/SidebarContext';
+import { TourProvider } from '@/contexts/TourContext';
 import { ThemeStyles } from '@/components/ThemeStyles';
+import TourOverlay from '@/components/TourOverlay';
 import PrivateRoute from "@/components/PrivateRoute";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
@@ -36,6 +38,7 @@ import LearnPage from "./pages/Learn";
 import HelpPage from "./pages/Help";
 import MatchedApplicationsRedirect from "./pages/MatchedApplications";
 import LenderMatchedApplications from "./pages/Lender/MatchedApplications";
+import Messages from "./pages/Messages";
 import ApplicationDetail from "./pages/Applications/ApplicationDetail";
 import CreateOffer from "./pages/CreateOffer";
 import Settings from "./pages/Settings";
@@ -83,9 +86,11 @@ const App = () => (
           <ThemeProvider>
             <NavbarProvider> {/* Add this line */}
               <SidebarProvider>
-                <ThemeStyles />
-                <Toaster />
-                <Sonner />
+                <TourProvider>
+                  <ThemeStyles />
+                  <TourOverlay />
+                  <Toaster />
+                  <Sonner />
               <Routes>
                 {/* Public routes */}
                 <Route path="/" element={<Index />} />
@@ -113,6 +118,7 @@ const App = () => (
                 {/* Protected routes */}
                 <Route element={<PrivateRoute />}>
                   {/* Business user routes */}
+                  <Route path="/dashboard" element={<BusinessDashboard />} />
                   <Route path="/applications" element={<Applications />} />
                   <Route path="/applications/:id" element={<ApplicationDetail />} />
                   <Route path="/business/profile" element={<BusinessProfile />} />
@@ -172,6 +178,7 @@ const App = () => (
                   <Route path="/lender/offers" element={<OffersList />} />
                   
                   {/* Shared routes */}
+                  <Route path="/messages" element={<Messages />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/notifications" element={<Notifications />} />
                 </Route>
@@ -179,6 +186,7 @@ const App = () => (
                 {/* Catch-all route */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
+                </TourProvider>
               </SidebarProvider>
             </NavbarProvider> {/* Add this line */}
           </ThemeProvider>
