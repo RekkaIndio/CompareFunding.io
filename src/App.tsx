@@ -11,6 +11,7 @@ import { TourProvider } from '@/contexts/TourContext';
 import { ThemeStyles } from '@/components/ThemeStyles';
 import TourOverlay from '@/components/TourOverlay';
 import PrivateRoute from "@/components/PrivateRoute";
+import ComingSoonPage from "@/components/ComingSoonPage";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import ForBusinesses from "./pages/ForBusinesses";
@@ -78,122 +79,131 @@ import RaisingEquityPage from "./pages/help/RaisingEquity";
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <BrowserRouter>
-        <AuthProvider>
-          <ThemeProvider>
-            <NavbarProvider> {/* Add this line */}
-              <SidebarProvider>
-                <TourProvider>
-                  <ThemeStyles />
-                  <TourOverlay />
-                  <Toaster />
-                  <Sonner />
-              <Routes>
-                {/* Public routes */}
-                <Route path="/" element={<Index />} />
-                <Route path="/for-businesses" element={<ForBusinesses />} />
-                <Route path="/for-lenders" element={<ForLenders />} />
-                <Route path="/how-it-works" element={<HowItWorks />} />
-                <Route path="/about" element={<About />} />
-                <Route path="/contact" element={<Contact />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/signup" element={<SignUp />} />
-                
-                {/* Original routes - keep temporarily until everything is working */}
-                <Route path="/funding-matches" element={<FundingMatches />} />
-                {/* <Route path="/business-details" element={<BusinessDetailsForm />} /> */}
-                
-                {/* New SignUpJourney routes */}
-                <Route path="/signup-journey" element={<Navigate to="/signup-journey/email-password" replace />} />
-                <Route path="/signup-journey/email-password" element={<EmailPasswordPage />} />
-                <Route path="/signup-journey/apply" element={<SignUpFundingApplication />} />
-                <Route path="/signup-journey/funding-matches" element={<SignUpFundingMatches />} />
-                <Route path="/signup-journey/business-details" element={<SignUpBusinessDetailsForm />} />
-                <Route path="/signup-journey/eligibility" element={<EligibilityPage />} />
-                {/* <Route path="/signup-journey/customize-offers" element={<SignUpCustomizeOffers />} /> */}
-                
-                {/* Protected routes */}
-                <Route element={<PrivateRoute />}>
-                  {/* Business user routes */}
-                  <Route path="/dashboard" element={<BusinessDashboard />} />
-                  <Route path="/applications" element={<Applications />} />
-                  <Route path="/applications/:id" element={<ApplicationDetail />} />
-                  <Route path="/business/profile" element={<BusinessProfile />} />
-                  <Route path="/business/dashboard" element={<BusinessDashboard />} />
-                   <Route path="/business/learn" element={<LearnPage />} />
-                  {/* <Route path="/business/accounting/connect" element={<AccountingConnect />} /> */}
-                  <Route path="/applications/new" element={<NewApplication />} />
-                  <Route path="/applications/:id/review" element={<ApplicationReview />} />
-                  <Route path="/offers" element={<OffersList />} />
-                  <Route path="/offers/:id" element={<OfferDetails />} />
-                  
+const App = () => {
+  // Check if we should show coming soon page
+  const showComingSoon = import.meta.env.VITE_COMING_SOON === 'true';
+  
+  if (showComingSoon) {
+    return <ComingSoonPage />;
+  }
 
-                  {/* Business Documents page */}
-                  <Route path="/business/documents" element={<BusinessDocuments />} />
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <BrowserRouter>
+          <AuthProvider>
+            <ThemeProvider>
+              <NavbarProvider>
+                <SidebarProvider>
+                  <TourProvider>
+                    <ThemeStyles />
+                    <TourOverlay />
+                    <Toaster />
+                    <Sonner />
+                    <Routes>
+                      {/* Public routes */}
+                      <Route path="/" element={<Index />} />
+                      <Route path="/for-businesses" element={<ForBusinesses />} />
+                      <Route path="/for-lenders" element={<ForLenders />} />
+                      <Route path="/how-it-works" element={<HowItWorks />} />
+                      <Route path="/about" element={<About />} />
+                      <Route path="/contact" element={<Contact />} />
+                      <Route path="/login" element={<Login />} />
+                      <Route path="/signup" element={<SignUp />} />
+                      
+                      {/* Original routes - keep temporarily until everything is working */}
+                      <Route path="/funding-matches" element={<FundingMatches />} />
+                      {/* <Route path="/business-details" element={<BusinessDetailsForm />} /> */}
+                      
+                      {/* New SignUpJourney routes */}
+                      <Route path="/signup-journey" element={<Navigate to="/signup-journey/email-password" replace />} />
+                      <Route path="/signup-journey/email-password" element={<EmailPasswordPage />} />
+                      <Route path="/signup-journey/apply" element={<SignUpFundingApplication />} />
+                      <Route path="/signup-journey/funding-matches" element={<SignUpFundingMatches />} />
+                      <Route path="/signup-journey/business-details" element={<SignUpBusinessDetailsForm />} />
+                      <Route path="/signup-journey/eligibility" element={<EligibilityPage />} />
+                      {/* <Route path="/signup-journey/customize-offers" element={<SignUpCustomizeOffers />} /> */}
+                      
+                      {/* Protected routes */}
+                      <Route element={<PrivateRoute />}>
+                        {/* Business user routes */}
+                        <Route path="/dashboard" element={<BusinessDashboard />} />
+                        <Route path="/applications" element={<Applications />} />
+                        <Route path="/applications/:id" element={<ApplicationDetail />} />
+                        <Route path="/business/profile" element={<BusinessProfile />} />
+                        <Route path="/business/dashboard" element={<BusinessDashboard />} />
+                         <Route path="/business/learn" element={<LearnPage />} />
+                        {/* <Route path="/business/accounting/connect" element={<AccountingConnect />} /> */}
+                        <Route path="/applications/new" element={<NewApplication />} />
+                        <Route path="/applications/:id/review" element={<ApplicationReview />} />
+                        <Route path="/offers" element={<OffersList />} />
+                        <Route path="/offers/:id" element={<OfferDetails />} />
+                        
 
-                  {/* Funding Options routes */}
-                  <Route path="/funding-options/cashflow" element={<CashflowPage />} />
-                  <Route path="/funding-options/asset-finance" element={<AssetFinancePage />} />
+                        {/* Business Documents page */}
+                        <Route path="/business/documents" element={<BusinessDocuments />} />
 
-                  {/* Integration routes */}
-                  <Route path="/integrations/accounting" element={<AccountingIntegrationPage />} />
-                  <Route path="/integrations/banking" element={<BankingIntegrationPage />} />
-                  <Route path="/integrations/hmrc" element={<HMRCIntegrationPage />} />
+                        {/* Funding Options routes */}
+                        <Route path="/funding-options/cashflow" element={<CashflowPage />} />
+                        <Route path="/funding-options/asset-finance" element={<AssetFinancePage />} />
 
-                  {/* Account routes */}
-                  <Route path="/account/business-details" element={<BusinessDetailsPage />} />
-                  <Route path="/account/current-lending" element={<CurrentLendingPage />} />
-                  <Route path="/account/hmrc-status" element={<HMRCStatusPage />} />
-                  <Route path="/account/document-upload" element={<DocumentUploadPage />} />
-                  <Route path="/account/users" element={<UsersPage />} />
-                  <Route path="/account/advisor" element={<AdvisorPage />} />
+                        {/* Integration routes */}
+                        <Route path="/integrations/accounting" element={<AccountingIntegrationPage />} />
+                        <Route path="/integrations/banking" element={<BankingIntegrationPage />} />
+                        <Route path="/integrations/hmrc" element={<HMRCIntegrationPage />} />
 
-                  {/* Add the new Credit Score route for business users */}
-                  <Route path="/credit-score" element={<CreditScorePage />} />
+                        {/* Account routes */}
+                        <Route path="/account/business-details" element={<BusinessDetailsPage />} />
+                        <Route path="/account/current-lending" element={<CurrentLendingPage />} />
+                        <Route path="/account/hmrc-status" element={<HMRCStatusPage />} />
+                        <Route path="/account/document-upload" element={<DocumentUploadPage />} />
+                        <Route path="/account/users" element={<UsersPage />} />
+                        <Route path="/account/advisor" element={<AdvisorPage />} />
 
-                  {/* Learn/Education page for business users */}
-                  <Route path="/learn" element={<LearnPage />} />
-                  {/* Help/Support page for business users */}
-                  <Route path="/help" element={<HelpPage />} />
+                        {/* Add the new Credit Score route for business users */}
+                        <Route path="/credit-score" element={<CreditScorePage />} />
 
-                  {/* Help sub-pages */}
-                  <Route path="/help/business-insurance" element={<BusinessInsurancePage />} />
-                  <Route path="/help/foreign-exchange" element={<ForeignExchangePage />} />
-                  <Route path="/help/raising-equity" element={<RaisingEquityPage />} />
+                        {/* Learn/Education page for business users */}
+                        <Route path="/learn" element={<LearnPage />} />
+                        {/* Help/Support page for business users */}
+                        <Route path="/help" element={<HelpPage />} />
 
-                  {/* Lender user routes */}
-                  <Route path="/lender/profile" element={<LenderProfile />} />
-                  <Route path="/lender/dashboard" element={<LenderDashboard />} />
-                  <Route path="/lender/billing" element={<LenderBilling />} />
-                  <Route path="/lender/applications" element={<MatchedApplicationsRedirect />} />
-                  <Route path="/matched-applications" element={<MatchedApplicationsRedirect />} />
-                  <Route path="/lender/matched-applications" element={<LenderMatchedApplications />} />
-                  <Route path="/business/:id" element={<BusinessDetail />} />
-                  <Route path="/lender/applications/:id" element={<ApplicationDetail />} />
-                  <Route path="/lender/applications/:id/offer" element={<CreateOffer />} />
-                  <Route path="/create-offer/:id" element={<CreateOffer />} />
-                  <Route path="/lender/offers" element={<OffersList />} />
-                  
-                  {/* Shared routes */}
-                  <Route path="/messages" element={<Messages />} />
-                  <Route path="/settings" element={<Settings />} />
-                  <Route path="/notifications" element={<Notifications />} />
-                </Route>
-                
-                {/* Catch-all route */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-                </TourProvider>
-              </SidebarProvider>
-            </NavbarProvider> {/* Add this line */}
-          </ThemeProvider>
-        </AuthProvider>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+                        {/* Help sub-pages */}
+                        <Route path="/help/business-insurance" element={<BusinessInsurancePage />} />
+                        <Route path="/help/foreign-exchange" element={<ForeignExchangePage />} />
+                        <Route path="/help/raising-equity" element={<RaisingEquityPage />} />
+
+                        {/* Lender user routes */}
+                        <Route path="/lender/profile" element={<LenderProfile />} />
+                        <Route path="/lender/dashboard" element={<LenderDashboard />} />
+                        <Route path="/lender/billing" element={<LenderBilling />} />
+                        <Route path="/lender/applications" element={<MatchedApplicationsRedirect />} />
+                        <Route path="/matched-applications" element={<MatchedApplicationsRedirect />} />
+                        <Route path="/lender/matched-applications" element={<LenderMatchedApplications />} />
+                        <Route path="/business/:id" element={<BusinessDetail />} />
+                        <Route path="/lender/applications/:id" element={<ApplicationDetail />} />
+                        <Route path="/lender/applications/:id/offer" element={<CreateOffer />} />
+                        <Route path="/create-offer/:id" element={<CreateOffer />} />
+                        <Route path="/lender/offers" element={<OffersList />} />
+                        
+                        {/* Shared routes */}
+                        <Route path="/messages" element={<Messages />} />
+                        <Route path="/settings" element={<Settings />} />
+                        <Route path="/notifications" element={<Notifications />} />
+                      </Route>
+                      
+                      {/* Catch-all route */}
+                      <Route path="*" element={<NotFound />} />
+                    </Routes>
+                  </TourProvider>
+                </SidebarProvider>
+              </NavbarProvider>
+            </ThemeProvider>
+          </AuthProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;

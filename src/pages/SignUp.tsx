@@ -18,7 +18,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import PageLayout from '@/components/PageLayout';
 import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { createDocument, sendSignInEmail } from '@/firebase';
+import { createDocument } from '@/firebase';
 import { Building2, Users, Shield, CheckCircle, Star, TrendingUp, Zap, Clock, ArrowRight, CreditCard, ChevronDown } from 'lucide-react';
 
 const industryOptions = [
@@ -98,7 +98,6 @@ type SignUpFormValues = z.infer<typeof signUpSchema>;
 
 const SignUp = () => {
   const [isLoading, setIsLoading] = useState(false);
-  const [useEmailLink, setUseEmailLink] = useState(false);
   const { signUp } = useAuth();
   const navigate = useNavigate();
 
@@ -170,14 +169,6 @@ const SignUp = () => {
     setIsLoading(true);
 
     try {
-      if (useEmailLink) {
-
-        await sendSignInEmail(values.email);
-        toast.success("Sign-in link has been sent to your email.");
-        setIsLoading(false);
-        return;
-      }
-
       // Clean form data based on account type
       const userData = {
         first_name: values.firstName,

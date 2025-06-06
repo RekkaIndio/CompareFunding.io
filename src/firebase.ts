@@ -11,7 +11,11 @@ import {
   User as FirebaseUser,
   sendSignInLinkToEmail,
   isSignInWithEmailLink,
-  signInWithEmailLink
+  signInWithEmailLink,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult
 } from "firebase/auth";
 import { 
   getFirestore, 
@@ -93,33 +97,33 @@ const updateUserProfile = async (user: FirebaseUser, data: { displayName?: strin
   return updateProfile(user, data);
 };
 
-const sendSignInEmail = async (email: string) => {
-  const actionCodeSettings = {
-    url: 'http://localhost:3000', // Replace with your app's URL
-    handleCodeInApp: true,
-  };
+// SSO Authentication functions
+const googleProvider = new GoogleAuthProvider();
 
+const signInWithGoogle = async () => {
   try {
-    await sendSignInLinkToEmail(auth, email, actionCodeSettings);
-    window.localStorage.setItem('emailForSignIn', email);
-    console.log('Sign-in email sent!');
-  } catch (error) {
-    console.error('Error sending sign-in email:', error);
+    const result = await signInWithPopup(auth, googleProvider);
+    return { data: result, error: null };
+  } catch (error: any) {
+    return { data: null, error: { message: error.message } };
   }
 };
 
-const completeSignInWithEmailLink = async (email?: string) => {
-  if (isSignInWithEmailLink(auth, window.location.href)) {
-    try {
-      const storedEmail = email || window.localStorage.getItem('emailForSignIn');
-      if (!storedEmail) throw new Error('No email found for sign-in.');
+const signInWithGoogleRedirect = async () => {
+  try {
+    await signInWithRedirect(auth, googleProvider);
+  } catch (error: any) {
+    console.error('Error with Google redirect:', error);
+    throw error;
+  }
+};
 
-      const result = await signInWithEmailLink(auth, storedEmail, window.location.href);
-      window.localStorage.removeItem('emailForSignIn');
-      console.log('Successfully signed in:', result.user);
-    } catch (error) {
-      console.error('Error completing sign-in:', error);
-    }
+const getGoogleRedirectResult = async () => {
+  try {
+    const result = await getRedirectResult(auth);
+    return { data: result, error: null };
+  } catch (error: any) {
+    return { data: null, error: { message: error.message } };
   }
 };
 
@@ -758,8 +762,9 @@ export {
   loginUser,
   logoutUser,
   updateUserProfile,
-  sendSignInEmail,
-  completeSignInWithEmailLink,
+  signInWithGoogle,
+  signInWithGoogleRedirect,
+  getGoogleRedirectResult,
   getDocument,
   getDocuments,
   createDocument,
