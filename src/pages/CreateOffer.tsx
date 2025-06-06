@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import PageLayout from '@/components/PageLayout';
+import OfferConfirmationModal from '@/components/OfferConfirmationModal';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -19,7 +20,6 @@ import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
 import {
   ArrowLeft,
   PoundSterling,
@@ -54,6 +54,7 @@ const CreateOffer = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [conditions, setConditions] = useState(['']);
+  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   
   // Fetch application data using Firebase
   const { data: application, isLoading, error: applicationError } = useQuery({
@@ -170,7 +171,30 @@ const CreateOffer = () => {
       const { data: lenderProfile, error: lenderError } = await getDocument('lender_profiles', user.uid);
       
       if (lenderError) {
-        throw new Error('Unable to fetch lender profile');
+        console.warn('Unable to fetch lender profile:', lenderError);
+      }
+      
+      // If no lender profile or incomplete data, try to get from users collection
+      let lenderName = lenderProfile?.company_name || '';
+      let companyLogo = lenderProfile?.logo_url || '';
+      
+      if (!lenderName || lenderName.trim() === '') {
+        try {
+          const { data: userData } = await getDocument('users', user.uid);
+          if (userData) {
+            lenderName = userData.company_name || userData.name || userData.displayName || 'Unnamed Lender';
+            if (!companyLogo) {
+              companyLogo = userData.logo_url || userData.logo || '';
+            }
+          }
+        } catch (error) {
+          console.warn('Could not fetch user data for lender name:', error);
+        }
+      }
+      
+      // Final fallback
+      if (!lenderName || lenderName.trim() === '') {
+        lenderName = 'Unnamed Lender';
       }
       
       const filteredConditions = conditions.filter(c => c.trim() !== '');
@@ -204,9 +228,9 @@ const CreateOffer = () => {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         expiry_date: new Date(Date.now() + formData.expiry_days * 24 * 60 * 60 * 1000).toISOString(),
-        lender_name: lenderProfile?.lender_name || 'Unnamed Lender',
-        company_name: lenderProfile?.company_name || '',
-        company_logo: lenderProfile?.logo_url || '',
+        lender_name: lenderName,
+        company_name: lenderProfile?.company_name || lenderName,
+        company_logo: companyLogo,
       };
       
       // Create the offer document in Firebase
@@ -229,7 +253,7 @@ const CreateOffer = () => {
         user_id: application.user_id,
         type: 'new_offer',
         title: 'New Financing Offer',
-        message: `${lenderProfile?.company_name || 'A lender'} has submitted a financing offer of £${formData.offered_amount.toLocaleString()} for your application`,
+        message: `${lenderName !== 'Unnamed Lender' ? lenderName : 'A lender'} has submitted a financing offer of £${formData.offered_amount.toLocaleString()} for your application`,
         application_id: id,
         offer_id: offerData.id,
         read: false,
@@ -251,7 +275,13 @@ const CreateOffer = () => {
   });
   
   const onSubmit = (data: z.infer<typeof offerFormSchema>) => {
-    submitOffer.mutate(data);
+    setShowConfirmationModal(true);
+  };
+
+  const handleConfirmSubmission = () => {
+    const formData = form.getValues();
+    setShowConfirmationModal(false);
+    submitOffer.mutate(formData);
   };
   
   // Get calculated monthly payment based on current form values
@@ -274,7 +304,7 @@ const CreateOffer = () => {
           </Button>
           <h1 className="text-3xl font-bold mb-2">Create Financing Offer</h1>
           <p className="text-slate-800 mb-8">
-            Design a tailored financing proposal for {application?.businesses?.business_name || 'this business'}
+            Design a tailored financing proposal for this business application
           </p>
           
           {isLoading ? (
@@ -305,11 +335,8 @@ const CreateOffer = () => {
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
-                      <div className="text-sm text-slate-700">Business</div>
+                      <div className="text-sm text-slate-700">Industry</div>
                       <div className="font-medium text-slate-900">
-                        {application?.businesses?.business_name || 'Unknown business'}
-                      </div>
-                      <div className="text-xs text-slate-700">
                         {application?.businesses?.industry_sector || 'Industry not specified'}
                       </div>
                     </div>
@@ -690,6 +717,15 @@ const CreateOffer = () => {
                   </Card>
                 </form>
               </Form>
+              
+              {/* Confirmation Modal */}
+              <OfferConfirmationModal
+                isOpen={showConfirmationModal}
+                onClose={() => setShowConfirmationModal(false)}
+                onConfirm={handleConfirmSubmission}
+                isLoading={submitOffer.isPending}
+                offerAmount={form.watch('offered_amount') || 0}
+              />
             </>
           )}
         </div>

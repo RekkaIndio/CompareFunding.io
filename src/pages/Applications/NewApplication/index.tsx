@@ -170,11 +170,17 @@ const NewApplication = () => {
   if (isLoading) {
     return (
       <PageLayout>
-        <div className="container py-12 flex items-center justify-center min-h-[calc(100vh-200px)]">
-          <div className="flex flex-col items-center gap-2">
-            <Loader2 className="h-8 w-8 animate-spin text-fundhub-blue" />
-            <p className="text-muted-foreground">Loading application form...</p>
-            <p className="text-sm text-gray-400">Checking for your business profile data...</p>
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
+          <div className="container py-12 flex items-center justify-center min-h-[calc(100vh-200px)]">
+            <div className="flex flex-col items-center gap-4">
+              <div className="bg-gradient-to-br from-[#212936] to-[#2c3c53] rounded-full p-4 shadow-lg">
+                <Loader2 className="h-8 w-8 animate-spin text-[#ff8000]" />
+              </div>
+              <div className="text-center space-y-2">
+                <p className="text-[#212936] font-semibold text-lg">Loading application form...</p>
+                <p className="text-slate-600 text-sm">Checking for your business profile data...</p>
+              </div>
+            </div>
           </div>
         </div>
       </PageLayout>
@@ -184,39 +190,57 @@ const NewApplication = () => {
   if (!businessProfile) {
     return (
       <PageLayout>
-        <div className="container py-8">
-          <div className="max-w-3xl mx-auto">
-            <Card>
-              <CardHeader>
-                <CardTitle>Complete Your Profile First</CardTitle>
-                <CardDescription>
-                  You need to complete your business profile before applying for funding
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="mb-6">
-                  To provide lenders with the necessary information for evaluating your application,
-                  please complete your business profile with essential details about your company.
-                </p>
-                <Alert className="mb-4">
-                  <AlertDescription className="text-sm">
-                    We couldn't find your business profile in our system. If you've already completed
-                    your profile, there might be an issue with accessing your data.
-                  </AlertDescription>
-                </Alert>
-                <p className="text-sm text-gray-500 mb-4">
-                  User ID: {user?.uid || 'Not available'}
-                </p>
-              </CardContent>
-              <CardFooter>
-                <Button
-                  className="bg-fundhub-blue hover:bg-fundhub-blue/90"
-                  onClick={() => navigate('/business/profile')}
-                >
-                  Complete Profile
-                </Button>
-              </CardFooter>
-            </Card>
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
+          <div className="container py-8">
+            <div className="max-w-4xl mx-auto">
+              <Card className="relative overflow-hidden bg-white hover:shadow-2xl border transition-all duration-300 border-slate-200/80 rounded-xl shadow-lg">
+                {/* Premium status indicator bar */}
+                <div className="h-1.5 w-full bg-gradient-to-r from-amber-400 to-amber-600"></div>
+                
+                <CardHeader className="text-center pb-6">
+                  <div className="mx-auto bg-gradient-to-br from-[#212936] to-[#2c3c53] rounded-full p-4 shadow-lg w-fit mb-4">
+                    <svg className="h-8 w-8 text-[#ff8000]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <CardTitle className="text-2xl font-bold text-[#212936] mb-2">Complete Your Profile First</CardTitle>
+                  <CardDescription className="text-slate-600 text-lg">
+                    You need to complete your business profile before applying for funding
+                  </CardDescription>
+                </CardHeader>
+                
+                <CardContent className="space-y-6">
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
+                    <p className="text-slate-700 leading-relaxed">
+                      To provide lenders with the necessary information for evaluating your application,
+                      please complete your business profile with essential details about your company.
+                    </p>
+                  </div>
+                  
+                  <Alert className="border-amber-200 bg-amber-50">
+                    <AlertDescription className="text-sm text-amber-800">
+                      We couldn't find your business profile in our system. If you've already completed
+                      your profile, there might be an issue with accessing your data.
+                    </AlertDescription>
+                  </Alert>
+                  
+                  <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+                    <p className="text-sm text-slate-600 font-mono">
+                      User ID: {user?.uid || 'Not available'}
+                    </p>
+                  </div>
+                </CardContent>
+                
+                <CardFooter className="pt-6">
+                  <Button
+                    className="w-full h-12 bg-gradient-to-r from-[#ff8000] to-[#ffaa00] hover:from-[#ff9900] hover:to-[#ffbb00] text-white font-semibold shadow-lg transition-all duration-200 hover:shadow-xl hover:-translate-y-0.5"
+                    onClick={() => navigate('/business/profile')}
+                  >
+                    Complete Profile
+                  </Button>
+                </CardFooter>
+              </Card>
+            </div>
           </div>
         </div>
       </PageLayout>
@@ -225,60 +249,65 @@ const NewApplication = () => {
 
   return (
     <PageLayout>
-      <div className="container py-8 max-w-[1400px] mx-auto px-4 bg-white">
-        <div>
-          <Button
-            variant="ghost"
-            className="mb-6 text-gray-600 hover:text-gray-900"
-            onClick={() => navigate('/applications')}
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Applications
-          </Button>
-          
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold mb-2 text-gray-900">New Loan Application</h1>
-            <p className="text-gray-600">
-              Complete the form below to start your funding application. Each section has its own card below.
-            </p>
-          </div>
-          
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-              <LoanDetailsCard form={form} />
-              <AdditionalDetailsCard form={form} />
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
+        <div className="container py-8 max-w-[1400px] mx-auto px-4">
+          <div>
+            <Button
+              variant="ghost"
+              className="mb-6 text-[#212936] hover:text-[#ff8000] hover:bg-slate-50 transition-all duration-200"
+              onClick={() => navigate('/applications')}
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Applications
+            </Button>
+            
+            <div className="mb-8 text-center">
+              <h1 className="text-4xl font-bold mb-4 text-[#212936] bg-gradient-to-r from-[#212936] to-[#2c3c53] bg-clip-text text-transparent">
+                New Loan Application
+              </h1>
+              <p className="text-slate-600 text-lg max-w-2xl mx-auto">
+                Complete the form below to start your funding application. Our premium application process ensures the best matching with suitable lenders.
+              </p>
             </div>
-              
-    
-              <div className="flex justify-end space-x-4 mt-8">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="px-6 py-2 border border-gray-300 hover:bg-gray-50"
-                  onClick={() => navigate('/applications')}
-                >
-                  Cancel
-                </Button>
-                <Button 
-                  type="submit" 
-                  className="px-6 py-2 bg-[#ff6b00] hover:bg-[#ff6b00]/90 text-white font-medium"
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      Continue to Review
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </>
-                  )}
-                </Button>
-              </div>
-            </form>
-          </Form>
+            
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                  <LoanDetailsCard form={form} />
+                  <AdditionalDetailsCard form={form} />
+                </div>
+                
+                {/* Enhanced action buttons with premium styling */}
+                <div className="flex flex-col sm:flex-row justify-center gap-4 mt-12">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="px-8 py-3 border-2 border-slate-300 hover:border-[#212936] hover:bg-slate-50 text-[#212936] font-semibold transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5"
+                    onClick={() => navigate('/applications')}
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    type="submit" 
+                    className="px-8 py-3 bg-gradient-to-r from-[#ff8000] to-[#ffaa00] hover:from-[#ff9900] hover:to-[#ffbb00] text-white font-semibold shadow-lg transition-all duration-200 hover:shadow-xl hover:-translate-y-0.5"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Creating Application...
+                      </>
+                    ) : (
+                      <>
+                        Continue to Review
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </div>
         </div>
       </div>
     </PageLayout>

@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { ThumbsUp, FileText, AlertTriangle } from 'lucide-react';
+import { ThumbsUp, FileText } from 'lucide-react';
 import { ApplicationData } from '../types';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -7,17 +7,13 @@ import { useAuth } from '@/contexts/AuthContext';
 interface BusinessHeaderProps {
   displayName: string;
   applicationData: ApplicationData;
-  handleExpressInterest: () => void;
   isLenderMatched: boolean;
-  hasExpressedInterest?: boolean;
 }
 
 export const BusinessHeader: React.FC<BusinessHeaderProps> = ({
   displayName,
   applicationData,
-  handleExpressInterest,
   isLenderMatched,
-  hasExpressedInterest
 }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -29,9 +25,6 @@ export const BusinessHeader: React.FC<BusinessHeaderProps> = ({
     // Use application's document ID instead of application_number for routing
     const applicationId = applicationData.application?.id || applicationData.application?.application_number;
     if (!applicationId) return null;
-    
-
-
     
     const buttons = [];
     
@@ -79,7 +72,7 @@ export const BusinessHeader: React.FC<BusinessHeaderProps> = ({
         </Button>
       );
     } else {
-      // Original flow for non-matched businesses
+      // Show Create Offer button for non-matched businesses
       buttons.push(
         <Button 
           key="create-offer"
@@ -90,31 +83,6 @@ export const BusinessHeader: React.FC<BusinessHeaderProps> = ({
           Create Offer
         </Button>
       );
-      
-      // Express Interest button - changes to "Interest Sent" when interest is pending
-      if (hasExpressedInterest) {
-        buttons.push(
-          <Button 
-            key="interest-sent"
-            disabled
-            className="bg-gray-600 text-white shadow-lg rounded-lg transition-transform"
-          >
-            <ThumbsUp className="mr-2 h-4 w-4" />
-            Interest Sent
-          </Button>
-        );
-      } else {
-        buttons.push(
-          <Button 
-            key="express-interest"
-            onClick={handleExpressInterest} 
-            className="bg-[#ff8000] hover:bg-[#ff8000]/90 text-white shadow-lg rounded-lg hover:scale-105 transition-transform"
-          >
-            <ThumbsUp className="mr-2 h-4 w-4" />
-            Express Interest
-          </Button>
-        );
-      }
     }
     
     return buttons;

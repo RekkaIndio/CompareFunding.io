@@ -9,11 +9,13 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ArrowLeft, CheckCircle, AlertTriangle, Download, Shield, Building2, TrendingUp, FileText, Upload, Zap, Loader2 } from 'lucide-react';
 import StatusBadge from '@/components/StatusBadge';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCreditScoreAvailability, useFinancialDocumentsAvailability } from '@/pages/Applications/ApplicationDetail/hooks';
 
-// Add Firestore imports for fetching financial documents
+// Add Firestore imports for fetching financial documents (still needed for the existing query)
 import { getFirestore, collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 
 // Interface for financial document structure
@@ -41,6 +43,7 @@ const ApplicationReview = () => {
   const { user } = useAuth();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSubmitModal, setShowSubmitModal] = useState(false);
   const queryClient = useQueryClient();
   const [financialDocs, setFinancialDocs] = useState<FinancialDocument[]>([]);
   
@@ -109,6 +112,18 @@ const ApplicationReview = () => {
     staleTime: 5 * 60 * 1000,
   });
 
+  // Fetch credit score data using the same hook as ApplicationDetail
+  const { data: creditScoreData, isLoading: isLoadingCreditScore } = useCreditScoreAvailability(
+    application?.business_id || user?.uid
+  );
+  
+  const creditScore = creditScoreData?.score;
+
+  // Fetch financial documents availability using the new hook
+  const { data: financialDocsAvailability, isLoading: isLoadingFinancialDocsHook } = useFinancialDocumentsAvailability(
+    application?.business_id || user?.uid
+  );
+
   // Fetch business profile data
   const { data: businessProfile } = useQuery({
     queryKey: ['businessProfile', user?.uid, application?.business_id],
@@ -162,13 +177,6 @@ const ApplicationReview = () => {
   const { data: financialsData, isLoading: isLoadingFinancials } = useQuery<FinancialDocument[]>({
     queryKey: ['financialDocuments', user?.uid, application?.business_id, application?.id],
     queryFn: async () => {
-      // If application already has financial documents, use those
-      if (application?.financialDocuments) {
-
-        setFinancialDocs(Object.values(application.financialDocuments || {}) as FinancialDocument[]);
-        return Object.values(application.financialDocuments || {}) as FinancialDocument[];
-      }
-      
       // Determine the business ID to use for fetching documents
       let businessId = application?.business_id || null;
       
@@ -267,23 +275,27 @@ const ApplicationReview = () => {
         return [] as FinancialDocument[];
       }
     },
-    enabled: !!(application) && (!application.financialDocuments || Object.keys(application.financialDocuments || {}).length === 0),
+    enabled: !!(user?.uid || application?.business_id), // Always try to fetch if we have a user or business ID
   });
 
   // Helper function to check if any financial documents exist
   const hasFinancialDocs = (() => {
-    // More detailed logging to help diagnose issues
-
-
-
-
-
-
-
-
-
+    // First, check the new hook (most reliable source)
+    if (!isLoadingFinancialDocsHook && financialDocsAvailability) {
+      console.log("[DEBUG] Using financial documents hook result:", financialDocsAvailability.hasDocuments);
+      return financialDocsAvailability.hasDocuments;
+    }
     
-    // Check from all possible sources
+    // Fall back to the existing query results if hook is still loading
+    const hasFetchedDocs = financialDocs && financialDocs.length > 0;
+    
+    // If we have fetched documents, that's the secondary source
+    if (hasFetchedDocs) {
+      console.log("[DEBUG] Financial documents found via supporting documents page:", financialDocs.length);
+      return true;
+    }
+    
+    // Fallback to other sources if no documents from supporting documents page
     const hasTraditionalFormat = 
       (application?.financial_documents && application.financial_documents.length > 0) ||
       (businessProfile?.financial_documents && businessProfile.financial_documents.length > 0);
@@ -297,8 +309,6 @@ const ApplicationReview = () => {
       
     const hasFinancialsProperty = application?.financials && 
       Object.keys(application.financials || {}).length > 0;
-      
-    const hasFetchedDocs = financialDocs && financialDocs.length > 0;
     
     // Also check for presence of any document-specific fields that might be used
     const hasDocumentFields = 
@@ -308,25 +318,26 @@ const ApplicationReview = () => {
       application?.aged_payables || 
       application?.aged_receivables;
     
-    // Check if the application has a completeness value already calculated
-    const hasCompleteness = application?.completeness_percentage === 100;
+    // We should only use the completeness percentage if we can verify documents exist
+    const hasCompleteness = application?.completeness_percentage === 100 && (
+      hasTraditionalFormat || hasObjectFormat || hasFinancialSummaries || 
+      hasFinancialsProperty || hasDocumentFields
+    );
     
-    console.log("[DEBUG] Financial document sources:", {
+    console.log("[DEBUG] Financial document sources (fallback checks):", {
       hasTraditionalFormat,
       hasObjectFormat,
       hasFinancialSummaries,
       hasFinancialsProperty,
-      hasFetchedDocs,
       hasDocumentFields,
       hasCompleteness
     });
     
-    // Consider it valid if any of these are true
+    // Consider it valid if any of these are true, but don't rely solely on completeness percentage
     return hasTraditionalFormat || 
            hasObjectFormat || 
            hasFinancialSummaries || 
            hasFinancialsProperty || 
-           hasFetchedDocs || 
            hasDocumentFields || 
            hasCompleteness;
   })();
@@ -343,6 +354,8 @@ const ApplicationReview = () => {
     
     // Check if any credit score exists
     const hasCreditScore = 
+      // Check from the credit score hook (Firestore subcollection)
+      (creditScore !== null && creditScore !== undefined) ||
       // Check on businessProfile
       (businessProfile?.credit_info?.credit_score) || 
       // Check on application.business
@@ -354,6 +367,7 @@ const ApplicationReview = () => {
       (application?.credit_info?.credit_score || application?.credit_info?.score);
     
     console.log("[DEBUG] Credit score detection:", {
+      creditScoreFromHook: creditScore,
       businessProfileScore: businessProfile?.credit_info?.credit_score,
       applicationBusinessScore: application?.business?.credit_info?.credit_score,
       applicationBusinessScoreAlt: application?.business?.credit_info?.score,
@@ -425,7 +439,17 @@ const ApplicationReview = () => {
     }
   }, [financialDocs]);
 
-  const handleSubmit = async () => {
+  const handleSubmitClick = () => {
+    // If the application is incomplete (especially missing financial documents), show modal
+    if (completeness.percentage < 100 && !hasFinancialDocs) {
+      setShowSubmitModal(true);
+    } else {
+      // If complete or has financial docs, submit directly
+      handleSubmitApplication();
+    }
+  };
+
+  const handleSubmitApplication = async (forceSubmit: boolean = false) => {
     if (isSubmitting) return; // Prevent multiple submissions
     
     try {
@@ -439,19 +463,25 @@ const ApplicationReview = () => {
       }
       
       // Prepare business profile data (simplified version for lenders)
-      const businessProfileData = businessProfile ? {
-        business_name: businessProfile.business_name,
-        company_number: businessProfile.company_number,
-        industry: businessProfile.industry,
-        company_size: businessProfile.company_size || businessProfile.size,
-        year_established: businessProfile.year_established,
-        website: businessProfile.website,
-        address: businessProfile.address,
-        contact_email: businessProfile.contact_email,
-        contact_phone: businessProfile.contact_phone,
-        director_name: businessProfile.director_name,
-        // Add any other relevant business fields here
-      } : null;
+      const businessProfileData = businessProfile ? (() => {
+        const data = {
+          business_name: businessProfile.business_name,
+          company_number: businessProfile.company_number,
+          industry: businessProfile.industry,
+          company_size: businessProfile.company_size || businessProfile.size,
+          year_established: businessProfile.year_established,
+          website: businessProfile.website,
+          address: businessProfile.address,
+          contact_email: businessProfile.contact_email,
+          contact_phone: businessProfile.contact_phone,
+          director_name: businessProfile.director_name,
+        };
+        
+        // Filter out undefined values to avoid Firestore errors
+        return Object.fromEntries(
+          Object.entries(data).filter(([_, value]) => value !== undefined)
+        );
+      })() : null;
       
       // Prepare credit info data
       const creditInfoData = businessProfile?.credit_info || application?.business?.credit_info || null;
@@ -522,9 +552,9 @@ const ApplicationReview = () => {
         application_date: application?.application_date || new Date().toISOString(),
         completeness_percentage: 100,
         
-        // Include consolidated data
-        business_profile: businessProfileData,
-        credit_info: creditInfoData,
+        // Include consolidated data (filter out undefined values)
+        ...(businessProfileData && { business_profile: businessProfileData }),
+        ...(creditInfoData && { credit_info: creditInfoData }),
         financialDocuments: financialDocumentsData,
         financialSummaries: documentSummaries,
         
@@ -618,7 +648,60 @@ const ApplicationReview = () => {
   }, [application, completeness.percentage, id]);
 
   return (
-    <PageLayout>
+    <>
+      {/* Submit Confirmation Modal */}
+      <Dialog open={showSubmitModal} onOpenChange={setShowSubmitModal}>
+        <DialogContent className="sm:max-w-[525px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-white">
+              <FileText className="h-5 w-5 text-[#ff8000]" />
+              Submit Application Without Financial Documents?
+            </DialogTitle>
+            <DialogDescription className="text-left space-y-3 pt-2">
+              <p>
+                We notice you haven't uploaded all your financial documents yet. You can still submit your application, but please note:
+              </p>
+              <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground ml-4">
+                <li>Lenders may request these documents during their review process</li>
+                <li>Having financial documents can strengthen your application</li>
+                <li>You can always upload them later if a lender requests them</li>
+              </ul>
+              <p className="text-sm font-medium text-white">
+                Would you like to proceed with submitting your application?
+              </p>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowSubmitModal(false)}
+              disabled={isSubmitting}
+              className="text-white"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                setShowSubmitModal(false);
+                handleSubmitApplication(true);
+              }}
+              disabled={isSubmitting}
+              className="bg-[#ff8000] hover:bg-[#e67300] text-white"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Submitting...
+                </>
+              ) : (
+                "Yes, Submit Application"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <PageLayout>
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-gray-100">
         <div className="w-full py-8 px-6">
           <Button
@@ -880,7 +963,8 @@ const ApplicationReview = () => {
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="max-h-[240px] overflow-y-auto">
-                      {(businessProfile?.credit_info?.credit_score || 
+                      {(creditScore !== null && creditScore !== undefined) || 
+                       (businessProfile?.credit_info?.credit_score || 
                         application?.business?.credit_info?.credit_score || 
                         application?.business?.credit_info?.score ||
                         application?.credit_info?.credit_score ||
@@ -888,7 +972,8 @@ const ApplicationReview = () => {
                         <div className="text-center py-4">
                           <div className="bg-green-50/80 border border-green-200/70 rounded-lg p-4 mb-4">
                             <div className="text-4xl font-bold text-green-700 mb-2">
-                              {businessProfile?.credit_info?.credit_score || 
+                              {creditScore || 
+                               businessProfile?.credit_info?.credit_score || 
                                application?.business?.credit_info?.credit_score || 
                                application?.business?.credit_info?.score ||
                                application?.credit_info?.credit_score ||
@@ -911,6 +996,14 @@ const ApplicationReview = () => {
                             )}
                           </div>
                           <Badge variant="default" className="bg-green-600 text-white shadow-sm">Score Available</Badge>
+                        </div>
+                      ) : isLoadingCreditScore ? (
+                        <div className="text-center py-6">
+                          <div className="bg-blue-50/80 border border-blue-200/70 rounded-lg p-4 mb-4">
+                            <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-2" />
+                            <p className="font-medium text-blue-800">Checking credit score...</p>
+                            <p className="text-sm text-blue-600 mt-1">Please wait while we retrieve your information</p>
+                          </div>
                         </div>
                       ) : (
                         <div className="text-center py-6">
@@ -1105,19 +1198,14 @@ const ApplicationReview = () => {
                   )}
                 </Button>
                 <Button
-                  onClick={handleSubmit}
-                  disabled={isSubmitting || completeness.percentage < 100}
+                  onClick={handleSubmitClick}
+                  disabled={isSubmitting}
                   className="flex-1 bg-[#ff8000] hover:bg-[#e67300] disabled:bg-slate-400 text-white shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-60"
                 >
                   {isSubmitting ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                       Submitting Anonymous Application...
-                    </>
-                  ) : completeness.percentage < 100 ? (
-                    <>
-                      <AlertTriangle className="h-4 w-4 mr-2" />
-                      Complete Application ({completeness.completed} of {completeness.total})
                     </>
                   ) : (
                     <>
@@ -1145,6 +1233,7 @@ const ApplicationReview = () => {
         </div>
       </div>
     </PageLayout>
+    </>
   );
 };
 

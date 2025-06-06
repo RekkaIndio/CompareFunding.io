@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { BookOpen, Briefcase, MessageSquare, LineChart, BarChart, User, Users, HelpCircle, Link as LinkIcon, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, FileText, DollarSign, Building, Shield, Globe, TrendingUp } from 'lucide-react';
+import { BookOpen, Briefcase, MessageSquare, LineChart, BarChart, User, Users, HelpCircle, Link as LinkIcon, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, FileText, PoundSterling, Building, Shield, Globe, TrendingUp } from 'lucide-react';
 import { cn } from '../lib/utils';
 import ProfileLogo from './ProfileLogo';
 import { useAuth } from '../contexts/AuthContext';
 import { useSidebar } from '../contexts/SidebarContext';
+import { getDocument } from '../services/firebase';
 
 interface SidebarProps {
   className?: string;
@@ -21,6 +22,7 @@ interface MenuItem {
   icon: React.ReactNode;
   label: string;
   subItems?: SubMenuItem[];
+  dataTour?: string;
 }
 
 interface NavItemProps {
@@ -32,9 +34,11 @@ interface NavItemProps {
   subItems?: SubMenuItem[];
   isExpanded?: boolean;
   onToggle?: () => void;
+  dataTour?: string;
+  location: ReturnType<typeof useLocation>;
 }
 
-const NavItem = ({ to, icon, children, active = false, isCollapsed = false, subItems, isExpanded = false, onToggle }: NavItemProps) => {
+const NavItem = ({ to, icon, children, active = false, isCollapsed = false, subItems, isExpanded = false, onToggle, dataTour, location }: NavItemProps) => {
   const hasSubItems = subItems && subItems.length > 0;
   
   const handleClick = (e: React.MouseEvent) => {
@@ -45,20 +49,26 @@ const NavItem = ({ to, icon, children, active = false, isCollapsed = false, subI
   };
 
   return (
-    <div>
+    <div data-tour={dataTour}>
       <Link
         to={hasSubItems ? "#" : to}
         onClick={handleClick}
         className={cn(
           "flex items-center rounded-lg transition-colors relative group",
           isCollapsed ? "justify-center py-2 w-full" : "px-4 py-3 gap-3",
-          active ? "text-fundhub-orange font-medium" : "text-gray-300 hover:text-fundhub-orange hover:bg-slate-800"
+          active 
+            ? "font-medium bg-fundhub-orange/10 border-l-4 border-fundhub-orange" 
+            : "text-gray-300 hover:text-fundhub-orange hover:bg-slate-800/30"
         )}
+        style={active ? { color: '#ff8000' } : {}}
       >
-        <span className={cn("text-fundhub-orange", isCollapsed && "flex justify-center")}>{icon}</span>
-        {!isCollapsed && <span className="text-base truncate flex-1">{children}</span>}
+        <span className={cn(
+          active ? "" : "text-gray-400", 
+          isCollapsed && "flex justify-center"
+        )} style={active ? { color: '#ff8000' } : {}}>{icon}</span>
+        {!isCollapsed && <span className={cn("text-base truncate flex-1")} style={active ? { color: '#ff8000' } : { color: '#d1d5db' }}>{children}</span>}
         {!isCollapsed && hasSubItems && (
-          <span className="text-gray-300">
+          <span className={cn(active ? "" : "text-gray-300")} style={active ? { color: '#ff8000' } : {}}>
             {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
           </span>
         )}
@@ -72,15 +82,24 @@ const NavItem = ({ to, icon, children, active = false, isCollapsed = false, subI
       {/* Sub-items */}
       {!isCollapsed && hasSubItems && isExpanded && (
         <div className="ml-8 mt-1 space-y-1">
-          {subItems.map((subItem) => (
-            <Link
-              key={subItem.to}
-              to={subItem.to}
-              className="block px-4 py-2 text-sm text-gray-400 hover:text-fundhub-orange transition-colors"
-            >
-              {subItem.label}
-            </Link>
-          ))}
+          {subItems.map((subItem) => {
+            const isSubItemActive = location.pathname.startsWith(subItem.to);
+            return (
+              <Link
+                key={subItem.to}
+                to={subItem.to}
+                className={cn(
+                  "block px-4 py-2 text-sm transition-colors rounded-md",
+                  isSubItemActive 
+                    ? "font-medium bg-slate-800/30" 
+                    : "text-gray-400 hover:text-fundhub-orange"
+                )}
+                style={isSubItemActive ? { color: '#ff8000' } : {}}
+              >
+                {subItem.label}
+              </Link>
+            );
+          })}
         </div>
       )}
     </div>
@@ -89,7 +108,7 @@ const NavItem = ({ to, icon, children, active = false, isCollapsed = false, subI
 
 //Business menu items 
 const businessMenuItems: MenuItem[] = [
-  { to: "/business/dashboard", icon: <BookOpen size={22} />, label: "Dashboard" },
+  { to: "/business/dashboard", icon: <BookOpen size={22} />, label: "Dashboard", dataTour: "sidebar-dashboard" },
   { 
     to: "/funding-options", 
     icon: <Briefcase size={22} />, 
@@ -104,13 +123,13 @@ const businessMenuItems: MenuItem[] = [
     to: "/applications", 
     icon: <Briefcase size={22} />, 
     label: "Applications",
+    dataTour: "sidebar-applications",
     subItems: [
       { to: "/applications/current", label: "Current applications" },
-      { to: "/applications/messages", label: "Messages" },
     ]
   },
-  { to: "/business/documents", icon: <FileText size={22} />, label: "Documents" },
-  { to: "/credit-score", icon: <LineChart size={22} />, label: "Credit Score" },
+  { to: "/business/documents", icon: <FileText size={22} />, label: "Documents", dataTour: "sidebar-documents" },
+  { to: "/credit-score", icon: <LineChart size={22} />, label: "Credit Score", dataTour: "sidebar-credit-score" },
   { 
     to: "/integrations", 
     icon: <LinkIcon size={22} />, 
@@ -132,9 +151,10 @@ const businessMenuItems: MenuItem[] = [
     ]
   },
   { 
-    to: "/account", 
+    to: "/business/profile", 
     icon: <User size={22} />, 
     label: "Your Account",
+    dataTour: "sidebar-business-profile",
     subItems: [
       { to: "/account/business-details", label: "Business Details" },
       { to: "/account/current-lending", label: "Current Lending" },
@@ -150,7 +170,8 @@ const businessMenuItems: MenuItem[] = [
 const lenderMenuItems = [
   { to: "/lender/dashboard", icon: <BarChart size={22} />, label: "Dashboard" },
   { to: "/lender/applications", icon: <Briefcase size={22} />, label: "Applications" },
-  { to: "/lender/messages", icon: <MessageSquare size={22} />, label: "Messages" },
+  { to: "/messages", icon: <MessageSquare size={22} />, label: "Messages" },
+  { to: "/lender/billing", icon: <PoundSterling size={22} />, label: "Billing" },
   { to: "/lender/reporting", icon: <LineChart size={22} />, label: "Reporting" },
   { to: "/lender/account", icon: <User size={22} />, label: "Account" },
   { to: "/lender/users", icon: <Users size={22} />, label: "Users" },
@@ -168,6 +189,7 @@ const lenderMenuItems = [
 
 export const Sidebar: React.FC<SidebarProps> = ({ className, role: propRole }) => {
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const [businessName, setBusinessName] = useState<string>('');
   const { user } = useAuth();
   const { isCollapsed, setIsCollapsed, setSidebarWidth } = useSidebar();
   
@@ -176,10 +198,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ className, role: propRole }) =
   console.log("Current user:", user);
   console.log("Sidebar using role:", role);
   const menuItems = role === 'lender' ? lenderMenuItems : businessMenuItems;
-  const location = useLocation();
 
-  // Hide sidebar during the signup journey
-  const isSignUpJourney = location.pathname.startsWith('/signup-journey') && location.pathname !== '/signup-journey/eligibility';
+  // Hide sidebar during the signup journey (including eligibility page)
+  const location = useLocation();
+  const isSignUpJourney = location.pathname.startsWith('/signup-journey');
   if (isSignUpJourney) {
     return null;
   }
@@ -229,7 +251,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ className, role: propRole }) =
   return (
     <div
       className={cn(
-        "bg-[#212936] text-white flex flex-col fixed left-0 z-40 transition-all duration-300 ease-in-out",
+        "bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white flex flex-col fixed left-0 z-40 transition-all duration-300 ease-in-out relative overflow-hidden",
         isCollapsed ? "w-12" : "w-64",
         className
       )}
@@ -237,25 +259,51 @@ export const Sidebar: React.FC<SidebarProps> = ({ className, role: propRole }) =
       onMouseLeave={handleMouseLeave}
       style={{
         position: 'fixed',
-        top: '64px', // Move down to account for navbar height (16 tailwind units = 64px)
-        height: 'calc(100vh - 64px)', // Adjust height to account for navbar
+        top: '64px',
+        height: 'calc(100vh - 64px)',
         overflowY: 'auto'
       }}
     >
-      <div className={cn("flex items-center justify-between pt-2", isCollapsed ? "p-1" : "p-4")}>
-        <div className={cn("transition-all duration-300 overflow-hidden", isCollapsed ? "w-8" : "w-full")}>
-          <ProfileLogo role={role} isCollapsed={isCollapsed} />
-        </div>
-        <div className={cn("rounded-lg", isCollapsed ? "p-1" : "p-2")} aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}>
-          {isCollapsed ? (
-            <ChevronRight size={16} className="text-gray-300 pointer-events-none" />
-          ) : (
-            <ChevronLeft size={20} className="text-gray-300 pointer-events-none" />
+      {/* Background Pattern */}
+      <div className="absolute inset-0 bg-gradient-to-r from-blue-600/5 via-purple-600/5 to-orange-600/5"></div>
+      <div 
+        className="absolute inset-0 opacity-[0.02]"
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Ccircle cx='30' cy='30' r='1'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+        }}
+      ></div>
+      <div className={cn(
+        "flex items-center justify-between pt-2 relative z-10",
+        isCollapsed ? "p-1" : "p-4"
+      )}>
+        <div className={cn(
+          "flex items-center gap-3 transition-all duration-300",
+          isCollapsed ? "w-8" : "w-full"
+        )}>
+          <div className="flex-shrink-0">
+            <ProfileLogo role={role} isCollapsed={isCollapsed} />
+          </div>
+          {!isCollapsed && businessName && (
+            <div className="min-w-0 flex-1">
+              <p className="text-white text-sm font-medium truncate">
+                {businessName}
+              </p>
+            </div>
           )}
         </div>
+        <button 
+          className={cn("rounded-lg", isCollapsed ? "p-1" : "p-2")}
+          aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {isCollapsed ? (
+            <ChevronRight size={16} className="text-gray-300" />
+          ) : (
+            <ChevronLeft size={20} className="text-gray-300" />
+          )}
+        </button>
       </div>
 
-      <nav className={cn("flex-1 mt-4 space-y-2 overflow-y-auto", isCollapsed ? "px-0" : "px-2")}>
+      <nav className={cn("flex-1 mt-4 space-y-2 overflow-y-auto relative z-10", isCollapsed ? "px-0" : "px-2")}>
         {menuItems.map((item) => (
           <NavItem
             key={item.to}
@@ -266,6 +314,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ className, role: propRole }) =
             subItems={item.subItems}
             isExpanded={expandedItems.has(item.to)}
             onToggle={() => toggleExpanded(item.to)}
+            dataTour={item.dataTour}
+            location={location}
           >
             {item.label}
           </NavItem>

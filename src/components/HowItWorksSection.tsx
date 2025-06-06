@@ -1,122 +1,186 @@
 
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { CheckCircle2 } from 'lucide-react';
 
 const HowItWorksSection = () => {
   const steps = [
     {
-      number: '01',
-      title: 'Create Your Profile',
-      description: 'Set up your business profile with key information about your company, financial needs, and funding preferences.',
-      image: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=800&auto=format&fit=crop&q=80'
+      number: 1,
+      title: 'Tell us about your company and your needs',
+      image: 'https://images.unsplash.com/photo-1611224923853-80b023f02d71?w=400&h=300&fit=crop&auto=format&q=80'
     },
     {
-      number: '02',
-      title: 'Connect Accounting',
-      description: 'Securely link your accounting software to pre-fill your application with verified financial data.',
-      image: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&auto=format&fit=crop&q=80'
+      number: 2,
+      title: 'Upload your information to our cloud',
+      image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop&auto=format&q=80'
     },
     {
-      number: '03',
-      title: 'Submit Application',
-      description: 'Complete your funding application with details about your business, funding needs, and purpose.',
-      image: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=800&auto=format&fit=crop&q=80'
-    },
-    {
-      number: '04',
-      title: 'Receive Offers',
-      description: 'Get matched with suitable lenders who review your application and provide competitive funding offers.',
-      image: 'https://images.unsplash.com/photo-1605810230434-7631ac76ec81?w=800&auto=format&fit=crop&q=80'
-    },
-    {
-      number: '05',
-      title: 'Compare & Accept',
-      description: 'Compare offers side-by-side and accept the one that best meets your needs.',
-      image: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=800&auto=format&fit=crop&q=80'
+      number: 3,
+      title: 'Receive indicative offers of funding',
+      image: 'https://images.unsplash.com/photo-1521791136064-7986c2920216?w=400&h=300&fit=crop&auto=format&q=80'
     }
   ];
 
   return (
-    <section className="py-16 md:py-24 bg-fundhub-light-gray">
-      <div className="container mx-auto px-4">
-        <div className="text-center max-w-3xl mx-auto mb-16">
-          <p className="text-fundhub-blue font-medium mb-3">How It Works</p>
-          <h2 className="text-3xl md:text-4xl font-bold mb-6">
-            Simple process, powerful results
+    <>
+    <section className="py-12 sm:py-16 md:py-24 bg-gray-50 relative overflow-hidden">
+      {/* Background decorative element - hidden on smallest screens */}
+      <div className="absolute left-0 top-1/2 transform -translate-y-1/2 z-0 hidden sm:block">
+        <div className="relative flex items-center">
+          {/* Orange circle */}
+          <div className="w-16 sm:w-20 md:w-24 h-16 sm:h-20 md:h-24 bg-orange-500 rounded-full z-10"></div>
+          {/* Blue curved shape overlapping behind and extending right */}
+          <div className="w-20 sm:w-24 md:w-32 h-12 sm:h-16 md:h-20 bg-blue-900 rounded-r-full -ml-8 sm:-ml-10 md:-ml-12 z-0"></div>
+        </div>
+      </div>
+      
+      <div className="container mx-auto px-4 relative z-10">
+        <div className="text-center max-w-4xl mx-auto mb-8 sm:mb-12 md:mb-16">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-4 sm:mb-6 leading-tight text-gray-900 px-2">
+            We make the whole process of accessing funding easier and quicker
           </h2>
-          <p className="text-lg text-muted-foreground">
-            Our streamlined process connects you with the right lenders in just a few steps. No unnecessary 
-            complexity, no hidden costs.
+          <p className="text-base sm:text-lg text-gray-600 px-2">
+            We do the hard-work so you don't have to. 3 simple steps and support at every stage if you need it
           </p>
         </div>
         
-        <div className="space-y-12 md:space-y-24">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 max-w-5xl mx-auto mb-8 sm:mb-12">
           {steps.map((step, index) => (
-            <div key={index} className={`flex flex-col ${index % 2 === 0 ? 'md:flex-row' : 'md:flex-row-reverse'} items-center gap-8 md:gap-12`}>
-              <div className="w-full md:w-1/2 animate-fade-in" style={{ animationDelay: `${index * 100}ms` }}>
-                <div className="bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100 p-1 md:p-2">
-                  <img 
-                    src={step.image} 
-                    alt={step.title} 
-                    className="w-full h-auto rounded-lg object-cover"
-                  />
-                </div>
+            <div key={index} className="bg-white rounded-xl overflow-hidden shadow-lg border border-gray-100">
+              <div className="h-40 sm:h-48 md:h-56">
+                <img 
+                  src={step.image} 
+                  alt={step.title} 
+                  className="w-full h-full object-cover"
+                />
               </div>
-              
-              <div className="w-full md:w-1/2 animate-fade-in" style={{ animationDelay: `${index * 100 + 100}ms` }}>
-                <div className="flex items-center mb-4">
-                  <div className="w-12 h-12 rounded-full bg-fundhub-blue/10 flex items-center justify-center text-fundhub-blue font-medium">
-                    {step.number}
-                  </div>
-                  <div className="h-0.5 flex-1 bg-fundhub-blue/10 ml-4"></div>
+              <div className="p-4 sm:p-5 md:p-6">
+                <div className="text-orange-500 font-semibold text-xs sm:text-sm mb-2 sm:mb-3">
+                  Step {step.number}
                 </div>
-                
-                <h3 className="text-2xl font-bold mb-4">{step.title}</h3>
-                <p className="text-muted-foreground mb-6">{step.description}</p>
-                
-                <ul className="space-y-2">
-                  {[1, 2, 3].map((item) => (
-                    <li key={item} className="flex items-start">
-                      <CheckCircle2 className="h-5 w-5 text-fundhub-blue mr-2 mt-0.5 flex-shrink-0" />
-                      <span className="text-sm text-muted-foreground">
-                        {index === 0 && item === 1 && "Complete your profile in under 10 minutes"}
-                        {index === 0 && item === 2 && "Verify your identity securely"}
-                        {index === 0 && item === 3 && "Add team members and company details"}
-                        
-                        {index === 1 && item === 1 && "Connect to Xero, QuickBooks, or Sage"}
-                        {index === 1 && item === 2 && "Automatically import financial statements"}
-                        {index === 1 && item === 3 && "Share only the data you choose"}
-                        
-                        {index === 2 && item === 1 && "Specify loan amount, term, and purpose"}
-                        {index === 2 && item === 2 && "Add supporting documents"}
-                        {index === 2 && item === 3 && "Review and submit"}
-                        
-                        {index === 3 && item === 1 && "Receive notifications for new offers"}
-                        {index === 3 && item === 2 && "Compare rates, terms, and conditions"}
-                        {index === 3 && item === 3 && "Contact lenders with questions"}
-                        
-                        {index === 4 && item === 1 && "Side-by-side offer comparison"}
-                        {index === 4 && item === 2 && "Digital documentation and signing"}
-                        {index === 4 && item === 3 && "Funds directly to your account"}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+                <h3 className="text-base sm:text-lg md:text-xl font-bold text-gray-900 leading-tight">
+                  {step.title}
+                </h3>
               </div>
             </div>
           ))}
         </div>
         
-        <div className="text-center mt-16">
-          <Button size="lg" className="bg-fundhub-blue hover:bg-fundhub-blue/90" asChild>
+        <div className="text-center px-2">
+          <p className="text-base sm:text-lg mb-4 sm:mb-6 text-gray-700">
+            It really is that simple, and get started on your <span className="text-orange-500 font-semibold">funding journey!</span>
+          </p>
+          <Button 
+            size="default" 
+            className="bg-blue-900 hover:bg-blue-800 text-white font-semibold px-6 sm:px-8 py-2 sm:py-3 rounded-lg text-sm sm:text-base h-auto"
+            asChild
+          >
             <Link to="/signup">
-              Get Started Now
+              Apply Now
             </Link>
           </Button>
         </div>
       </div>
     </section>
+
+    {/* Apply for funding today section */}
+    <section className="py-12 sm:py-16 md:py-24 relative overflow-hidden">
+      <div className="absolute inset-0">
+        <img 
+          src="https://images.unsplash.com/photo-1494790108755-2616c9416c04?w=1200&h=600&fit=crop&auto=format&q=80"
+          alt="Woman working on laptop"
+          className="w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-black/30"></div>
+      </div>
+      
+      <div className="container mx-auto px-4 relative z-10">
+        <div className="max-w-6xl mx-auto flex flex-col lg:flex-row items-center gap-6 sm:gap-8">
+          {/* Content Card */}
+          <div className="bg-white rounded-2xl p-5 sm:p-6 md:p-8 lg:p-10 shadow-xl max-w-2xl relative">
+            {/* Decorative elements - hidden on small screens */}
+            <div className="absolute -bottom-8 -right-8 z-0 hidden sm:block">
+              <div className="relative">
+                <div className="w-16 sm:w-20 md:w-24 h-16 sm:h-20 md:h-24 bg-orange-500 rounded-full"></div>
+                <div className="w-20 sm:w-24 md:w-32 h-12 sm:h-16 md:h-20 bg-blue-900 rounded-l-full absolute top-1/2 right-8 sm:right-10 md:right-12 transform -translate-y-1/2"></div>
+              </div>
+            </div>
+            
+            <div className="relative z-10">
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-5 sm:mb-6 md:mb-8 text-gray-900">
+                Apply for funding <span className="text-orange-500">today</span>
+              </h2>
+              
+              <ul className="space-y-3 sm:space-y-4 mb-6 sm:mb-8">
+                <li className="flex items-start">
+                  <div className="w-5 h-5 sm:w-6 sm:h-6 bg-green-100 rounded-full flex items-center justify-center mr-2 sm:mr-3 mt-0.5 flex-shrink-0">
+                    <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-green-500 rounded-full"></div>
+                  </div>
+                  <span className="text-sm sm:text-base text-gray-700">
+                    We help businesses across the globe access a variety of funding solutions, in a completely transparent and value lead platform
+                  </span>
+                </li>
+                <li className="flex items-start">
+                  <div className="w-5 h-5 sm:w-6 sm:h-6 bg-green-100 rounded-full flex items-center justify-center mr-2 sm:mr-3 mt-0.5 flex-shrink-0">
+                    <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-green-500 rounded-full"></div>
+                  </div>
+                  <span className="text-sm sm:text-base text-gray-700">
+                    Whatever the need, we have the solutions
+                  </span>
+                </li>
+                <li className="flex items-start">
+                  <div className="w-5 h-5 sm:w-6 sm:h-6 bg-green-100 rounded-full flex items-center justify-center mr-2 sm:mr-3 mt-0.5 flex-shrink-0">
+                    <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-green-500 rounded-full"></div>
+                  </div>
+                  <span className="text-sm sm:text-base text-gray-700">
+                    With one profile you can receive offers and indicative terms from the entire market
+                  </span>
+                </li>
+                <li className="flex items-start">
+                  <div className="w-5 h-5 sm:w-6 sm:h-6 bg-green-100 rounded-full flex items-center justify-center mr-2 sm:mr-3 mt-0.5 flex-shrink-0">
+                    <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-green-500 rounded-full"></div>
+                  </div>
+                  <span className="text-sm sm:text-base text-gray-700">
+                    Putting you in control of choosing the right option for you and your business
+                  </span>
+                </li>
+                <li className="flex items-start">
+                  <div className="w-5 h-5 sm:w-6 sm:h-6 bg-green-100 rounded-full flex items-center justify-center mr-2 sm:mr-3 mt-0.5 flex-shrink-0">
+                    <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-green-500 rounded-full"></div>
+                  </div>
+                  <span className="text-sm sm:text-base text-gray-700">
+                    Not sure, or have any questions either book a session or call the team today
+                  </span>
+                </li>
+              </ul>
+              
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                <Button 
+                  className="bg-blue-900 hover:bg-blue-800 text-white font-semibold px-6 sm:px-8 py-2 sm:py-3 rounded-lg text-sm sm:text-base h-auto"
+                  asChild
+                >
+                  <Link to="/signup">
+                    Apply Now
+                  </Link>
+                </Button>
+                <Button 
+                  className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-6 sm:px-8 py-2 sm:py-3 rounded-lg text-sm sm:text-base h-auto"
+                  asChild
+                >
+                  <Link to="/contact">
+                    Book Free Consultation
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          </div>
+          
+          {/* Right side spacing for image */}
+          <div className="flex-1 lg:min-h-[400px]"></div>
+        </div>
+      </div>
+    </section>
+    </>
   );
 };
 

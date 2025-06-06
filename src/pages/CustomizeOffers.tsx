@@ -108,53 +108,53 @@ const CustomizeOffers = () => {
   return (
     <div className="bg-white min-h-screen">
       <PageLayout className="bg-white">
-        <div className="container mx-auto px-4 py-12">
+        <div className="container mx-auto px-3 sm:px-4 py-6 sm:py-8 md:py-12">
           <div className="max-w-4xl mx-auto">
-            <div className="mb-8">
-              <h1 className="text-3xl md:text-4xl font-bold text-[#2a3441] mb-2">Customize Your Funding Options</h1>
-              <p className="text-lg text-[#2a3441]">Tailor your funding search to match your specific business needs</p>
+            <div className="mb-5 sm:mb-8">
+              <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-[#2a3441] mb-1 sm:mb-2">Customize Your Funding Options</h1>
+              <p className="text-sm sm:text-base md:text-lg text-[#2a3441]">Tailor your funding search to match your specific business needs</p>
             </div>
             
             <form onSubmit={handleSubmit}>
               {/* Business Details Section */}
-              <Card className="p-6 mb-8 border border-[#ff8000] bg-white">
-                <h2 className="text-xl font-semibold text-[#2a3441] mb-4">Business Details</h2>
+              <Card className="p-4 sm:p-6 mb-5 sm:mb-8 border border-[#ff8000] bg-white rounded-lg sm:rounded-xl">
+                <h2 className="text-base sm:text-lg md:text-xl font-semibold text-[#2a3441] mb-3 sm:mb-4">Business Details</h2>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                   <div>
-                    <Label htmlFor="businessName" className="text-[#2a3441]">Business Name</Label>
+                    <Label htmlFor="businessName" className="text-sm sm:text-base text-[#2a3441]">Business Name</Label>
                     <Input 
                       id="businessName"
                       value={businessName}
                       onChange={(e) => setBusinessName(e.target.value)}
-                      className="mt-1 bg-white border-2 border-[#ff8000] focus:border-[#ff8000] focus:ring-1 focus:ring-[#ff8000] text-[#2a3441]"
+                      className="mt-1 bg-white border-2 border-[#ff8000] focus:border-[#ff8000] focus:ring-1 focus:ring-[#ff8000] text-[#2a3441] h-10 sm:h-12 text-sm sm:text-base rounded-lg sm:rounded-xl"
                     />
                   </div>
                   
                   <div>
-                    <Label htmlFor="industry" className="text-[#2a3441]">Industry</Label>
+                    <Label htmlFor="industry" className="text-sm sm:text-base text-[#2a3441]">Industry</Label>
                     <Select
                       value={industry}
                       onValueChange={setIndustry}
                     >
-                      <SelectTrigger id="industry" className="mt-1 bg-white border-2 border-[#ff8000] focus:border-[#ff8000] focus:ring-1 focus:ring-[#ff8000] text-[#2a3441]">
+                      <SelectTrigger id="industry" className="mt-1 bg-white border-2 border-[#ff8000] focus:border-[#ff8000] focus:ring-1 focus:ring-[#ff8000] text-[#2a3441] h-10 sm:h-12 text-sm sm:text-base rounded-lg sm:rounded-xl">
                         <SelectValue placeholder="Select an industry" />
                       </SelectTrigger>
                       <SelectContent className="bg-white border border-[#ff8000] text-[#2a3441]">
-                        <SelectItem value="retail">Retail</SelectItem>
-                        <SelectItem value="technology">Technology</SelectItem>
-                        <SelectItem value="manufacturing">Manufacturing</SelectItem>
-                        <SelectItem value="healthcare">Healthcare</SelectItem>
-                        <SelectItem value="finance">Financial Services</SelectItem>
-                        <SelectItem value="hospitality">Hospitality</SelectItem>
-                        <SelectItem value="construction">Construction</SelectItem>
-                        <SelectItem value="professional">Professional Services</SelectItem>
+                        <SelectItem value="retail" className="text-sm sm:text-base">Retail</SelectItem>
+                        <SelectItem value="technology" className="text-sm sm:text-base">Technology</SelectItem>
+                        <SelectItem value="manufacturing" className="text-sm sm:text-base">Manufacturing</SelectItem>
+                        <SelectItem value="healthcare" className="text-sm sm:text-base">Healthcare</SelectItem>
+                        <SelectItem value="finance" className="text-sm sm:text-base">Financial Services</SelectItem>
+                        <SelectItem value="hospitality" className="text-sm sm:text-base">Hospitality</SelectItem>
+                        <SelectItem value="construction" className="text-sm sm:text-base">Construction</SelectItem>
+                        <SelectItem value="professional" className="text-sm sm:text-base">Professional Services</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   
                   <div>
-                    <Label htmlFor="revenue" className="text-[#2a3441]">Annual Revenue</Label>
+                    <Label htmlFor="revenue" className="text-sm sm:text-base text-[#2a3441]">Annual Revenue</Label>
                     <Input 
                       id="revenue"
                       value={formatCurrency(revenue)}
@@ -162,29 +162,29 @@ const CustomizeOffers = () => {
                         const value = e.target.value.replace(/[^0-9]/g, '');
                         setRevenue(value);
                       }}
-                      className="mt-1 bg-white border-2 border-[#ff8000] focus:border-[#ff8000] focus:ring-1 focus:ring-[#ff8000] text-[#2a3441]"
+                      className="mt-1 bg-white border-2 border-[#ff8000] focus:border-[#ff8000] focus:ring-1 focus:ring-[#ff8000] text-[#2a3441] h-10 sm:h-12 text-sm sm:text-base rounded-lg sm:rounded-xl"
                     />
                   </div>
                   
                   <div>
-                    <Label htmlFor="yearsTrading" className="text-[#2a3441]">Years Trading</Label>
+                    <Label htmlFor="yearsTrading" className="text-sm sm:text-base text-[#2a3441]">Years Trading</Label>
                     <Input 
                       id="yearsTrading"
                       type="number"
                       value={yearsTrading}
                       onChange={(e) => setYearsTrading(e.target.value)}
-                      className="mt-1 bg-white border-2 border-[#ff8000] focus:border-[#ff8000] focus:ring-1 focus:ring-[#ff8000] text-[#2a3441]"
+                      className="mt-1 bg-white border-2 border-[#ff8000] focus:border-[#ff8000] focus:ring-1 focus:ring-[#ff8000] text-[#2a3441] h-10 sm:h-12 text-sm sm:text-base rounded-lg sm:rounded-xl"
                     />
                   </div>
                 </div>
               </Card>
               
               {/* Loan Preferences Section */}
-              <Card className="p-6 mb-8 border border-[#ff8000] bg-white">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-semibold text-[#2a3441]">Loan Preferences</h2>
-                  <div className="flex items-center">
-                    <Label htmlFor="includeLoans" className="mr-2 text-[#2a3441]">Include Loans</Label>
+              <Card className="p-4 sm:p-6 mb-5 sm:mb-8 border border-[#ff8000] bg-white rounded-lg sm:rounded-xl">
+                <div className="flex flex-wrap items-center justify-between mb-3 sm:mb-4">
+                  <h2 className="text-base sm:text-lg md:text-xl font-semibold text-[#2a3441] mb-1 sm:mb-0">Loan Preferences</h2>
+                  <div className="flex items-center mt-1 sm:mt-0">
+                    <Label htmlFor="includeLoans" className="mr-2 text-sm sm:text-base text-[#2a3441]">Include Loans</Label>
                     <Switch 
                       id="includeLoans" 
                       checked={includeLoans} 
@@ -195,11 +195,11 @@ const CustomizeOffers = () => {
                 </div>
                 
                 {includeLoans && (
-                  <div className="space-y-6">
+                  <div className="space-y-4 sm:space-y-6">
                     <div>
-                      <div className="flex justify-between mb-2">
-                        <Label className="text-[#2a3441]">Loan Amount</Label>
-                        <span className="text-[#2a3441]">{formatCurrency(loanAmount[0])}</span>
+                      <div className="flex flex-wrap items-center justify-between mb-1 sm:mb-2">
+                        <Label className="text-sm sm:text-base text-[#2a3441]">Loan Amount</Label>
+                        <span className="text-sm sm:text-base text-[#2a3441]">{formatCurrency(loanAmount[0])}</span>
                       </div>
                       <Slider
                         value={loanAmount}
@@ -215,9 +215,9 @@ const CustomizeOffers = () => {
                     </div>
                     
                     <div>
-                      <div className="flex justify-between mb-2">
-                        <Label className="text-[#2a3441]">Loan Term</Label>
-                        <span className="text-[#2a3441]">{formatTerm(loanTerm[0])}</span>
+                      <div className="flex flex-wrap items-center justify-between mb-1 sm:mb-2">
+                        <Label className="text-sm sm:text-base text-[#2a3441]">Loan Term</Label>
+                        <span className="text-sm sm:text-base text-[#2a3441]">{formatTerm(loanTerm[0])}</span>
                       </div>
                       <Slider
                         value={loanTerm}
@@ -236,11 +236,11 @@ const CustomizeOffers = () => {
               </Card>
               
               {/* Equity Preferences Section */}
-              <Card className="p-6 mb-8 border border-[#ff8000] bg-white">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-semibold text-[#2a3441]">Equity Preferences</h2>
-                  <div className="flex items-center">
-                    <Label htmlFor="includeEquity" className="mr-2 text-[#2a3441]">Include Equity</Label>
+              <Card className="p-4 sm:p-6 mb-5 sm:mb-8 border border-[#ff8000] bg-white rounded-lg sm:rounded-xl">
+                <div className="flex flex-wrap items-center justify-between mb-3 sm:mb-4">
+                  <h2 className="text-base sm:text-lg md:text-xl font-semibold text-[#2a3441] mb-1 sm:mb-0">Equity Preferences</h2>
+                  <div className="flex items-center mt-1 sm:mt-0">
+                    <Label htmlFor="includeEquity" className="mr-2 text-sm sm:text-base text-[#2a3441]">Include Equity</Label>
                     <Switch 
                       id="includeEquity" 
                       checked={includeEquity} 
@@ -251,11 +251,11 @@ const CustomizeOffers = () => {
                 </div>
                 
                 {includeEquity && (
-                  <div className="space-y-6">
+                  <div className="space-y-4 sm:space-y-6">
                     <div>
-                      <div className="flex justify-between mb-2">
-                        <Label className="text-[#2a3441]">Investment Amount</Label>
-                        <span className="text-[#2a3441]">{formatCurrency(equityAmount[0])}</span>
+                      <div className="flex flex-wrap items-center justify-between mb-1 sm:mb-2">
+                        <Label className="text-sm sm:text-base text-[#2a3441]">Investment Amount</Label>
+                        <span className="text-sm sm:text-base text-[#2a3441]">{formatCurrency(equityAmount[0])}</span>
                       </div>
                       <Slider
                         value={equityAmount}
@@ -271,9 +271,9 @@ const CustomizeOffers = () => {
                     </div>
                     
                     <div>
-                      <div className="flex justify-between mb-2">
-                        <Label className="text-[#2a3441]">Equity Stake</Label>
-                        <span className="text-[#2a3441]">{equityStake[0]}%</span>
+                      <div className="flex flex-wrap items-center justify-between mb-1 sm:mb-2">
+                        <Label className="text-sm sm:text-base text-[#2a3441]">Equity Stake</Label>
+                        <span className="text-sm sm:text-base text-[#2a3441]">{equityStake[0]}%</span>
                       </div>
                       <Slider
                         value={equityStake}
@@ -292,11 +292,11 @@ const CustomizeOffers = () => {
               </Card>
               
               {/* Grant Preferences Section */}
-              <Card className="p-6 mb-8 border border-[#ff8000] bg-white">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-semibold text-[#2a3441]">Grant Preferences</h2>
-                  <div className="flex items-center">
-                    <Label htmlFor="includeGrants" className="mr-2 text-[#2a3441]">Include Grants</Label>
+              <Card className="p-4 sm:p-6 mb-5 sm:mb-8 border border-[#ff8000] bg-white rounded-lg sm:rounded-xl">
+                <div className="flex flex-wrap items-center justify-between mb-3 sm:mb-4">
+                  <h2 className="text-base sm:text-lg md:text-xl font-semibold text-[#2a3441] mb-1 sm:mb-0">Grant Preferences</h2>
+                  <div className="flex items-center mt-1 sm:mt-0">
+                    <Label htmlFor="includeGrants" className="mr-2 text-sm sm:text-base text-[#2a3441]">Include Grants</Label>
                     <Switch 
                       id="includeGrants" 
                       checked={includeGrants} 
@@ -308,31 +308,31 @@ const CustomizeOffers = () => {
                 
                 {includeGrants && (
                   <div>
-                    <Label htmlFor="grantPurpose" className="text-[#2a3441]">Grant Purpose</Label>
+                    <Label htmlFor="grantPurpose" className="text-sm sm:text-base text-[#2a3441]">Grant Purpose</Label>
                     <Select
                       value={grantPurpose}
                       onValueChange={setGrantPurpose}
                     >
-                      <SelectTrigger id="grantPurpose" className="mt-1 bg-white border-2 border-[#ff8000] focus:border-[#ff8000] focus:ring-1 focus:ring-[#ff8000] text-[#2a3441]">
+                      <SelectTrigger id="grantPurpose" className="mt-1 bg-white border-2 border-[#ff8000] focus:border-[#ff8000] focus:ring-1 focus:ring-[#ff8000] text-[#2a3441] h-10 sm:h-12 text-sm sm:text-base rounded-lg sm:rounded-xl">
                         <SelectValue placeholder="Select a purpose" />
                       </SelectTrigger>
                       <SelectContent className="bg-white border border-[#ff8000] text-[#2a3441]">
-                        <SelectItem value="any">Any Purpose</SelectItem>
-                        <SelectItem value="innovation">Research & Innovation</SelectItem>
-                        <SelectItem value="expansion">Business Expansion</SelectItem>
-                        <SelectItem value="sustainability">Sustainability</SelectItem>
-                        <SelectItem value="digital">Digital Transformation</SelectItem>
-                        <SelectItem value="export">Export & International Trade</SelectItem>
+                        <SelectItem value="any" className="text-sm sm:text-base">Any Purpose</SelectItem>
+                        <SelectItem value="innovation" className="text-sm sm:text-base">Research & Innovation</SelectItem>
+                        <SelectItem value="expansion" className="text-sm sm:text-base">Business Expansion</SelectItem>
+                        <SelectItem value="sustainability" className="text-sm sm:text-base">Sustainability</SelectItem>
+                        <SelectItem value="digital" className="text-sm sm:text-base">Digital Transformation</SelectItem>
+                        <SelectItem value="export" className="text-sm sm:text-base">Export & International Trade</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                 )}
               </Card>
               
-              <div className="flex justify-center mt-8">
+              <div className="flex justify-center mt-6 sm:mt-8">
                 <Button 
                   type="submit" 
-                  className="bg-[#ff8000] hover:bg-[#e67300] text-white px-14 py-5 text-lg h-auto rounded-full font-medium shadow-md transition-all hover:shadow-lg hover:scale-[1.02]"
+                  className="w-full sm:w-auto bg-[#ff8000] hover:bg-[#e67300] text-white px-8 sm:px-14 py-3 sm:py-5 text-sm sm:text-base md:text-lg h-auto rounded-lg sm:rounded-full font-medium shadow-md transition-all hover:shadow-lg hover:scale-[1.02]"
                 >
                   Find My Matches
                 </Button>

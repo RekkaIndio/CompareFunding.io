@@ -124,17 +124,7 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
   const storage = getStorage();
 
   const handleExtracted = (key: string) => async (result: ExtractedFile) => {
-    // Check if we're not in replacement mode and this is not the current step
-    if (!replacementMode && DOCUMENT_STEPS[currentUploadStep].key !== key) {
-      toast({
-        title: "Upload in sequence",
-        description: `Please upload ${DOCUMENT_STEPS[currentUploadStep].label} first.`,
-        variant: "destructive"
-      });
-      return;
-    }
-
-    // If in replacement mode, check if we're replacing the right document
+    // In replacement mode, check if we're replacing the right document
     if (replacementMode && replacingDocKey !== key) {
       toast({
         title: "Invalid action",
@@ -143,7 +133,20 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
       });
       return;
     }
+    
+    // No longer forcing strict sequence - users can upload any document
 
+    // Check if another document is currently processing
+    const isAnotherDocLoading = Object.values(aiLoading).some(val => val === true);
+    if (isAnotherDocLoading) {
+      toast({
+        title: "Document already processing",
+        description: "Please wait for the current document to finish processing before uploading another.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     setFiles((prev) => ({ ...prev, [key]: result.file }));
     setExtracted((prev) => ({ ...prev, [key]: result }));
     setAiLoading((prev) => ({ ...prev, [key]: true }));
@@ -155,16 +158,12 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
       });
       setAiResults((prev) => ({ ...prev, [key]: aiResult }));
       
-      // Auto-save the document after successful AI processing
-      if (aiResult && aiResult.json) {
-        const documentType = DOCUMENT_STEPS.find((s) => s.key === key)?.label || key;
-        toast({
-          title: "Processing complete",
-          description: `${documentType} data extracted successfully. Auto-saving now...`,
-          variant: "default"
-        });
-        await saveFinancialData(key, documentType);
-      }
+      const documentType = DOCUMENT_STEPS.find((s) => s.key === key)?.label || key;
+      toast({
+        title: "Processing complete",
+        description: `${documentType} data extracted successfully.`,
+        variant: "default"
+      });
     } catch (err: any) {
       setAiError((prev) => ({ ...prev, [key]: err?.message || "OpenAI error" }));
       setAiResults((prev) => ({ ...prev, [key]: null }));
@@ -172,6 +171,26 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
       setAiLoading((prev) => ({ ...prev, [key]: false }));
     }
   };
+
+  // Add useEffect for auto-saving when aiResults changes
+  useEffect(() => {
+    const autoSaveDocument = async (key: string) => {
+      const result = aiResults[key];
+      if (!result || !result.json) return;
+      
+      if (!aiLoading[key] && !saving[key]) {
+        const documentType = DOCUMENT_STEPS.find((s) => s.key === key)?.label || key;
+        await saveFinancialData(key, documentType);
+      }
+    };
+
+    // Check each document type for new results
+    DOCUMENT_STEPS.forEach(step => {
+      if (aiResults[step.key]) {
+        autoSaveDocument(step.key);
+      }
+    });
+  }, [aiResults]);
 
   // Function to ensure the user has a valid business ID
   const ensureBusinessProfile = async (userId: string) => {
@@ -614,15 +633,7 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
 
   // Handler for skipping a document
   const handleSkipDocument = (key: string) => {
-    // Only allow skipping if this is the current step
-    if (!replacementMode && DOCUMENT_STEPS[currentUploadStep].key !== key) {
-      toast({
-        title: "Upload in sequence",
-        description: `Please handle ${DOCUMENT_STEPS[currentUploadStep].label} first.`,
-        variant: "destructive"
-      });
-      return;
-    }
+    // No longer enforce strict sequencing - users can skip any document that isn't completed
 
     // Add to skipped uploads
     setSkippedUploads(prev => {
@@ -657,7 +668,7 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
     const isSkipped = skippedUploads.includes(key);
     const isCurrent = currentUploadStep === index;
     const isReplacing = replacementMode && replacingDocKey === key;
-    const isDisabled = !isCurrent && !isReplacing && !isCompleted && !isSkipped;
+    const isDisabled = false; // No longer disable any document cards - users can interact with any document
     
     return (
       <div 
@@ -825,7 +836,7 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
 
   return (
     <PageLayout showSidebar={true}>
-      <div className="container py-8 mx-auto">
+      <div className="container py-8 mx-auto" data-tour="document-upload">
         {/* Header with instructional text and accounting software logos side by side */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-6">
           <div className="flex-1">
@@ -893,7 +904,7 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
           ) : (
             <div className="text-sm text-blue-600">
               <p className="mb-1">
-                Please upload your documents in sequence. Current document to process: 
+                You can upload any document. Recommended next document: 
                 <span className="font-bold"> {DOCUMENT_STEPS[currentUploadStep].label}</span>
               </p>
               <p className="text-xs text-blue-500 mb-1">

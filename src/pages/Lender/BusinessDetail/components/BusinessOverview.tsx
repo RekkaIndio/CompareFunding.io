@@ -9,16 +9,12 @@ import { formatAddress } from '@/lib/formatters';
 interface BusinessOverviewProps {
   applicationData: ApplicationData;
   canSeeBusinessDetails: boolean;
-  handleExpressInterest: () => void;
-  hasExpressedInterest: boolean;
   isLenderMatched?: boolean;
 }
 
 export const BusinessOverview: React.FC<BusinessOverviewProps> = ({
   applicationData,
   canSeeBusinessDetails,
-  handleExpressInterest,
-  hasExpressedInterest,
   isLenderMatched
 }) => {
   // Check if offer has been accepted
@@ -170,7 +166,7 @@ export const BusinessOverview: React.FC<BusinessOverviewProps> = ({
             <Shield className="h-4 w-4 text-[#ff8000]" />
             <AlertTitle className="text-[#212936] font-semibold">Limited Information Available</AlertTitle>
             <AlertDescription className="text-slate-700">
-              Express interest in this application to view the complete business profile including financial data and comprehensive business information.
+              Create an offer to view the complete business profile including financial data and comprehensive business information.
             </AlertDescription>
           </Alert>
         )}
@@ -214,28 +210,6 @@ export const BusinessOverview: React.FC<BusinessOverviewProps> = ({
             </div>
           </div>
         </div>
-        
-        {!canSeeBusinessDetails && (
-          <div className="flex justify-center pt-4">
-            {hasExpressedInterest ? (
-              <Button 
-                disabled
-                className="bg-gray-600 text-white font-medium px-6 py-2 shadow-lg transition-all"
-              >
-                <ThumbsUp className="mr-2 h-4 w-4" />
-                Interest Sent - Awaiting Response
-              </Button>
-            ) : (
-              <Button 
-                onClick={handleExpressInterest} 
-                className="bg-[#ff8000] hover:bg-[#e67300] text-white font-medium px-6 py-2 shadow-lg hover:shadow-xl transition-all"
-              >
-                <ThumbsUp className="mr-2 h-4 w-4" />
-                Express Interest to See Full Details
-              </Button>
-            )}
-          </div>
-        )}
       </CardContent>
     </Card>
   );

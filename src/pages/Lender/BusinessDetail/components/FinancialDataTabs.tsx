@@ -9,16 +9,13 @@ import { FinancialsTable } from '@/pages/Business/Documents/FinancialsTable';
 
 interface FinancialDataTabsProps {
   financialData: FinancialData | undefined;
-  handleExpressInterest: () => void;
   isLenderMatched?: boolean;
 }
-
-// Removed JsonDataView component in favor of FinancialsTable
 
 // Helper function to check if a financial data section exists
 const hasFinancialData = (financialData: FinancialData | undefined, section: keyof FinancialData): boolean => {
   return Boolean(financialData && section in financialData);
-};
+}
 
 // Helper function to extract summary text from complex structures
 const extractSummary = (summaryContent: any, documentType: string = ''): string => {
@@ -116,7 +113,6 @@ const extractSummary = (summaryContent: any, documentType: string = ''): string 
 
 export const FinancialDataTabs: React.FC<FinancialDataTabsProps> = ({
   financialData,
-  handleExpressInterest,
   isLenderMatched
 }) => {
   // Check if we should show full financial data (matched or offer accepted)
