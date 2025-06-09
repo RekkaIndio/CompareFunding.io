@@ -65,9 +65,8 @@ const EmailPasswordPage = () => {
   const steps = [
     { label: 'Email & Password', path: '/signup-journey/email-password' },
     { label: 'Funding Amount', path: '/signup-journey/apply' },
-    { label: 'Funding Matches', path: '/signup-journey/funding-matches' },
     { label: 'Business Details', path: '/signup-journey/business-details' },
-    { label: 'Eligibility', path: '/signup-journey/eligibility' },
+    { label: 'Industry Specifics', path: '/signup-journey/industry-specifics' },
   ];
   const currentStep = 0;
 
@@ -82,13 +81,10 @@ const EmailPasswordPage = () => {
         navigate('/signup-journey/apply');
         break;
       case 2:
-        navigate('/signup-journey/funding-matches');
-        break;
-      case 3:
         navigate('/signup-journey/business-details');
         break;
-      case 4:
-        navigate('/signup-journey/eligibility');
+      case 3:
+        navigate('/signup-journey/industry-specifics');
         break;
     }
   };

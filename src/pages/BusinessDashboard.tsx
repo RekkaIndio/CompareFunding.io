@@ -24,7 +24,10 @@ import {
   TrendingUp, Landmark, Store, BarChartHorizontalBig, ClipboardList, FileSignature, Upload, // Added new icons
   ArrowUpRight, ArrowDownRight, Target, Calendar, Filter, Star, Shield, Zap, Compass, Download, RefreshCw
 } from 'lucide-react';
+
+import { formatApplicationNumber } from '@/lib/applicationUtils';
 import { format, formatDistanceToNowStrict } from 'date-fns';
+import { formatApplicationTitle } from '@/lib/applicationUtils';
 
 // TypeScript Interfaces
 interface BaseAudit {
@@ -46,6 +49,7 @@ interface CreditScoreData {
 
 interface Application extends BaseAudit {
   id: string;
+  application_number?: string; // Added missing application_number field
   user_id: string;
   company_name: string;
   loan_amount: number;
@@ -447,37 +451,7 @@ const BusinessDashboard = () => {
     return Math.round((filledFields.length / fields.length) * 100);
   };
 
-  const renderOverviewCards = () => {
-    const totalFunding = applications
-      .filter(app => app.status === 'approved') // Assuming 'approved' means funded
-      .reduce((sum, app) => sum + app.loan_amount, 0);
-
-    const pendingApplications = applications.filter(app => 
-      ['pending', 'under_review', 'documents_requested'].includes(app.status)
-    ).length;
-
-    const approvalRate = applications.length > 0 
-      ? Math.round(applications.filter(app => app.status === 'approved').length / applications.length * 100)
-      : 0;
-
-    const activeOffers = offers.filter(offer => 
-      ['pending_acceptance'].includes(offer.status)
-    ).length;
-
-    // We don't need to calculate these stats here anymore
-    // Each card renderer calculates its own stats
-    console.log("Rendering dashboard cards with current application and offer data");
-
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8" data-tour="dashboard-overview">
-        {/* Custom cards with detailed information */}
-        {renderCreditScoreCard()}
-        {renderActiveApplicationsCard()}
-        {renderPendingOffersCard()}
-        {renderSuccessRateCard()}
-      </div>
-    );
-  };
+  
 
   const renderNewApplicationCard = () => {
     return (
@@ -810,7 +784,7 @@ const BusinessDashboard = () => {
                     </div>
                     
                     <CardTitle className="text-xl font-bold text-white mb-2">
-                      Application #{application.id.substring(0, 8).toUpperCase()}
+                      {formatApplicationTitle(application, application.id)}
                     </CardTitle>
                     
                     <div className="flex items-center gap-6 text-white/80 text-sm">
@@ -830,131 +804,21 @@ const BusinessDashboard = () => {
                   <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-white/5 to-transparent rounded-full -translate-y-16 translate-x-16"></div>
                 </CardHeader>
                 
-                <CardContent className="p-6 space-y-6 bg-white">
-                  {/* Application purpose and details */}
-                  <div className="space-y-4">                          <div>
-                            <h4 className="text-sm font-semibold text-gray-700 mb-1">Funding Purpose</h4>
-                            <p className="text-gray-900 font-medium">{application.loan_purpose}</p>
-                          </div>
-                    
-                    {/* Financial Overview Grid - matching OffersList exact styling */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      <div className="group bg-gradient-to-br from-slate-50 to-slate-100 p-3 rounded-xl border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5">
-                        <div className="flex justify-between items-start mb-2">
-                          <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Amount</p>
-                          <div className="bg-gradient-to-br from-[#212936] to-[#2c3c53] rounded-full p-1.5 shadow-sm group-hover:shadow-md transition-shadow">
-                            <PoundSterling className="h-3.5 w-3.5 text-white" />
-                          </div>
-                        </div>
-                        <p className="font-bold text-lg text-[#212936]">{formatCurrency(application.loan_amount)}</p>
-                        <div className="w-full bg-slate-200/50 h-1 rounded-full mt-2">
-                          <div className="bg-gradient-to-r from-[#212936] to-[#ff8000] h-1 rounded-full w-full"></div>
-                        </div>
+                <CardContent className="p-6 bg-white">
+                  {/* Simplified application content - only funding amount and description */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                    {/* Funding Amount */}
+                    <div className="text-center md:text-left">
+                      <div className="text-3xl font-bold text-[#212936] mb-2">
+                        {formatCurrency(application.loan_amount)}
                       </div>
-                      
-                      <div className="group bg-gradient-to-br from-slate-50 to-slate-100 p-3 rounded-xl border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5">
-                        <div className="flex justify-between items-start mb-2">
-                          <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Monthly</p>
-                          <div className="bg-gradient-to-br from-[#212936] to-[#2c3c53] rounded-full p-1.5 shadow-sm group-hover:shadow-md transition-shadow">
-                            <Calendar className="h-3.5 w-3.5 text-white" />
-                          </div>
-                        </div>
-                        <p className="font-bold text-lg text-[#212936]">
-                          {bestOffer ? formatCurrency(monthlyPayment) : '~' + formatCurrency(monthlyPayment)}
-                        </p>
-                        <div className="w-full bg-slate-200/50 h-1 rounded-full mt-2">
-                          <div className="bg-gradient-to-r from-[#212936] to-[#ff8000] h-1 rounded-full w-4/5"></div>
-                        </div>
-                      </div>
-                      
-                      <div className="group bg-gradient-to-br from-slate-50 to-slate-100 p-3 rounded-xl border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5">
-                        <div className="flex justify-between items-start mb-2">
-                          <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Offers</p>
-                          <div className="bg-gradient-to-br from-[#212936] to-[#2c3c53] rounded-full p-1.5 shadow-sm group-hover:shadow-md transition-shadow">
-                            <Target className="h-3.5 w-3.5 text-white" />
-                          </div>
-                        </div>
-                        <p className="font-bold text-lg text-[#212936]">{applicationOffers.length}</p>
-                        <div className="w-full bg-slate-200/50 h-1 rounded-full mt-2">
-                          <div className="bg-gradient-to-r from-[#212936] to-[#ff8000] h-1 rounded-full w-3/5"></div>
-                        </div>
-                      </div>
-                      
-                      <div className="group bg-gradient-to-br from-slate-50 to-slate-100 p-3 rounded-xl border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5">
-                        <div className="flex justify-between items-start mb-2">
-                          <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">APR</p>
-                          <div className="bg-gradient-to-br from-[#212936] to-[#2c3c53] rounded-full p-1.5 shadow-sm group-hover:shadow-md transition-shadow">
-                            <TrendingUp className="h-3.5 w-3.5 text-white" />
-                          </div>
-                        </div>
-                        <p className="font-bold text-lg text-[#212936]">
-                          {bestOffer ? `${bestOffer.interest_rate}%` : `~${displayRate}%`}
-                        </p>
-                        <div className="w-full bg-slate-200/50 h-1 rounded-full mt-2">
-                          <div className="bg-gradient-to-r from-[#212936] to-[#ff8000] h-1 rounded-full w-2/3"></div>
-                        </div>
-                      </div>
+                      <div className="text-sm text-gray-600">Requested Amount</div>
                     </div>
                     
-                    {/* Best offer detailed breakdown if available */}
-                    {bestOffer && (
-                      <div className="group bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-4 border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200">
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-2">
-                            <div className="bg-gradient-to-br from-[#212936] to-[#2c3c53] rounded-full p-1.5 shadow-sm group-hover:shadow-md transition-shadow">
-                              <Star className="h-4 w-4 text-white" />
-                            </div>
-                            <span className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Best Offer Details</span>
-                          </div>
-                          <span className="text-xs text-slate-600 font-medium">{bestOffer.lender_name}</span>
-                        </div>
-                        
-                        <div className="grid grid-cols-3 gap-4 text-center">
-                          <div>
-                            <p className="text-xs text-slate-600 mb-1 font-medium">Amount Offered</p>
-                            <p className="text-sm font-bold text-[#212936]">{formatCurrency(bestOffer.offer_amount)}</p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-slate-600 mb-1 font-medium">Total Cost</p>
-                            <p className="text-sm font-bold text-[#212936]">{formatCurrency(totalCost)}</p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-slate-600 mb-1 font-medium">Total Interest</p>
-                            <p className="text-sm font-bold text-[#212936]">{formatCurrency(totalInterest)}</p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* Application progress indicators - matching OffersList styling */}
-                    <div className="group bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-4 border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200">
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="bg-gradient-to-br from-[#212936] to-[#2c3c53] rounded-full p-1.5 shadow-sm group-hover:shadow-md transition-shadow">
-                          <Activity className="h-4 w-4 text-white" />
-                        </div>
-                        <span className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Application Status</span>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <div className="flex justify-between items-center text-xs">
-                          <span className="text-slate-600 font-medium">Matched Lenders</span>
-                          <span className="font-bold text-[#212936]">
-                            {application.matched_lenders?.length || 0}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center text-xs">
-                          <span className="text-slate-600 font-medium">Documents Status</span>
-                          <span className="font-bold text-[#212936]">
-                            {application.documents_submitted?.length || 0} submitted
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center text-xs">
-                          <span className="text-slate-600 font-medium">Days Active</span>
-                          <span className="font-bold text-[#212936]">
-                            {Math.floor((new Date().getTime() - new Date(application.application_date as string).getTime()) / (1000 * 60 * 60 * 24))} days
-                          </span>
-                        </div>
-                      </div>
+                    {/* Purpose/Description */}
+                    <div className="text-center md:text-left">
+                      <h4 className="text-sm font-semibold text-gray-700 mb-1">Funding Purpose</h4>
+                      <p className="text-gray-900 font-medium">{application.loan_purpose}</p>
                     </div>
                   </div>
                   
@@ -982,10 +846,12 @@ const BusinessDashboard = () => {
                         }
                       >
                         {applicationOffers.length > 0 || application.status === 'approved' || application.status === 'offered' ? (
-                          <>
-                            <Star className="h-4 w-4 mr-1" />
-                            View Offers {applicationOffers.length > 0 && `(${applicationOffers.length})`}
-                          </>
+                            <>
+                            <Star className="h-4 w-4 mr-1 text-white" />
+                            <span className="text-white">
+                              View Offers {applicationOffers.length > 0 && `(${applicationOffers.length})`}
+                            </span>
+                            </>
                         ) : (
                           <>
                             <Eye className="h-4 w-4 mr-1" />
@@ -1010,273 +876,7 @@ const BusinessDashboard = () => {
   };
 
   // Custom credit score card renderer
-  const renderCreditScoreCard = () => {
-    const creditScoreData = getCreditScore();
-    
-    // Check if we have actual credit score data
-    const hasScore = creditScoreData.score !== null && creditScoreData.score !== undefined;
-    const scoreValue = creditScoreData.score || 0;
-    
-    return (
-      <div className="bg-slate-800 rounded-xl shadow-lg border border-slate-700 p-6 relative overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer" 
-          data-tour="credit-score-card" onClick={() => navigate('/credit-score')}>
-        <div className={`absolute -top-6 -right-6 w-20 h-20 bg-gradient-to-br ${!hasScore ? 'from-orange-500 to-orange-600' : 'from-emerald-600 to-emerald-700'} rounded-full opacity-20`}></div>
-        <div className="absolute top-4 right-4">
-          {!hasScore ? (
-            <div className={`p-2 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg shadow-md`}>
-              <Plus className="h-6 w-6 text-white" />
-            </div>
-          ) : (
-            <div className={`p-2 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-lg shadow-md`}>
-              <BarChart3 className="h-6 w-6 text-white" />
-            </div>
-          )}
-        </div>
-        
-        <div className="space-y-2">
-          <div className="text-sm font-medium text-slate-300">Business Credit Score</div>
-          
-          <div className="flex justify-center my-4">
-            {hasScore ? (
-              <CircularProgressBar
-                value={scoreValue}
-                size={90}
-                strokeWidth={10}
-                isNewlyIncorporated={false}
-              />
-            ) : (
-              <div className="text-3xl font-bold text-orange-400">Get Score</div>
-            )}
-          </div>
-          
-          <div className="flex items-center gap-2 justify-center">
-            <div className="text-sm text-slate-400 text-center">
-              {hasScore ? "C - Moderate Risk" : "Check your business credit"}
-            </div>
-            {hasScore && (
-              <ArrowUpRight className="h-4 w-4 text-emerald-400" />
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // Render custom Active Applications card
-  const renderActiveApplicationsCard = () => {
-    // Get all applications that are in active states (pending, under review, or awaiting documents)
-    const pendingApplications = applications.filter(app => 
-      ['pending', 'under_review', 'documents_requested'].includes(app.status)
-    );
-    
-    const pendingCount = pendingApplications.length;
-    const totalCount = applications.length;
-    const latestApplication = pendingApplications.length > 0 
-      ? pendingApplications.sort((a, b) => 
-          new Date(b.updated_at?.toDate?.() || b.updated_at || b.application_date).getTime() - 
-          new Date(a.updated_at?.toDate?.() || a.updated_at || a.application_date).getTime()
-        )[0]
-      : null;
-    
-    const latestUpdate = latestApplication 
-      ? new Date(latestApplication.updated_at?.toDate?.() || latestApplication.updated_at || latestApplication.application_date).toLocaleDateString()
-      : 'No active applications';
-
-    return (
-      <div 
-        className="bg-slate-800 rounded-xl shadow-lg border border-slate-700 p-6 relative overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer"
-        onClick={() => navigate('/applications')}
-      >
-        <div className={`absolute -top-6 -right-6 w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full opacity-20`}></div>
-        <div className="absolute top-4 right-4">
-          {totalCount === 0 ? (
-            <div className={`p-2 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg shadow-md`}>
-              <Plus className="h-6 w-6 text-white" />
-            </div>
-          ) : (
-            <div className={`p-2 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow-md`}>
-              <FileText className="h-6 w-6 text-white" />
-            </div>
-          )}
-        </div>
-        
-        <div className="space-y-2">
-          <div className="text-sm font-medium text-slate-300">Total Applications</div>
-          {totalCount === 0 ? (
-            <>
-              <div className="text-3xl font-bold text-orange-400 text-center">Start Now</div>
-              <div className="flex items-center justify-center">
-                <div className="text-sm text-slate-400">Create your first application</div>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="text-3xl font-bold text-white text-center">{totalCount}</div>
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-slate-400">
-                  {pendingCount > 0 ? `${pendingCount} active applications` : ""}
-                </div>
-                <ArrowUpRight className="h-4 w-4 text-blue-400" />
-              </div>
-              {pendingCount > 0 && (
-                <div className="mt-2 pt-2 border-t border-slate-700 text-xs text-slate-400">
-                  <div className="flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    <span>Last updated: {latestUpdate}</span>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  // Render custom Pending Offers card
-  const renderPendingOffersCard = () => {
-    // Get offers that are pending acceptance
-    const pendingOffers = offers.filter(offer => 
-      ['pending_acceptance'].includes(offer.status)
-    );
-    
-    const pendingCount = pendingOffers.length;
-    const totalCount = offers.length;
-    const hasApplications = applications.length > 0;
-
-    // Get the most recent offer
-    const latestOffer = pendingOffers.length > 0 
-      ? pendingOffers.sort((a, b) => 
-          new Date(b.updated_at?.toDate?.() || b.updated_at || b.offer_date).getTime() - 
-          new Date(a.updated_at?.toDate?.() || a.updated_at || a.offer_date).getTime()
-        )[0]
-      : null;
-    
-    // Get the highest offer amount if there are any pending offers
-    const highestOffer = pendingOffers.length > 0
-      ? Math.max(...pendingOffers.map(offer => offer.offer_amount))
-      : 0;
-
-    // Show "Apply First" only if there are no applications at all
-    const showApplyFirst = totalCount === 0 && !hasApplications;
-
-    return (
-      <div 
-        className="bg-slate-800 rounded-xl shadow-lg border border-slate-700 p-6 relative overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer"
-        onClick={() => navigate('/offers')}
-      >
-        <div className={`absolute -top-6 -right-6 w-20 h-20 bg-gradient-to-br ${showApplyFirst ? 'from-orange-500 to-orange-600' : 'from-amber-500 to-amber-600'} rounded-full opacity-20`}></div>
-        <div className="absolute top-4 right-4">
-          {showApplyFirst ? (
-            <div className={`p-2 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg shadow-md`}>
-              <Plus className="h-6 w-6 text-white" />
-            </div>
-          ) : (
-            <div className={`p-2 bg-gradient-to-br from-amber-500 to-amber-600 rounded-lg shadow-md`}>
-              <Target className="h-6 w-6 text-white" />
-            </div>
-          )}
-        </div>
-        
-        <div className="space-y-2">
-          <div className="text-sm font-medium text-slate-300">Total Offers</div>
-          {showApplyFirst ? (
-            <>
-              <div className="text-3xl font-bold text-orange-400 text-center">Apply First</div>
-              <div className="flex items-center justify-center">
-                <div className="text-sm text-slate-400">Submit applications to receive offers</div>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="text-3xl font-bold text-white text-center">{totalCount}</div>
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-slate-400">
-                  {totalCount === 0 && hasApplications ? (
-                    "Waiting for offers"
-                  ) : pendingCount > 0 ? (
-                    `${pendingCount} pending offers`
-                  ) : (
-                    ""
-                  )}
-                </div>
-                <ArrowUpRight className="h-4 w-4 text-amber-400" />
-              </div>
-              {pendingCount > 0 && (
-                <div className="mt-2 pt-2 border-t border-slate-700 text-xs text-slate-400">
-                  <div className="flex items-center gap-1">
-                    <PoundSterling className="h-3 w-3" />
-                    <span>Highest offer: {formatCurrency(highestOffer)}</span>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  // Render custom Success Rate card
-  const renderSuccessRateCard = () => {
-    const approvedApplications = applications.filter(app => app.status === 'approved');
-    const approvalRate = applications.length > 0 
-      ? Math.round((approvedApplications.length / applications.length) * 100)
-      : 0;
-    
-    // Get total funding amount from approved applications
-    const totalFunding = approvedApplications.reduce((sum, app) => sum + app.loan_amount, 0);
-    
-    return (
-      <div className="bg-slate-800 rounded-xl shadow-lg border border-slate-700 p-6 relative overflow-hidden hover:shadow-xl transition-all duration-300">
-        <div className={`absolute -top-6 -right-6 w-20 h-20 bg-gradient-to-br ${applications.length === 0 ? 'from-orange-500 to-orange-600' : 'from-purple-500 to-purple-600'} rounded-full opacity-20`}></div>
-        <div className="absolute top-4 right-4">
-          {applications.length === 0 ? (
-            <div className={`p-2 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg shadow-md`}>
-              <Plus className="h-6 w-6 text-white" />
-            </div>
-          ) : (
-            <div className={`p-2 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg shadow-md`}>
-              <TrendingUp className="h-6 w-6 text-white" />
-            </div>
-          )}
-        </div>
-        
-        <div className="space-y-2">
-          <div className="text-sm font-medium text-slate-300">Success Rate</div>
-          {applications.length === 0 ? (
-            <>
-              <div className="text-3xl font-bold text-orange-400 text-center">Get Started</div>
-              <div className="flex items-center justify-center">
-                <div className="text-sm text-slate-400">Track your approval rate</div>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="text-3xl font-bold text-white text-center">{`${approvalRate}%`}</div>
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-slate-400">
-                  {applications.length > 0 
-                    ? `Based on ${applications.length} applications` 
-                    : ""}
-                </div>
-                {approvalRate >= 50 && <ArrowUpRight className="h-4 w-4 text-emerald-400" />}
-              </div>
-              {approvedApplications.length > 0 && (
-                <div className="mt-2 pt-2 border-t border-slate-700 text-xs text-slate-400">
-                  <div className="flex items-center gap-1">
-                    <PoundSterling className="h-3 w-3" />
-                    <span>Total funding: {formatCurrency(totalFunding)}</span>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-    );
-  };
-
+  
   // Render draft applications section
   const renderDraftApplications = () => {
     // Filter to show only draft applications
@@ -1332,7 +932,7 @@ const BusinessDashboard = () => {
                   </div>
                   
                   <CardTitle className="text-xl font-bold text-gray-900 mb-2">
-                    Application #{application.id.substring(0, 8).toUpperCase()}
+                    Application #{formatApplicationNumber(application, application.id)}
                   </CardTitle>
                   
                   <div className="flex items-center gap-6 text-gray-600 text-sm">
@@ -1349,35 +949,20 @@ const BusinessDashboard = () => {
               </CardHeader>
               
               <CardContent className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {/* Loan Amount */}
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-gray-900">
+                {/* Simplified draft content - only funding amount and description */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                  {/* Funding Amount */}
+                  <div className="text-center md:text-left">
+                    <div className="text-3xl font-bold text-gray-900 mb-2">
                       {formatCurrency(application.loan_amount)}
                     </div>
-                    <div className="text-sm text-gray-600 mt-1">Requested Amount</div>
+                    <div className="text-sm text-gray-600">Requested Amount</div>
                   </div>
                   
-                  {/* Purpose */}
-                  <div className="text-center">
-                    <div className="text-lg font-semibold text-gray-900">
-                      {application.purpose_category || 'Not specified'}
-                    </div>
-                    <div className="text-sm text-gray-600 mt-1">Purpose</div>
-                  </div>
-                  
-                  {/* Action */}
-                  <div className="text-center">
-                    <Button 
-                      className="bg-[#ff8800] hover:bg-[#e67700] text-white px-4 py-2 rounded-lg transition-colors"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/applications/new?draft=${application.id}`);
-                      }}
-                    >
-                      <Edit3 className="h-4 w-4 mr-2" />
-                      Complete Application
-                    </Button>
+                  {/* Purpose/Description */}
+                  <div className="text-center md:text-left">
+                    <h4 className="text-sm font-semibold text-gray-700 mb-1">Funding Purpose</h4>
+                    <p className="text-gray-900 font-medium">{application.loan_purpose}</p>
                   </div>
                 </div>
               </CardContent>
@@ -1448,7 +1033,6 @@ const BusinessDashboard = () => {
         <div className="max-w-screen-2xl mx-auto px-4 md:px-6 lg:px-8 py-8">
           {/* Overview Content - No Tabs */}
           <div className="w-full">
-            {renderOverviewCards()}
             {renderDraftApplications()}
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
               <div className="lg:col-span-3">

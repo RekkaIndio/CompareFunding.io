@@ -36,6 +36,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { getFirestore, collection, query, where, getDocs } from 'firebase/firestore';
+import { formatApplicationTitle } from '@/lib/applicationUtils';
 
 export type Application = {
   id: string;
@@ -537,19 +538,19 @@ const Applications = () => {
                         <div className="relative z-10">
                           <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-3">
-                              <div className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium backdrop-blur-sm ${statusStyling.bgClass} ${statusStyling.textClass} border border-white/20`}>
+                              {/* Empty space for balance */}
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <div className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium backdrop-blur-sm ${statusStyling.bgClass} ${statusStyling.textClass} border border-white/20 shadow-lg`}>
                                 {statusStyling.icon}
                                 <span className="ml-1.5">{statusStyling.label}</span>
                               </div>
+                              <ArrowRight className="h-5 w-5 text-white/70 hover:text-white transition-colors" />
                             </div>
-                            <ArrowRight className="h-5 w-5 text-white/70 hover:text-white transition-colors" />
                           </div>
                           
                           <CardTitle className="text-xl font-bold text-white mb-2">
-                            {application.application_number ? 
-                              `Application #${application.application_number}` : 
-                              `Application #${application.id.substring(0, 8).toUpperCase()}`
-                            }
+                            {formatApplicationTitle(application, application.id, true, statusStyling.label)}
                           </CardTitle>
                           
                           <div className="flex items-center gap-6 text-white/80 text-sm">
@@ -580,170 +581,20 @@ const Applications = () => {
                             )}
                           </div>
                           
-                          {/* Financial Overview Grid - matching OffersList exact styling */}
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                            <div className="group bg-gradient-to-br from-slate-50 to-slate-100 p-3 rounded-xl border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5">
+                          {/* Amount box only */}
+                          <div className="grid grid-cols-1 gap-3">
+                            <div className="group bg-gradient-to-br from-slate-50 to-slate-100 p-4 rounded-xl border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5">
                               <div className="flex justify-between items-start mb-2">
-                                <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Amount</p>
+                                <p className="text-sm font-semibold text-slate-600 uppercase tracking-wide">Loan Amount</p>
                                 <div className="bg-gradient-to-br from-[#212936] to-[#2c3c53] rounded-full p-1.5 shadow-sm group-hover:shadow-md transition-shadow">
-                                  <PoundSterling className="h-3.5 w-3.5 text-white" />
+                                  <PoundSterling className="h-4 w-4 text-white" />
                                 </div>
                               </div>
-                              <p className="font-bold text-lg text-[#212936]">{formatCurrency(application.loan_amount)}</p>
-                              <div className="w-full bg-slate-200/50 h-1 rounded-full mt-2">
-                                <div className="bg-gradient-to-r from-[#212936] to-[#ff8000] h-1 rounded-full w-full"></div>
+                              <p className="font-bold text-2xl text-[#212936] mb-2">{formatCurrency(application.loan_amount)}</p>
+                              <div className="w-full bg-slate-200/50 h-2 rounded-full">
+                                <div className="bg-gradient-to-r from-[#212936] to-[#ff8000] h-2 rounded-full w-full"></div>
                               </div>
                             </div>
-                            
-                            <div className="group bg-gradient-to-br from-slate-50 to-slate-100 p-3 rounded-xl border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5">
-                              <div className="flex justify-between items-start mb-2">
-                                <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Monthly</p>
-                                <div className="bg-gradient-to-br from-[#212936] to-[#2c3c53] rounded-full p-1.5 shadow-sm group-hover:shadow-md transition-shadow">
-                                  <Calendar className="h-3.5 w-3.5 text-white" />
-                                </div>
-                              </div>
-                              <p className="font-bold text-lg text-[#212936]">~{formatCurrency(monthlyPayment)}</p>
-                              <div className="w-full bg-slate-200/50 h-1 rounded-full mt-2">
-                                <div className="bg-gradient-to-r from-[#212936] to-[#ff8000] h-1 rounded-full w-4/5"></div>
-                              </div>
-                            </div>
-                            
-                            <div className="group bg-gradient-to-br from-slate-50 to-slate-100 p-3 rounded-xl border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5">
-                              <div className="flex justify-between items-start mb-2">
-                                <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Term</p>
-                                <div className="bg-gradient-to-br from-[#212936] to-[#2c3c53] rounded-full p-1.5 shadow-sm group-hover:shadow-md transition-shadow">
-                                  <Target className="h-3.5 w-3.5 text-white" />
-                                </div>
-                              </div>
-                              <p className="font-bold text-lg text-[#212936]">{displayTerm}m</p>
-                              <div className="w-full bg-slate-200/50 h-1 rounded-full mt-2">
-                                <div className="bg-gradient-to-r from-[#212936] to-[#ff8000] h-1 rounded-full w-3/5"></div>
-                              </div>
-                            </div>
-                            
-                            <div className="group bg-gradient-to-br from-slate-50 to-slate-100 p-3 rounded-xl border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5">
-                              <div className="flex justify-between items-start mb-2">
-                                <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Est. APR</p>
-                                <div className="bg-gradient-to-br from-[#212936] to-[#2c3c53] rounded-full p-1.5 shadow-sm group-hover:shadow-md transition-shadow">
-                                  <TrendingUp className="h-3.5 w-3.5 text-white" />
-                                </div>
-                              </div>
-                              <p className="font-bold text-lg text-[#212936]">{estimatedRate}%</p>
-                              <div className="w-full bg-slate-200/50 h-1 rounded-full mt-2">
-                                <div className="bg-gradient-to-r from-[#212936] to-[#ff8000] h-1 rounded-full w-2/3"></div>
-                              </div>
-                            </div>
-                          </div>
-                          
-                          {/* Estimated financial breakdown - matching OffersList styling */}
-                          <div className="group bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-4 border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200">
-                            <div className="flex items-center gap-2 mb-3">
-                              <div className="bg-gradient-to-br from-[#212936] to-[#2c3c53] rounded-full p-1.5 shadow-sm group-hover:shadow-md transition-shadow">
-                                <BarChart3 className="h-4 w-4 text-white" />
-                              </div>
-                              <span className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Financial Breakdown</span>
-                            </div>
-                            
-                            <div className="grid grid-cols-3 gap-4 text-center">
-                              <div>
-                                <p className="text-xs text-slate-600 mb-1 font-medium">Total Cost</p>
-                                <p className="text-sm font-bold text-[#212936]">{formatCurrency(totalCost)}</p>
-                              </div>
-                              <div>
-                                <p className="text-xs text-slate-600 mb-1 font-medium">Total Interest</p>
-                                <p className="text-sm font-bold text-[#212936]">{formatCurrency(totalInterest)}</p>
-                              </div>
-                              <div>
-                                <p className="text-xs text-slate-600 mb-1 font-medium">Completion</p>
-                                <p className="text-sm font-bold text-[#212936]">{application.completeness_percentage || 0}%</p>
-                              </div>
-                            </div>
-                          </div>
-                          
-                          {/* Application progress indicators - matching OffersList styling */}
-                          <div className="group bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-4 border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200">
-                            <div className="flex items-center gap-2 mb-3">
-                              <div className="bg-gradient-to-br from-[#212936] to-[#2c3c53] rounded-full p-1.5 shadow-sm group-hover:shadow-md transition-shadow">
-                                <Activity className="h-4 w-4 text-white" />
-                              </div>
-                              <span className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Application Status</span>
-                            </div>
-                            
-                            <div className="space-y-2">
-                              <div className="flex justify-between items-center text-xs">
-                                <span className="text-slate-600 font-medium">Matched Lenders</span>
-                                <span className="font-bold text-[#212936]">
-                                  {application.matched_lenders?.length || 0}
-                                </span>
-                              </div>
-                              <div className="flex justify-between items-center text-xs">
-                                <span className="text-slate-600 font-medium">Documents Status</span>
-                                <span className="font-bold text-[#212936]">
-                                  {application.has_documents ? 'Complete' : 'Required'}
-                                </span>
-                              </div>
-                              <div className="flex justify-between items-center text-xs">
-                                <span className="text-slate-600 font-medium">Days Active</span>
-                                <span className="font-bold text-[#212936]">
-                                  {Math.floor((new Date().getTime() - new Date(application.application_date).getTime()) / (1000 * 60 * 60 * 24))} days
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <Separator className="my-6 bg-gray-200" />
-                        
-                        {/* Action buttons matching OffersList style */}
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(`/applications/${application.id}`);
-                              }}
-                              className="hover:bg-blue-50 border-blue-200 text-[#ff8000]"
-                            >
-                              <Eye className="h-4 w-4 mr-1" />
-                              View Details
-                            </Button>
-                            
-                            {application.status === 'draft' && (
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  navigate(`/applications/${application.id}/edit`);
-                                }}
-                                className="hover:bg-amber-50 border-amber-200 text-amber-700"
-                              >
-                                <Edit3 className="h-4 w-4 mr-1" />
-                                Edit
-                              </Button>
-                            )}
-                            
-                            {!application.has_documents && (
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  navigate(`/applications/${application.id}?tab=documents`);
-                                }}
-                                className="hover:bg-purple-50 border-purple-200 text-white"
-                              >
-                                <Upload className="h-4 w-4 mr-1" />
-                                Upload Docs
-                              </Button>
-                            )}
-                          </div>
-                          
-                          <div className="flex items-center gap-2 text-sm text-gray-500">
-                            <Clock className="h-4 w-4" />
-                            <span>Updated {new Date(application.status_updated_at || application.created_at || application.application_date).toLocaleDateString()}</span>
                           </div>
                         </div>
                       </CardContent>

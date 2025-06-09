@@ -74,22 +74,21 @@ const BusinessDetailsForm = () => {
   const signupSteps = [
     { label: 'Email & Password', path: '/signup-journey/email-password' },
     { label: 'Funding Amount', path: '/signup-journey/apply' },
-    { label: 'Funding Matches', path: '/signup-journey/funding-matches' },
     { label: 'Business Details', path: '/signup-journey/business-details' },
-    { label: 'Eligibility', path: '/signup-journey/eligibility' },
+    { label: 'Industry Specifics', path: '/signup-journey/industry-specifics' },
   ];
 
-  const currentStepIndex = 3; // Business Details is step 4 (0-indexed)
+  const currentStepIndex = 2; // Business Details is now step 3 (0-indexed)
   
   // Navigation handlers
   const handlePrevious = () => {
-    navigate('/signup-journey/funding-matches', { state: { ...userInfo, ...formData } });
+    navigate('/signup-journey/apply', { state: { ...userInfo, ...formData } });
   };
   
   const handleNext = () => {
     // Only allow next if the form is valid
     if (isFormValid()) {
-      navigate('/signup-journey/eligibility', { state: { ...userInfo, ...formData } });
+      navigate('/signup-journey/industry-specifics', { state: { ...userInfo, ...formData } });
     }
   };
 
@@ -498,8 +497,8 @@ const BusinessDetailsForm = () => {
         // Don't block the flow if credit score fetch fails
       });
       
-      // Continue to the next step in the sign-up journey (Eligibility)
-      navigate('/signup-journey/eligibility', {
+      // Continue to the next step in the sign-up journey (Industry Specifics)
+      navigate('/signup-journey/industry-specifics', {
         state: combinedUserData
       });
     } catch (error) {
@@ -515,9 +514,8 @@ const BusinessDetailsForm = () => {
       onStepNavigation={(stepIndex) => {
         if (stepIndex === 0) navigate('/signup-journey/email-password', { state: userInfo });
         if (stepIndex === 1) navigate('/signup-journey/apply', { state: userInfo });
-        if (stepIndex === 2) navigate('/signup-journey/funding-matches', { state: userInfo });
-        if (stepIndex === 3) navigate('/signup-journey/business-details', { state: userInfo });
-        if (stepIndex === 4) navigate('/signup-journey/eligibility', { state: userInfo });
+        if (stepIndex === 2) navigate('/signup-journey/business-details', { state: userInfo });
+        if (stepIndex === 3) navigate('/signup-journey/industry-specifics', { state: userInfo });
       }}
       onPrevious={handlePrevious}
       onNext={handleNext}

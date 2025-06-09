@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import StatusBadge from '@/components/StatusBadge';
 import { Clock, Calendar, CreditCard, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { formatApplicationNumber } from '@/lib/applicationUtils';
 
 // Updated to include all possible status values
 export type ApplicationStatus = 
@@ -36,6 +37,7 @@ interface ApplicationCardProps {
   className?: string;
   business_name?: string;
   logo_url?: string;
+  application_number?: string; // Add application_number to props
 }
 
 const ApplicationCard = ({ 
@@ -48,7 +50,8 @@ const ApplicationCard = ({
   offersCount = 0,
   className,
   business_name,
-  logo_url
+  logo_url,
+  application_number
 }: ApplicationCardProps) => {
   const navigate = useNavigate();
   
@@ -80,7 +83,7 @@ const ApplicationCard = ({
             </div>
           )}
           <div>
-            <p className="text-sm text-muted-foreground">Application #{id.slice(0, 8)}</p>
+            <p className="text-sm text-muted-foreground">Application #{formatApplicationNumber({ application_number, id }, id)}</p>
             <h3 className="text-xl font-semibold mt-1">{formattedAmount}</h3>
             <p className="text-sm text-muted-foreground mt-1">{purpose}</p>
           </div>

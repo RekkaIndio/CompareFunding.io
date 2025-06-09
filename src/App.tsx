@@ -19,6 +19,8 @@ import ForLenders from "./pages/ForLenders";
 import HowItWorks from "./pages/HowItWorks";
 import About from "./pages/About";
 import Contact from "./pages/Contact";
+import CookiePolicy from "./pages/CookiePolicy";
+import Sitemap from "./pages/Sitemap";
 import Applications from "./pages/Applications";
 import Login from "./pages/Login";
 import SignUp from "./pages/SignUp";
@@ -31,7 +33,7 @@ import BusinessDocuments from "./pages/Business/Documents/documents";
 import NewApplication from "./pages/Applications/NewApplication";
 import ApplicationReview from "./pages/ApplicationReview";
 import OffersList from "./pages/OffersList";
-import OfferDetails from "./pages/OfferDetails";
+import OfferDetails from "./pages/Business/OfferDetails";
 import LenderProfile from "./pages/Lender/LenderProfile";
 import LenderDashboard from "./pages/Lender/LenderDashboard";
 import LenderBilling from "./pages/Lender/LenderBilling";
@@ -50,9 +52,8 @@ import CreditScorePage from "./pages/CreditScore"; // Import the CreditScorePage
 
 // Import the new SignUpJourney components
 import SignUpFundingApplication from "./pages/SignUpJourney/FundingApplication";
-import SignUpFundingMatches from "./pages/SignUpJourney/FundingMatches";
 import SignUpBusinessDetailsForm from "./pages/SignUpJourney/BusinessDetailsForm";
-import EligibilityPage from "./pages/SignUpJourney/EligibilityPage";
+import IndustrySpecifics from "./pages/SignUpJourney/IndustrySpecifics";
 import EmailPasswordPage from "./pages/SignUpJourney/EmailPasswordPage";
 // import SignUpCustomizeOffers from "./pages/SignUpJourney/CustomizeOffers";
 
@@ -69,6 +70,9 @@ import BusinessDetailsPage from "./pages/account/BusinessDetails";
 import CurrentLendingPage from "./pages/account/CurrentLending";
 import UsersPage from "./pages/account/Users";
 import AdvisorPage from "./pages/account/Advisor";
+
+// Import Products page
+import Products from "./pages/Products";
 
 // Import Help pages
 import BusinessInsurancePage from "./pages/help/BusinessInsurance";
@@ -106,6 +110,9 @@ const App = () => {
                       <Route path="/how-it-works" element={<HowItWorks />} />
                       <Route path="/about" element={<About />} />
                       <Route path="/contact" element={<Contact />} />
+                      <Route path="/cookies" element={<CookiePolicy />} />
+                      <Route path="/sitemap" element={<Sitemap />} />
+                      <Route path="/products" element={<Products />} />
                       <Route path="/login" element={<Login />} />
                       <Route path="/signup" element={<SignUp />} />
                       
@@ -117,9 +124,8 @@ const App = () => {
                       <Route path="/signup-journey" element={<Navigate to="/signup-journey/email-password" replace />} />
                       <Route path="/signup-journey/email-password" element={<EmailPasswordPage />} />
                       <Route path="/signup-journey/apply" element={<SignUpFundingApplication />} />
-                      <Route path="/signup-journey/funding-matches" element={<SignUpFundingMatches />} />
                       <Route path="/signup-journey/business-details" element={<SignUpBusinessDetailsForm />} />
-                      <Route path="/signup-journey/eligibility" element={<EligibilityPage />} />
+                      <Route path="/signup-journey/industry-specifics" element={<IndustrySpecifics />} />
                       {/* <Route path="/signup-journey/customize-offers" element={<SignUpCustomizeOffers />} /> */}
                       
                       {/* Protected routes */}

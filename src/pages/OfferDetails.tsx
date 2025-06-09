@@ -4,11 +4,11 @@ import { useQuery } from '@tanstack/react-query';
 import { getDocument, updateDocument, createDocument, serverTimestamp, getDocuments } from '@/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { formatApplicationNumber } from '@/lib/applicationUtils';
 import PageLayout from '@/components/PageLayout';
 import ConversationsUI from '@/components/ConversationsUI';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -535,8 +535,8 @@ const OfferDetails = () => {
                 </h1>
                 <p className="text-slate-800">
                   {isLender 
-                    ? `Application #${offer.application_id?.substring(0, 8)}`
-                    : `For loan application #${offer.application_id?.substring(0, 8)}`
+                    ? `Application #${formatApplicationNumber(offer.applications, offer.application_id)}`
+                    : `For loan application #${formatApplicationNumber(offer.applications, offer.application_id)}`
                   }
                 </p>
               </div>
@@ -559,9 +559,9 @@ const OfferDetails = () => {
               </div>
             </div>
             
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-              {/* Main content - 2/3 width on desktop */}
-              <div className="lg:col-span-2 space-y-10">
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-10">
+              {/* Main content - 3/5 width on desktop for more space */}
+              <div className="lg:col-span-3 space-y-10">
                 <Card className="bg-white/95 backdrop-blur-sm border-slate-200/50 shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl">
                   <CardHeader className="bg-gradient-to-br from-[#212936] to-[#2c3c53] text-white rounded-t-xl">
                     <CardTitle className="text-white text-xl">Loan Details</CardTitle>
@@ -869,8 +869,8 @@ const OfferDetails = () => {
                 )}
               </div>
               
-              {/* Sidebar - 1/3 width on desktop */}
-              <div className="space-y-8">
+              {/* Sidebar - 2/5 width on desktop for better messaging space */}
+              <div className="lg:col-span-2 space-y-8">
                 {/* Action card - Different for lender vs business */}
                 <Card className={`bg-white/95 backdrop-blur-sm border-slate-200/50 shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl ${
                   isExpired ? 'border-gray-200' :
@@ -1225,7 +1225,7 @@ const OfferDetails = () => {
                     </CardHeader>
                     <CardContent className="p-0">
                       {conversation ? (
-                        <div className="h-96">
+                        <div className="h-[500px] min-h-[500px]">
                           <ConversationsUI
                             conversations={[conversation]}
                             initialSelectedConversation={conversation}

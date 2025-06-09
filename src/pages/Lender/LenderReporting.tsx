@@ -18,7 +18,6 @@ import {
   PieChart,
   Activity,
   Target,
-  DollarSign,
   Percent,
   ArrowUpRight,
   ArrowDownRight,
@@ -575,7 +574,7 @@ const LenderReporting = () => {
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <DollarSign className="h-5 w-5" />
+                      <PoundSterling className="h-5 w-5" />
                       Portfolio Summary
                     </CardTitle>
                   </CardHeader>

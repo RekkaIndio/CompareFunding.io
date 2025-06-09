@@ -40,8 +40,6 @@ function LenderBillingInner() {
       ], [{ field: 'created_at', direction: 'desc' }]);
       
       if (data && data.length > 0) {
-      
-      if (data && data.length > 0) {
         console.log('🔍 Raw offers data:', data);
         data.forEach((offer, index) => {
           console.log(`📄 Offer ${index + 1}:`, {

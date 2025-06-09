@@ -1,6 +1,7 @@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ApplicationData } from '../types';
+import { formatApplicationNumber } from '@/lib/applicationUtils';
 
 interface InterestConfirmDialogProps {
   isOpen: boolean;
@@ -34,7 +35,7 @@ export const InterestConfirmDialog: React.FC<InterestConfirmDialogProps> = ({
           <div className="font-medium mb-2 text-[#212936]">Application Details:</div>
           <div className="grid grid-cols-2 gap-2 text-sm bg-slate-50 p-4 rounded-lg border border-slate-100">
             <div className="text-muted-foreground">Application:</div>
-            <div className="font-medium">#{applicationData?.application?.application_number || id?.substring(0, 8)}</div>
+            <div className="font-medium">#{formatApplicationNumber(applicationData?.application, id)}</div>
             
             <div className="text-muted-foreground">Amount:</div>
             <div className="font-medium">£{applicationData?.application?.loan_amount?.toLocaleString()}</div>
