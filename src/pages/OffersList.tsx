@@ -1134,10 +1134,10 @@ const OffersList = () => {
                       variant="outline"
                       className="border-gray-300 text-gray-600 hover:bg-gray-100 shadow-sm hover:shadow-md transition-all duration-200"
                     >
-                      <Link to={`/offers/${slot.offer.id}`}>
+                        <Link to={`/offers/${slot.offer.id}`} className="text-white">
                         <Award className="h-4 w-4 mr-1.5" />
                         View Details
-                      </Link>
+                        </Link>
                     </Button>
                     
                     {!isHistorical && ['pending', 'negotiating'].includes(slot.offer.status) && (

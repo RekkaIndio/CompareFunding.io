@@ -116,9 +116,9 @@ const renderRows = (obj: Record<string, any>, parentKey = "", level = 0) => {
 
     if (isPrimitive(value)) {
       return (
-        <tr key={parentKey + key} className="border-b hover:bg-gray-50 transition-colors">
-          <td className="py-2 px-4 font-medium text-gray-700">{displayKey}</td>
-          <td className="py-2 px-4 text-right font-mono text-gray-900">
+        <tr key={parentKey + key} className="border-b border-gray-100 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 transition-all duration-200">
+          <td className="py-3 px-6 font-medium text-gray-700">{displayKey}</td>
+          <td className="py-3 px-6 text-right font-mono text-gray-900 font-semibold">
             {formatValue(value, key)}
           </td>
         </tr>
@@ -135,8 +135,7 @@ const renderRows = (obj: Record<string, any>, parentKey = "", level = 0) => {
           <tr>
             <td 
               colSpan={2} 
-              className={`py-2 px-4 font-semibold text-orange-500 bg-gray-900 ${level === 0 ? 'uppercase tracking-wide' : ''}`}
-              style={{ borderRadius: 6 }}
+              className={`py-3 px-6 font-semibold text-white bg-gradient-to-r from-[#ff8000] to-[#ff6b35] ${level === 0 ? 'uppercase tracking-wide text-sm' : 'text-sm'}`}
             >
               {displayKey} {isArray ? `(${Object.keys(value).length} items)` : ''}
             </td>
@@ -234,20 +233,31 @@ export const FinancialsTable: React.FC<FinancialsTableProps> = ({ data, title, s
   }
   
   return (
-    <div className="overflow-x-auto my-3">
-      {title && <div className="font-bold mb-3 text-lg text-gray-800">{title}</div>}
+    <div className="overflow-x-auto my-4">
+      {title && (
+        <div className="mb-4">
+          <h3 className="font-bold text-xl text-gray-800 bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
+            {title}
+          </h3>
+        </div>
+      )}
       
-      <table className="min-w-[350px] w-full border rounded-lg shadow-md bg-white border-separate border-spacing-0">
-        <thead>
-          <tr className="bg-gray-900">
-            <th className="py-2 px-4 text-left font-semibold text-white border-b">Metric</th>
-            <th className="py-2 px-4 text-right font-semibold text-white border-b">Value</th>
-          </tr>
-        </thead>
-        <tbody>
-          {renderRows(displayData)}
-        </tbody>
-      </table>
+      <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200/50 overflow-hidden">
+        {/* Gradient header bar */}
+        <div className="h-1 w-full bg-gradient-to-r from-blue-400 to-purple-500"></div>
+        
+        <table className="min-w-[350px] w-full border-separate border-spacing-0">
+          <thead>
+            <tr className="bg-gradient-to-r from-[#212936] to-[#2c3c53]">
+              <th className="py-4 px-6 text-left font-semibold text-white">Metric</th>
+              <th className="py-4 px-6 text-right font-semibold text-white">Value</th>
+            </tr>
+          </thead>
+          <tbody className="bg-white">
+            {renderRows(displayData)}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };

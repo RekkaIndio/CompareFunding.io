@@ -7,6 +7,8 @@ import SignUpLayout from '@/components/SignUpLayout';
 import { useState, useEffect } from 'react';
 import { useNavbar } from '@/contexts/NavbarContext';
 import { useTour } from '@/contexts/TourContext';
+import { createDraftApplication } from '@/lib/signupDataUtils';
+import { useAuth } from '@/contexts/AuthContext';
 import '../../styles/animations.css';
 
 // Import lender logos
@@ -22,6 +24,7 @@ const EligibilityPage = () => {
   const location = useLocation();
   const { showNavbar, hideNavbar } = useNavbar();
   const { startTour } = useTour();
+  const { user } = useAuth();
   const [currentStep] = useState(4); // This is step 4 in the sign up journey
   const [showTourModal, setShowTourModal] = useState(false);
   
@@ -84,8 +87,25 @@ const EligibilityPage = () => {
     navigate('/dashboard?tour=start');
   };
 
-  const handleSkipTour = () => {
+  const handleSkipTour = async () => {
+    console.log('🎯 User skipping tour, attempting to create draft application...');
     setShowTourModal(false);
+    
+    // Create draft application when user skips tour
+    if (user?.uid) {
+      try {
+        const success = await createDraftApplication(user.uid);
+        if (success) {
+          console.log('✅ Draft application created successfully when skipping tour');
+        } else {
+          console.log('ℹ️ Draft application was not created (likely already exists)');
+        }
+      } catch (error) {
+        console.error('❌ Error creating draft application when skipping tour:', error);
+        // Don't show error to user as this is a background operation
+      }
+    }
+    
     navigate('/dashboard');
   };
 

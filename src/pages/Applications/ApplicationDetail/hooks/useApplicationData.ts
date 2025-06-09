@@ -134,7 +134,7 @@ export const useApplicationData = (id?: string | null, user?: User | null) => {
           financialDocuments: data.financialDocuments || {},
           financialSummaries: data.financialSummaries || {},
           isOwner,
-          isLender: !isOwner
+          isLender: isLender // Use the actual isLender variable based on user role
         };
         
         // Calculate application completeness
@@ -219,7 +219,7 @@ export const useApplicationData = (id?: string | null, user?: User | null) => {
             financialDocuments,
             financialSummaries,
             isOwner,
-            isLender: !isOwner
+            isLender: isLender // Use the actual isLender variable based on user role
           };
           
           // Calculate application completeness
@@ -235,7 +235,7 @@ export const useApplicationData = (id?: string | null, user?: User | null) => {
         business: businessData,
         financial_documents: businessData?.financial_documents || [],
         isOwner,
-        isLender: !isOwner
+        isLender: isLender // Use the actual isLender variable based on user role
       };
       
       // Calculate application completeness

@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import PageLayout from '@/components/PageLayout';
+import { Building, Mail, ImageIcon, PoundSterling } from 'lucide-react';
 import { 
   Building, 
   Mail, 

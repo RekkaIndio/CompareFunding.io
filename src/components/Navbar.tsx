@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { Menu, X, ChevronDown, User, LogOut } from 'lucide-react';
+import { Menu, X, ChevronDown, User, LogOut, Bell, MessageSquare } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavbar } from '@/contexts/NavbarContext'; // Add this line
+import { useNotifications } from '@/hooks/useNotifications';
 import cflogowhiteUrl from '@/assets/cflogowhite.png';
 import comparefundingUrl from '@/assets/comparefunding.png';
 import {
@@ -24,6 +26,7 @@ const Navbar = () => {
   const isMobile = useIsMobile();
   const { user, signOut } = useAuth();
   const { isNavbarVisible } = useNavbar(); // Add this line
+  const { unreadNotifications, unreadMessages, hasNewOffers, hasNewMessages } = useNotifications();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -126,7 +129,10 @@ const Navbar = () => {
       ></div>
       <div className="w-full flex justify-between items-center px-4 h-full relative z-10"> {/* Added relative z-10 */}
         {/* Logo Section */}
-        <Link to="/" className="flex items-center space-x-2 group"> {/* Removed mr-auto here */}
+        <Link 
+          to={user ? (user.role === 'lender' ? '/lender/dashboard' : '/business/dashboard') : '/'} 
+          className="flex items-center space-x-2 group"
+        > {/* Removed mr-auto here */}
           <img
             src={cflogowhiteUrl}
             alt="Compare Funding Logo"
@@ -159,56 +165,91 @@ const Navbar = () => {
         {/* Desktop CTA Buttons or User Menu */}
         <div className="hidden md:flex items-center space-x-3 text-white">
           {user ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size={isScrolled ? "sm" : "default"} className="flex items-center gap-2">
-                  <User size={16} />
-                  My Account
+            <>
+              {/* Notifications Icon */}
+              <div className="relative">
+                <Button variant="ghost" size="sm" className="p-2 hover:bg-white/10" asChild>
+                  <Link to="/notifications">
+                    <Bell size={20} />
+                  </Link>
                 </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>{user.displayName || 'My Account'}</DropdownMenuLabel>
-                <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">
-                  {user.role === 'business' ? 'Business Account' : 'Lender Account'}
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                
-                {user.role === 'business' ? (
-                  <>
-                    <DropdownMenuItem asChild>
-                      <Link to="/business/dashboard" className="cursor-pointer w-full">Dashboard</Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link to="/applications" className="cursor-pointer w-full">Applications</Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link to="/offers" className="cursor-pointer w-full">Offers</Link>
-                    </DropdownMenuItem>
-                  </>
-                ) : (
-                  <>
-                    <DropdownMenuItem asChild>
-                      <Link to="/lender/dashboard" className="cursor-pointer w-full">Dashboard</Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link to="/matched-applications" className="cursor-pointer w-full">Applications</Link>
-                    </DropdownMenuItem>
-                  </>
+                {unreadNotifications > 0 && (
+                  <Badge 
+                    className="absolute -top-1 -right-1 bg-red-500 text-white text-xs min-w-[1.25rem] h-5 rounded-full flex items-center justify-center p-0"
+                  >
+                    {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                  </Badge>
                 )}
-                
-                <DropdownMenuItem asChild>
-                  <Link to={getProfilePath()} className="cursor-pointer w-full">Profile</Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem 
-                  onClick={handleSignOut}
-                  className="text-red-500 cursor-pointer flex items-center gap-2"
-                >
-                  <LogOut size={16} />
-                  <span>Logout</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+              </div>
+
+              {/* Messages Icon */}
+              <div className="relative">
+                <Button variant="ghost" size="sm" className="p-2 hover:bg-white/10" asChild>
+                  <Link to="/messages">
+                    <MessageSquare size={20} />
+                  </Link>
+                </Button>
+                {unreadMessages > 0 && (
+                  <Badge 
+                    className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs min-w-[1.25rem] h-5 rounded-full flex items-center justify-center p-0"
+                  >
+                    {unreadMessages > 99 ? '99+' : unreadMessages}
+                  </Badge>
+                )}
+              </div>
+
+              {/* User Account Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size={isScrolled ? "sm" : "default"} className="flex items-center gap-2">
+                    <User size={16} />
+                    My Account
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>{user.displayName || 'My Account'}</DropdownMenuLabel>
+                  <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">
+                    {user.role === 'business' ? 'Business Account' : 'Lender Account'}
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  
+                  {user.role === 'business' ? (
+                    <>
+                      <DropdownMenuItem asChild>
+                        <Link to="/business/dashboard" className="cursor-pointer w-full">Dashboard</Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/applications" className="cursor-pointer w-full">Applications</Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/offers" className="cursor-pointer w-full">Offers</Link>
+                      </DropdownMenuItem>
+                    </>
+                  ) : (
+                    <>
+                      <DropdownMenuItem asChild>
+                        <Link to="/lender/dashboard" className="cursor-pointer w-full">Dashboard</Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/matched-applications" className="cursor-pointer w-full">Applications</Link>
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  
+                  <DropdownMenuItem asChild>
+                    <Link to={getProfilePath()} className="cursor-pointer w-full">Profile</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem 
+                    onClick={handleSignOut}
+                    className="text-red-500 cursor-pointer flex items-center gap-2"
+                  >
+                    <LogOut size={16} />
+                    <span>Logout</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
           ) : (
             <>
               <Button variant="outline" size={isScrolled ? "sm" : "default"} asChild>
@@ -266,6 +307,34 @@ const Navbar = () => {
             
             {user ? (
               <div className="flex flex-col gap-2">
+                {/* Notifications and Messages for mobile */}
+                <div className="flex gap-2 mb-2">
+                  <Link 
+                    to="/notifications" 
+                    className="flex items-center gap-2 px-4 py-2 rounded-md text-white hover:bg-gray-700 flex-1"
+                  >
+                    <Bell size={16} />
+                    <span>Notifications</span>
+                    {unreadNotifications > 0 && (
+                      <Badge className="bg-red-500 text-white text-xs min-w-[1.25rem] h-5 rounded-full flex items-center justify-center p-0 ml-auto">
+                        {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                      </Badge>
+                    )}
+                  </Link>
+                  <Link 
+                    to="/messages" 
+                    className="flex items-center gap-2 px-4 py-2 rounded-md text-white hover:bg-gray-700 flex-1"
+                  >
+                    <MessageSquare size={16} />
+                    <span>Messages</span>
+                    {unreadMessages > 0 && (
+                      <Badge className="bg-blue-500 text-white text-xs min-w-[1.25rem] h-5 rounded-full flex items-center justify-center p-0 ml-auto">
+                        {unreadMessages > 99 ? '99+' : unreadMessages}
+                      </Badge>
+                    )}
+                  </Link>
+                </div>
+
                 {user.role === 'business' ? (
                   <>
                     <Link to="/business/profile" className="px-4 py-2 rounded-md text-white hover:bg-gray-700">

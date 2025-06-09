@@ -1,5 +1,5 @@
 
-import { ArrowRight, DollarSign, Building, Home, TrendingUp, Truck, Rocket } from 'lucide-react';
+import { ArrowRight, PoundSterling, Building, Home, TrendingUp, Truck, Rocket } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const FeaturesSection = () => {

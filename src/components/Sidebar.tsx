@@ -125,7 +125,7 @@ const businessMenuItems: MenuItem[] = [
     label: "Applications",
     dataTour: "sidebar-applications",
     subItems: [
-      { to: "/applications/current", label: "Current applications" },
+      { to: "/applications", label: "Current applications" },
     ]
   },
   { to: "/business/documents", icon: <FileText size={22} />, label: "Documents", dataTour: "sidebar-documents" },
@@ -137,7 +137,6 @@ const businessMenuItems: MenuItem[] = [
     subItems: [
       { to: "/integrations/accounting", label: "Accounting" },
       { to: "/integrations/banking", label: "Banking" },
-      { to: "/integrations/hmrc", label: "HMRC" },
     ]
   },
   { 
@@ -158,8 +157,6 @@ const businessMenuItems: MenuItem[] = [
     subItems: [
       { to: "/account/business-details", label: "Business Details" },
       { to: "/account/current-lending", label: "Current Lending" },
-      { to: "/account/hmrc-status", label: "HMRC Status" },
-      { to: "/account/document-upload", label: "Document Upload" },
       { to: "/account/users", label: "Users" },
       { to: "/account/advisor", label: "Advisor" },
     ]

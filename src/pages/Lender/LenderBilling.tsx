@@ -34,13 +34,12 @@ function LenderBillingInner() {
         throw new Error('User not authenticated');
       }
       
-      console.log('🔍 Fetching offers for lender:', user.uid);
       
       const { data, error } = await getDocuments('offers', [
         { field: 'lender_id', operator: '==', value: user.uid }
       ], [{ field: 'created_at', direction: 'desc' }]);
       
-      console.log('📊 Offers query result:', { data, error, count: data?.length });
+      if (data && data.length > 0) {
       
       if (data && data.length > 0) {
         console.log('🔍 Raw offers data:', data);
@@ -68,11 +67,6 @@ function LenderBillingInner() {
 
   // Debug logging when component mounts and data changes
   useEffect(() => {
-    console.log('🎬 LenderBilling component mounted/updated');
-    console.log('👤 Current user:', user?.uid);
-    console.log('📊 Current offers:', offers?.length || 0);
-    console.log('⏰ Query enabled:', !!user?.uid);
-    console.log('⌛ Is loading:', isLoading);
   }, [user?.uid, offers?.length, isLoading]);
 
   // Calculate billing statistics
@@ -95,6 +89,7 @@ function LenderBillingInner() {
       return offerDate.getMonth() === currentDate.getMonth() && 
              offerDate.getFullYear() === currentDate.getFullYear();
     } catch (error) {
+
       console.error('Error parsing offer date:', error, offer.created_at);
       return false;
     }
@@ -178,7 +173,7 @@ function LenderBillingInner() {
             </div>
             <Button
               onClick={() => {
-              console.log('🔄 Refreshing offers data...');
+
               refetch();
               }}
               variant="outline"

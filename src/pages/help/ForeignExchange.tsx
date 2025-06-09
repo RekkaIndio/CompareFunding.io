@@ -2,7 +2,7 @@ import React from 'react';
 import PageLayout from '@/components/PageLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Globe, TrendingDown, Clock, Lock, CheckCircle, ArrowRight, DollarSign } from 'lucide-react';
+import { Globe, TrendingDown, Clock, Lock, CheckCircle, ArrowRight, PoundSterling } from 'lucide-react';
 
 const ForeignExchange = () => {
   const services = [
@@ -144,7 +144,7 @@ const ForeignExchange = () => {
           {/* Savings Calculator Mock */}
           <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-xl p-8 mb-12">
             <div className="text-center mb-6">
-              <DollarSign className="h-12 w-12 text-green-600 mx-auto mb-4" />
+              <PoundSterling className="h-12 w-12 text-green-600 mx-auto mb-4" />
               <h2 className="text-3xl font-bold text-gray-900 mb-2">
                 Calculate Your Potential Savings
               </h2>
