@@ -34,11 +34,15 @@ function LenderBillingInner() {
         throw new Error('User not authenticated');
       }
       
+      
       const { data, error } = await getDocuments('offers', [
         { field: 'lender_id', operator: '==', value: user.uid }
       ], [{ field: 'created_at', direction: 'desc' }]);
       
       if (data && data.length > 0) {
+      
+      if (data && data.length > 0) {
+        console.log('🔍 Raw offers data:', data);
         data.forEach((offer, index) => {
           console.log(`📄 Offer ${index + 1}:`, {
             id: offer.id,
@@ -85,6 +89,8 @@ function LenderBillingInner() {
       return offerDate.getMonth() === currentDate.getMonth() && 
              offerDate.getFullYear() === currentDate.getFullYear();
     } catch (error) {
+
+      console.error('Error parsing offer date:', error, offer.created_at);
       return false;
     }
   }).length || 0;
@@ -167,6 +173,7 @@ function LenderBillingInner() {
             </div>
             <Button
               onClick={() => {
+
               refetch();
               }}
               variant="outline"

@@ -7,6 +7,28 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import PageLayout from '@/components/PageLayout';
 import { Building, Mail, ImageIcon, PoundSterling } from 'lucide-react';
+import { 
+  Building, 
+  Mail, 
+  ImageIcon, 
+  PoundSterling, 
+  FileText, 
+  CreditCard, 
+  Truck, 
+  Home, 
+  Package, 
+  TrendingUp, 
+  Banknote, 
+  RefreshCw, 
+  Factory, 
+  Users, 
+  Calendar,
+  Shield,
+  Award,
+  Phone,
+  Globe
+} from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 // If you have a color extraction utility, import it:
 // import { extractColors } from '@/lib/colorUtils';
 
@@ -27,6 +49,12 @@ const LenderProfile = () => {
     description: '',
     website: '',
     logo_url: '',
+    phone: '',
+    email: '',
+    established_year: '',
+    team_size: '',
+    regulatory_licenses: [] as string[],
+    accreditations: [] as string[],
     address_line1: '',
     address_line2: '',
     city: '',
@@ -55,6 +83,104 @@ const LenderProfile = () => {
       supply_chain_finance: false,
       stock_funding: false,
       revolving_credit_facilities: false
+    },
+    funding_type_criteria: {
+      invoice_finance: {
+        min_amount: '',
+        max_amount: '',
+        interest_rate_min: '',
+        interest_rate_max: '',
+        max_advance_percentage: '',
+        min_business_age_months: '',
+        required_turnover: '',
+        processing_time_days: ''
+      },
+      factoring: {
+        min_amount: '',
+        max_amount: '',
+        interest_rate_min: '',
+        interest_rate_max: '',
+        advance_percentage: '',
+        min_business_age_months: '',
+        required_turnover: '',
+        processing_time_days: ''
+      },
+      asset_finance: {
+        min_amount: '',
+        max_amount: '',
+        interest_rate_min: '',
+        interest_rate_max: '',
+        max_ltv_percentage: '',
+        min_business_age_months: '',
+        asset_types: [] as string[],
+        processing_time_days: ''
+      },
+      business_loans: {
+        min_amount: '',
+        max_amount: '',
+        interest_rate_min: '',
+        interest_rate_max: '',
+        max_term_months: '',
+        min_business_age_months: '',
+        required_turnover: '',
+        processing_time_days: ''
+      },
+      commercial_property_loans: {
+        min_amount: '',
+        max_amount: '',
+        interest_rate_min: '',
+        interest_rate_max: '',
+        max_ltv_percentage: '',
+        max_term_months: '',
+        property_types: [] as string[],
+        processing_time_days: ''
+      },
+      commercial_property_bridging_loans: {
+        min_amount: '',
+        max_amount: '',
+        interest_rate_min: '',
+        interest_rate_max: '',
+        max_ltv_percentage: '',
+        max_term_months: '',
+        processing_time_days: ''
+      },
+      commercial_property_vat_funding: {
+        min_amount: '',
+        max_amount: '',
+        interest_rate_min: '',
+        interest_rate_max: '',
+        max_advance_percentage: '',
+        processing_time_days: ''
+      },
+      supply_chain_finance: {
+        min_amount: '',
+        max_amount: '',
+        interest_rate_min: '',
+        interest_rate_max: '',
+        max_advance_percentage: '',
+        min_business_age_months: '',
+        required_turnover: '',
+        processing_time_days: ''
+      },
+      stock_funding: {
+        min_amount: '',
+        max_amount: '',
+        interest_rate_min: '',
+        interest_rate_max: '',
+        max_advance_percentage: '',
+        min_business_age_months: '',
+        stock_types: [] as string[],
+        processing_time_days: ''
+      },
+      revolving_credit_facilities: {
+        min_amount: '',
+        max_amount: '',
+        interest_rate_min: '',
+        interest_rate_max: '',
+        min_business_age_months: '',
+        required_turnover: '',
+        processing_time_days: ''
+      }
     }
   });
 
@@ -85,6 +211,12 @@ const LenderProfile = () => {
         description: profile.description || '',
         website: profile.website || '',
         logo_url: profile.logo_url || '',
+        phone: profile.phone || '',
+        email: profile.email || '',
+        established_year: profile.established_year?.toString() || '',
+        team_size: profile.team_size?.toString() || '',
+        regulatory_licenses: profile.regulatory_licenses || [],
+        accreditations: profile.accreditations || [],
         address_line1: profile.address?.line1 || '',
         address_line2: profile.address?.line2 || '',
         city: profile.city || '',
@@ -113,6 +245,48 @@ const LenderProfile = () => {
           supply_chain_finance: profile.lending_criteria?.funding_types?.supply_chain_finance || false,
           stock_funding: profile.lending_criteria?.funding_types?.stock_funding || false,
           revolving_credit_facilities: profile.lending_criteria?.funding_types?.revolving_credit_facilities || false
+        },
+        funding_type_criteria: {
+          invoice_finance: profile.lending_criteria?.funding_type_criteria?.invoice_finance || {
+            min_amount: '', max_amount: '', interest_rate_min: '', interest_rate_max: '',
+            max_advance_percentage: '', min_business_age_months: '', required_turnover: '', processing_time_days: ''
+          },
+          factoring: profile.lending_criteria?.funding_type_criteria?.factoring || {
+            min_amount: '', max_amount: '', interest_rate_min: '', interest_rate_max: '',
+            advance_percentage: '', min_business_age_months: '', required_turnover: '', processing_time_days: ''
+          },
+          asset_finance: profile.lending_criteria?.funding_type_criteria?.asset_finance || {
+            min_amount: '', max_amount: '', interest_rate_min: '', interest_rate_max: '',
+            max_ltv_percentage: '', min_business_age_months: '', asset_types: [], processing_time_days: ''
+          },
+          business_loans: profile.lending_criteria?.funding_type_criteria?.business_loans || {
+            min_amount: '', max_amount: '', interest_rate_min: '', interest_rate_max: '',
+            max_term_months: '', min_business_age_months: '', required_turnover: '', processing_time_days: ''
+          },
+          commercial_property_loans: profile.lending_criteria?.funding_type_criteria?.commercial_property_loans || {
+            min_amount: '', max_amount: '', interest_rate_min: '', interest_rate_max: '',
+            max_ltv_percentage: '', max_term_months: '', property_types: [], processing_time_days: ''
+          },
+          commercial_property_bridging_loans: profile.lending_criteria?.funding_type_criteria?.commercial_property_bridging_loans || {
+            min_amount: '', max_amount: '', interest_rate_min: '', interest_rate_max: '',
+            max_ltv_percentage: '', max_term_months: '', processing_time_days: ''
+          },
+          commercial_property_vat_funding: profile.lending_criteria?.funding_type_criteria?.commercial_property_vat_funding || {
+            min_amount: '', max_amount: '', interest_rate_min: '', interest_rate_max: '',
+            max_advance_percentage: '', processing_time_days: ''
+          },
+          supply_chain_finance: profile.lending_criteria?.funding_type_criteria?.supply_chain_finance || {
+            min_amount: '', max_amount: '', interest_rate_min: '', interest_rate_max: '',
+            max_advance_percentage: '', min_business_age_months: '', required_turnover: '', processing_time_days: ''
+          },
+          stock_funding: profile.lending_criteria?.funding_type_criteria?.stock_funding || {
+            min_amount: '', max_amount: '', interest_rate_min: '', interest_rate_max: '',
+            max_advance_percentage: '', min_business_age_months: '', stock_types: [], processing_time_days: ''
+          },
+          revolving_credit_facilities: profile.lending_criteria?.funding_type_criteria?.revolving_credit_facilities || {
+            min_amount: '', max_amount: '', interest_rate_min: '', interest_rate_max: '',
+            min_business_age_months: '', required_turnover: '', processing_time_days: ''
+          }
         }
       });
     }
@@ -318,6 +492,12 @@ const LenderProfile = () => {
         description: formData.description || '',
         website: formData.website || '',
         logo_url: logoUrl || '',
+        phone: formData.phone || '',
+        email: formData.email || '',
+        established_year: formData.established_year ? parseInt(formData.established_year) : null,
+        team_size: formData.team_size || '',
+        regulatory_licenses: Array.isArray(formData.regulatory_licenses) ? formData.regulatory_licenses : [],
+        accreditations: Array.isArray(formData.accreditations) ? formData.accreditations : [],
         address: {
           line1: formData.address_line1 || '',
           line2: formData.address_line2 || ''
@@ -342,7 +522,8 @@ const LenderProfile = () => {
             min: validateNumber(formData.interest_rate_range.min),
             max: validateNumber(formData.interest_rate_range.max)
           },
-          funding_types: formData.funding_types || {}
+          funding_types: formData.funding_types || {},
+          funding_type_criteria: formData.funding_type_criteria || {}
         }
         // Let Firebase handle the updated_at timestamp
       };
@@ -388,6 +569,78 @@ const LenderProfile = () => {
     }));
   };
 
+  // Funding type configurations with icons and labels
+  const fundingTypeConfigs = {
+    invoice_finance: {
+      icon: FileText,
+      label: 'Invoice Finance',
+      description: 'Advance funds against outstanding invoices'
+    },
+    factoring: {
+      icon: TrendingUp,
+      label: 'Factoring',
+      description: 'Purchase and collect customer invoices'
+    },
+    asset_finance: {
+      icon: Truck,
+      label: 'Asset Finance',
+      description: 'Financing for business equipment and assets'
+    },
+    business_loans: {
+      icon: Banknote,
+      label: 'Business Loans',
+      description: 'Traditional term loans for business growth'
+    },
+    commercial_property_loans: {
+      icon: Home,
+      label: 'Commercial Property Loans',
+      description: 'Financing for commercial real estate purchases'
+    },
+    commercial_property_bridging_loans: {
+      icon: RefreshCw,
+      label: 'Commercial Property Bridging',
+      description: 'Short-term property finance solutions'
+    },
+    commercial_property_vat_funding: {
+      icon: CreditCard,
+      label: 'Commercial Property VAT Funding',
+      description: 'VAT funding for commercial property transactions'
+    },
+    supply_chain_finance: {
+      icon: Factory,
+      label: 'Supply Chain Finance',
+      description: 'Finance for supply chain optimization'
+    },
+    stock_funding: {
+      icon: Package,
+      label: 'Stock Funding',
+      description: 'Financing for inventory and stock purchases'
+    },
+    revolving_credit_facilities: {
+      icon: RefreshCw,
+      label: 'Revolving Credit Facilities',
+      description: 'Flexible credit lines for working capital'
+    }
+  };
+
+  // Helper function for handling funding type criteria changes
+  const handleFundingTypeCriteriaChange = (
+    fundingType: keyof typeof formData.funding_type_criteria,
+    field: string,
+    value: string | string[]
+  ) => {
+    setFormData(prev => ({
+      ...prev,
+      funding_type_criteria: {
+        ...prev.funding_type_criteria,
+        [fundingType]: {
+          ...prev.funding_type_criteria[fundingType],
+          [field]: value
+        }
+      }
+    }));
+  };
+
   if (isLoading) {
     return (
       <PageLayout>
@@ -417,7 +670,7 @@ const LenderProfile = () => {
                 onClick={() => navigate('/lender/dashboard')}
                 className="flex items-center gap-2 px-4 py-2"
               >
-                <span>Back to Dashboard</span>
+                <span className="text-white hover:text-[#ff8800] transition-colors">Back to Dashboard</span>
               </Button>
             </div>
           </div>
@@ -482,6 +735,151 @@ const LenderProfile = () => {
                       onChange={(e) => setFormData({...formData, description: e.target.value})}
                       placeholder="Tell us about your lending company..."
                     />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-semibold mb-2 text-slate-700" htmlFor="phone">
+                      <Phone className="h-4 w-4 inline mr-1" />
+                      Phone Number
+                    </label>
+                    <input
+                      type="tel"
+                      id="phone"
+                      className="w-full p-3 bg-white border border-slate-200 rounded-lg text-slate-900 focus:ring-2 focus:ring-[#ff8800]/30 focus:border-[#ff8800] transition duration-200 shadow-sm"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                      placeholder="+44 20 1234 5678"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-semibold mb-2 text-slate-700" htmlFor="email">
+                      <Mail className="h-4 w-4 inline mr-1" />
+                      Contact Email
+                    </label>
+                    <input
+                      type="email"
+                      id="email"
+                      className="w-full p-3 bg-white border border-slate-200 rounded-lg text-slate-900 focus:ring-2 focus:ring-[#ff8800]/30 focus:border-[#ff8800] transition duration-200 shadow-sm"
+                      value={formData.email}
+                      onChange={(e) => setFormData({...formData, email: e.target.value})}
+                      placeholder="contact@yourcompany.com"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-semibold mb-2 text-slate-700" htmlFor="established_year">
+                      <Calendar className="h-4 w-4 inline mr-1" />
+                      Year Established
+                    </label>
+                    <input
+                      type="number"
+                      id="established_year"
+                      min="1800"
+                      max={new Date().getFullYear()}
+                      className="w-full p-3 bg-white border border-slate-200 rounded-lg text-slate-900 focus:ring-2 focus:ring-[#ff8800]/30 focus:border-[#ff8800] transition duration-200 shadow-sm"
+                      value={formData.established_year}
+                      onChange={(e) => setFormData({...formData, established_year: e.target.value})}
+                      placeholder="2020"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-semibold mb-2 text-slate-700" htmlFor="team_size">
+                      <Users className="h-4 w-4 inline mr-1" />
+                      Team Size
+                    </label>
+                    <select
+                      id="team_size"
+                      className="w-full p-3 bg-white border border-slate-200 rounded-lg text-slate-900 focus:ring-2 focus:ring-[#ff8800]/30 focus:border-[#ff8800] transition duration-200 shadow-sm"
+                      value={formData.team_size}
+                      onChange={(e) => setFormData({...formData, team_size: e.target.value})}
+                    >
+                      <option value="">Select Size</option>
+                      <option value="1-10">1-10 employees</option>
+                      <option value="11-50">11-50 employees</option>
+                      <option value="51-200">51-200 employees</option>
+                      <option value="201-500">201-500 employees</option>
+                      <option value="500+">500+ employees</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Regulatory & Credentials */}
+            <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200/50 overflow-hidden">
+              <div className="bg-slate-800 px-6 py-4">
+                <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                  <Shield className="h-5 w-5" />
+                  Regulatory & Credentials
+                </h2>
+                <p className="text-sm text-slate-300 mt-1">Licenses, accreditations, and regulatory information</p>
+              </div>
+              <div className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-semibold mb-2 text-slate-700">
+                      <Shield className="h-4 w-4 inline mr-1" />
+                      Regulatory Licenses
+                    </label>
+                    <div className="space-y-2">
+                      {['FCA Authorised', 'Consumer Credit License', 'Commercial Finance Association Member', 'Asset Based Finance Association Member'].map((license) => (
+                        <label key={license} className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={formData.regulatory_licenses.includes(license)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setFormData(prev => ({
+                                  ...prev,
+                                  regulatory_licenses: [...prev.regulatory_licenses, license]
+                                }));
+                              } else {
+                                setFormData(prev => ({
+                                  ...prev,
+                                  regulatory_licenses: prev.regulatory_licenses.filter(l => l !== license)
+                                }));
+                              }
+                            }}
+                            className="h-4 w-4 rounded border-slate-300 text-[#ff8800] focus:ring-[#ff8800]/30 mr-2"
+                          />
+                          <span className="text-sm text-slate-700">{license}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-semibold mb-2 text-slate-700">
+                      <Award className="h-4 w-4 inline mr-1" />
+                      Industry Accreditations
+                    </label>
+                    <div className="space-y-2">
+                      {['ISO 27001', 'Cyber Essentials', 'Better Business Bureau', 'Trustpilot Verified', 'Trade Association Member'].map((accreditation) => (
+                        <label key={accreditation} className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={formData.accreditations.includes(accreditation)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setFormData(prev => ({
+                                  ...prev,
+                                  accreditations: [...prev.accreditations, accreditation]
+                                }));
+                              } else {
+                                setFormData(prev => ({
+                                  ...prev,
+                                  accreditations: prev.accreditations.filter(a => a !== accreditation)
+                                }));
+                              }
+                            }}
+                            className="h-4 w-4 rounded border-slate-300 text-[#ff8800] focus:ring-[#ff8800]/30 mr-2"
+                          />
+                          <span className="text-sm text-slate-700">{accreditation}</span>
+                        </label>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -747,22 +1145,186 @@ const LenderProfile = () => {
                 </div>
                 
                 <div className="mt-8">
-                  <h3 className="text-lg font-semibold text-slate-900 mb-4">Funding Types</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {Object.entries(formData.funding_types).map(([key, checked]) => (
-                      <div key={key} className="flex items-center p-3 bg-slate-50 rounded-lg border border-slate-200 hover:bg-slate-100 transition-colors">
-                        <input
-                          type="checkbox"
-                          id={`funding_type_${key}`}
-                          checked={checked}
-                          onChange={() => handleFundingTypeChange(key as keyof typeof formData.funding_types)}
-                          className="h-4 w-4 rounded border-slate-300 text-[#ff8800] focus:ring-[#ff8800]/30 mr-3"
-                        />
-                        <label htmlFor={`funding_type_${key}`} className="text-sm font-medium text-slate-700 cursor-pointer">
-                          {key.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
-                        </label>
-                      </div>
-                    ))}
+                  <h3 className="text-lg font-semibold text-slate-900 mb-4">Funding Types & Individual Criteria</h3>
+                  <p className="text-sm text-slate-600 mb-6">Select the funding types you offer and configure specific criteria for each</p>
+                  
+                  <div className="space-y-6">
+                    {Object.entries(fundingTypeConfigs).map(([key, config]) => {
+                      const Icon = config.icon;
+                      const isSelected = formData.funding_types[key as keyof typeof formData.funding_types];
+                      
+                      return (
+                        <Card key={key} className={`transition-all duration-200 ${isSelected ? 'ring-2 ring-[#ff8800]/30 bg-orange-50/80 shadow-md' : 'hover:shadow-md bg-white'}`}>
+                          <CardHeader>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className={`p-3 rounded-lg transition-colors ${isSelected ? 'bg-[#ff8800] text-white shadow-sm' : 'bg-slate-900 text-[#ff8800]'}`}>
+                                  <Icon className="h-6 w-6" />
+                                </div>
+                                <div>
+                                  <CardTitle className={`text-lg font-semibold ${isSelected ? 'text-slate-900' : 'text-slate-900'}`}>{config.label}</CardTitle>
+                                  <p className={`text-sm mt-1 ${isSelected ? 'text-slate-700' : 'text-slate-600'}`}>{config.description}</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center">
+                                <input
+                                  type="checkbox"
+                                  id={`funding_type_${key}`}
+                                  checked={isSelected}
+                                  onChange={() => handleFundingTypeChange(key as keyof typeof formData.funding_types)}
+                                  className="h-5 w-5 rounded border-slate-300 text-[#ff8800] focus:ring-[#ff8800]/30"
+                                />
+                              </div>
+                            </div>
+                          </CardHeader>
+                          
+                          {isSelected && (
+                            <CardContent className="bg-white/90">
+                              <div className="pt-4 border-t border-slate-200">
+                                <h4 className="text-md font-semibold text-slate-900 mb-4">Specific Criteria for {config.label}</h4>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                  {/* Common fields for all funding types */}
+                                  <div>
+                                    <label className="block text-sm font-medium mb-1 text-slate-700">Min Amount (£)</label>
+                                    <input
+                                      type="number"
+                                      className="w-full p-2 border border-slate-200 rounded-md text-sm text-slate-900 bg-white focus:ring-2 focus:ring-[#ff8800]/30 focus:border-[#ff8800]"
+                                      value={formData.funding_type_criteria[key as keyof typeof formData.funding_type_criteria].min_amount}
+                                      onChange={(e) => handleFundingTypeCriteriaChange(key as keyof typeof formData.funding_type_criteria, 'min_amount', e.target.value)}
+                                      placeholder="1000"
+                                    />
+                                  </div>
+                                  
+                                  <div>
+                                    <label className="block text-sm font-medium mb-1 text-slate-700">Max Amount (£)</label>
+                                    <input
+                                      type="number"
+                                      className="w-full p-2 border border-slate-200 rounded-md text-sm text-slate-900 bg-white focus:ring-2 focus:ring-[#ff8800]/30 focus:border-[#ff8800]"
+                                      value={formData.funding_type_criteria[key as keyof typeof formData.funding_type_criteria].max_amount}
+                                      onChange={(e) => handleFundingTypeCriteriaChange(key as keyof typeof formData.funding_type_criteria, 'max_amount', e.target.value)}
+                                      placeholder="1000000"
+                                    />
+                                  </div>
+                                  
+                                  <div>
+                                    <label className="block text-sm font-medium mb-1 text-slate-700">Min Interest Rate (%)</label>
+                                    <input
+                                      type="number"
+                                      step="0.1"
+                                      className="w-full p-2 border border-slate-200 rounded-md text-sm text-slate-900 bg-white focus:ring-2 focus:ring-[#ff8800]/30 focus:border-[#ff8800]"
+                                      value={formData.funding_type_criteria[key as keyof typeof formData.funding_type_criteria].interest_rate_min}
+                                      onChange={(e) => handleFundingTypeCriteriaChange(key as keyof typeof formData.funding_type_criteria, 'interest_rate_min', e.target.value)}
+                                      placeholder="3.5"
+                                    />
+                                  </div>
+                                  
+                                  <div>
+                                    <label className="block text-sm font-medium mb-1 text-slate-700">Max Interest Rate (%)</label>
+                                    <input
+                                      type="number"
+                                      step="0.1"
+                                      className="w-full p-2 border border-slate-200 rounded-md text-sm text-slate-900 bg-white focus:ring-2 focus:ring-[#ff8800]/30 focus:border-[#ff8800]"
+                                      value={formData.funding_type_criteria[key as keyof typeof formData.funding_type_criteria].interest_rate_max}
+                                      onChange={(e) => handleFundingTypeCriteriaChange(key as keyof typeof formData.funding_type_criteria, 'interest_rate_max', e.target.value)}
+                                      placeholder="15.0"
+                                    />
+                                  </div>
+                                  
+                                  <div>
+                                    <label className="block text-sm font-medium mb-1 text-slate-700">Processing Time (Days)</label>
+                                    <input
+                                      type="number"
+                                      className="w-full p-2 border border-slate-200 rounded-md text-sm text-slate-900 bg-white focus:ring-2 focus:ring-[#ff8800]/30 focus:border-[#ff8800]"
+                                      value={formData.funding_type_criteria[key as keyof typeof formData.funding_type_criteria].processing_time_days}
+                                      onChange={(e) => handleFundingTypeCriteriaChange(key as keyof typeof formData.funding_type_criteria, 'processing_time_days', e.target.value)}
+                                      placeholder="7"
+                                    />
+                                  </div>
+                                  
+                                  {/* Conditional fields based on funding type */}
+                                  {(key === 'invoice_finance' || key === 'factoring' || key === 'supply_chain_finance' || key === 'commercial_property_vat_funding' || key === 'stock_funding') && (
+                                    <div>
+                                      <label className="block text-sm font-medium mb-1 text-slate-700">
+                                        {key === 'factoring' ? 'Advance Percentage (%)' : 'Max Advance Percentage (%)'}
+                                      </label>
+                                      <input
+                                        type="number"
+                                        min="1"
+                                        max="100"
+                                        className="w-full p-2 border border-slate-200 rounded-md text-sm text-slate-900 bg-white focus:ring-2 focus:ring-[#ff8800]/30 focus:border-[#ff8800]"
+                                        value={key === 'factoring' 
+                                          ? (formData.funding_type_criteria[key] as any).advance_percentage 
+                                          : (formData.funding_type_criteria[key as keyof typeof formData.funding_type_criteria] as any).max_advance_percentage}
+                                        onChange={(e) => handleFundingTypeCriteriaChange(
+                                          key as keyof typeof formData.funding_type_criteria, 
+                                          key === 'factoring' ? 'advance_percentage' : 'max_advance_percentage', 
+                                          e.target.value
+                                        )}
+                                        placeholder="80"
+                                      />
+                                    </div>
+                                  )}
+                                  
+                                  {(key === 'asset_finance' || key === 'commercial_property_loans' || key === 'commercial_property_bridging_loans') && (
+                                    <div>
+                                      <label className="block text-sm font-medium mb-1 text-slate-700">Max LTV Percentage (%)</label>
+                                      <input
+                                        type="number"
+                                        min="1"
+                                        max="100"
+                                        className="w-full p-2 border border-slate-200 rounded-md text-sm text-slate-900 bg-white focus:ring-2 focus:ring-[#ff8800]/30 focus:border-[#ff8800]"
+                                        value={(formData.funding_type_criteria[key as keyof typeof formData.funding_type_criteria] as any).max_ltv_percentage}
+                                        onChange={(e) => handleFundingTypeCriteriaChange(key as keyof typeof formData.funding_type_criteria, 'max_ltv_percentage', e.target.value)}
+                                        placeholder="75"
+                                      />
+                                    </div>
+                                  )}
+                                  
+                                  {(key === 'business_loans' || key === 'commercial_property_loans' || key === 'commercial_property_bridging_loans') && (
+                                    <div>
+                                      <label className="block text-sm font-medium mb-1 text-slate-700">Max Term (Months)</label>
+                                      <input
+                                        type="number"
+                                        className="w-full p-2 border border-slate-200 rounded-md text-sm text-slate-900 bg-white focus:ring-2 focus:ring-[#ff8800]/30 focus:border-[#ff8800]"
+                                        value={(formData.funding_type_criteria[key as keyof typeof formData.funding_type_criteria] as any).max_term_months}
+                                        onChange={(e) => handleFundingTypeCriteriaChange(key as keyof typeof formData.funding_type_criteria, 'max_term_months', e.target.value)}
+                                        placeholder="60"
+                                      />
+                                    </div>
+                                  )}
+                                  
+                                  {(key !== 'commercial_property_vat_funding' && key !== 'commercial_property_bridging_loans') && (
+                                    <div>
+                                      <label className="block text-sm font-medium mb-1 text-slate-700">Min Business Age (Months)</label>
+                                      <input
+                                        type="number"
+                                        className="w-full p-2 border border-slate-200 rounded-md text-sm text-slate-900 bg-white focus:ring-2 focus:ring-[#ff8800]/30 focus:border-[#ff8800]"
+                                        value={(formData.funding_type_criteria[key as keyof typeof formData.funding_type_criteria] as any).min_business_age_months}
+                                        onChange={(e) => handleFundingTypeCriteriaChange(key as keyof typeof formData.funding_type_criteria, 'min_business_age_months', e.target.value)}
+                                        placeholder="12"
+                                      />
+                                    </div>
+                                  )}
+                                  
+                                  {(key === 'factoring' || key === 'business_loans' || key === 'supply_chain_finance' || key === 'revolving_credit_facilities') && (
+                                    <div>
+                                      <label className="block text-sm font-medium mb-1 text-slate-700">Required Turnover (£)</label>
+                                      <input
+                                        type="number"
+                                        className="w-full p-2 border border-slate-200 rounded-md text-sm text-slate-900 bg-white focus:ring-2 focus:ring-[#ff8800]/30 focus:border-[#ff8800]"
+                                        value={(formData.funding_type_criteria[key as keyof typeof formData.funding_type_criteria] as any).required_turnover}
+                                        onChange={(e) => handleFundingTypeCriteriaChange(key as keyof typeof formData.funding_type_criteria, 'required_turnover', e.target.value)}
+                                        placeholder="500000"
+                                      />
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </CardContent>
+                          )}
+                        </Card>
+                      );
+                    })}
                   </div>
                 </div>
               </div>

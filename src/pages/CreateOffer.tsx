@@ -234,8 +234,12 @@ const CreateOffer = () => {
         company_logo: companyLogo,
       };
       
+      console.log('💾 Saving offer to Firebase:', newOffer);
+      
       // Create the offer document in Firebase
       const { data: offerData, error: offerError } = await createDocument('offers', newOffer);
+      
+      console.log('✅ Firebase save result:', { offerData, offerError });
       
       if (offerError) throw offerError;
       
@@ -276,12 +280,14 @@ const CreateOffer = () => {
       return offerData;
     },
     onSuccess: (data) => {
+
       // Invalidate notifications cache to ensure the business user sees the new notification
       if (application?.user_id) {
         queryClient.invalidateQueries({ queryKey: ['notifications', application.user_id] });
         queryClient.invalidateQueries({ queryKey: ['notifications'] });
       }
       
+
       toast.success('Offer submitted successfully!');
       navigate('/matched-applications');
     },
@@ -297,6 +303,8 @@ const CreateOffer = () => {
 
   const handleConfirmSubmission = () => {
     const formData = form.getValues();
+    console.log('🚀 Submitting offer with data:', formData);
+    console.log('🔑 Current user UID:', user?.uid);
     setShowConfirmationModal(false);
     submitOffer.mutate(formData);
   };
