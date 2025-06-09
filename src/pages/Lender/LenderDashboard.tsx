@@ -432,93 +432,6 @@ const LenderDashboard = () => {
         </div>
 
         {/* Key Metrics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {/* Available Credits Card */}
-          <div className="bg-slate-800 rounded-xl shadow-lg border border-slate-700 p-6 relative overflow-hidden hover:shadow-xl transition-all duration-300">
-            <div className="absolute -top-6 -right-6 w-20 h-20 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full opacity-20"></div>
-            <div className="absolute top-4 right-4">
-              <div className="p-2 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow-md">
-                <CreditCard className="h-5 w-5 text-white" />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div className="text-sm font-medium text-slate-300">Available Credits</div>
-              <div className="text-3xl font-bold text-white">{billingData?.credits_balance || 0}</div>
-              <div className="flex items-center gap-2">
-                <div className="text-sm text-slate-400">
-                  Used: {billingData?.credits_used || 0} credits
-                </div>
-                {billingData?.credits_balance > 10 ? (
-                  <ArrowUpRight className="h-4 w-4 text-emerald-400" />
-                ) : (
-                  <AlertCircle className="h-4 w-4 text-amber-400" />
-                )}
-              </div>
-            </div>
-          </div>
-          
-          {/* Applications Card */}
-          <div className="bg-slate-800 rounded-xl shadow-lg border border-slate-700 p-6 relative overflow-hidden hover:shadow-xl transition-all duration-300">
-            <div className="absolute -top-6 -right-6 w-20 h-20 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full opacity-20"></div>
-            <div className="absolute top-4 right-4">
-              <div className="p-2 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-lg shadow-md">
-                <Building2 className="h-5 w-5 text-white" />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div className="text-sm font-medium text-slate-300">Available Applications</div>
-              <div className="text-3xl font-bold text-white">{stats.totalApplicationsAvailable}</div>
-              <div className="flex items-center gap-2">
-                <div className="text-sm text-slate-400">
-                  {stats.prospects} new prospects
-                </div>
-                {stats.prospects > 0 && <div className="h-2 w-2 bg-emerald-400 rounded-full animate-pulse" />}
-              </div>
-            </div>
-          </div>
-          
-          {/* Offers Extended Card */}
-          <div className="bg-slate-800 rounded-xl shadow-lg border border-slate-700 p-6 relative overflow-hidden hover:shadow-xl transition-all duration-300">
-            <div className="absolute -top-6 -right-6 w-20 h-20 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full opacity-20"></div>
-            <div className="absolute top-4 right-4">
-              <div className="p-2 bg-gradient-to-br from-amber-500 to-amber-600 rounded-lg shadow-md">
-                <TrendingUp className="h-5 w-5 text-white" />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div className="text-sm font-medium text-slate-300">Offers Extended</div>
-              <div className="text-3xl font-bold text-white">{stats.offersExtended}</div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-emerald-400 font-medium">{stats.offersAccepted} accepted</span>
-                <span className="text-sm text-slate-400">({stats.offersExtended - stats.offersAccepted} pending)</span>
-              </div>
-            </div>
-          </div>
-          
-          {/* Performance Card */}
-          <div className="bg-slate-800 rounded-xl shadow-lg border border-slate-700 p-6 relative overflow-hidden hover:shadow-xl transition-all duration-300">
-            <div className="absolute -top-6 -right-6 w-20 h-20 bg-gradient-to-br from-purple-400 to-purple-600 rounded-full opacity-20"></div>
-            <div className="absolute top-4 right-4">
-              <div className="p-2 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg shadow-md">
-                <BarChart3 className="h-5 w-5 text-white" />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div className="text-sm font-medium text-slate-300">Conversion Rate</div>
-              <div className="text-3xl font-bold text-white">{stats.conversionRate}%</div>
-              <div className="flex items-center gap-2">
-                <div className="text-sm text-slate-400">
-                  Total funded: £{stats.totalLoanAmount.toLocaleString()}
-                </div>
-                {stats.conversionRate > 50 ? (
-                  <ArrowUpRight className="h-4 w-4 text-emerald-400" />
-                ) : (
-                  <ArrowDownRight className="h-4 w-4 text-red-400" />
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
   
         {/* Enhanced Tabs Navigation */}
         <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200/50 overflow-hidden">
@@ -573,9 +486,9 @@ const LenderDashboard = () => {
         {/* Tab Content */}
         {activeTab === 'overview' && (
           <div className="p-6 space-y-8">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="space-y-6">
               {/* Accepted Offers - Enhanced */}
-              <div className="lg:col-span-2 space-y-6">
+              <div className="space-y-6">
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                   <div className="px-6 py-5 bg-slate-800">
                     <div className="flex items-center justify-between">
@@ -789,93 +702,6 @@ const LenderDashboard = () => {
                         </button>
                       </div>
                     )}
-                  </div>
-                </div>
-              </div>
-              
-              {/* Performance Sidebar */}
-              <div className="space-y-6">
-                {/* Quick Actions */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                  <div className="px-6 py-5 bg-slate-800">
-                    <h2 className="font-semibold text-white">Quick Actions</h2>
-                  </div>
-                  <div className="p-6 space-y-3">
-                    <button 
-                      className="w-full flex items-center gap-3 px-4 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
-                      onClick={() => navigate('/matched-applications')}
-                    >
-                      <Eye className="h-4 w-4" />
-                      Review Applications
-                    </button>
-                    <button 
-                      className="w-full flex items-center gap-3 px-4 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                      onClick={() => setActiveTab('messages')}
-                    >
-                      <MessageSquare className="h-4 w-4" />
-                      View Messages
-                    </button>
-                  </div>
-                </div>
-
-                {/* Performance Metrics */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                  <div className="px-6 py-5 bg-slate-800">
-                    <h2 className="font-semibold text-white">Performance Insights</h2>
-                  </div>
-                  <div className="p-6 space-y-6">
-                    <div>
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm font-medium text-gray-700">Monthly Conversion</span>
-                        <span className="text-sm font-bold text-gray-900">
-                          {stats.monthlyConversion.total ? 
-                            Math.round((stats.monthlyConversion.accepted / stats.monthlyConversion.total) * 100) : 0}%
-                        </span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-3">
-                        <div 
-                          className="bg-gradient-to-r from-orange-400 to-orange-600 h-3 rounded-full transition-all duration-500" 
-                          style={{ width: `${stats.monthlyConversion.total ? (stats.monthlyConversion.accepted / stats.monthlyConversion.total) * 100 : 0}%` }}
-                        ></div>
-                      </div>
-                      <div className="mt-2 flex justify-between text-xs text-gray-500">
-                        <span>{stats.monthlyConversion.accepted} accepted</span>
-                        <span>{stats.monthlyConversion.total} total</span>
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm font-medium text-gray-700">Portfolio Health</span>
-                        <span className="text-sm font-bold text-green-600">Excellent</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-3">
-                        <div className="bg-gradient-to-r from-green-400 to-green-600 h-3 rounded-full" style={{ width: '87%' }}></div>
-                      </div>
-                      <div className="mt-2 text-xs text-gray-500">
-                        Based on repayment rates and diversification
-                      </div>
-                    </div>
-
-                    <div className="pt-4 border-t border-gray-200">
-                      <div className="text-sm font-medium text-gray-700 mb-3">This Month</div>
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Applications Reviewed</span>
-                          <span className="font-medium">{stats.totalApplicationsAvailable}</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Offers Made</span>
-                          <span className="font-medium">{stats.monthlyConversion.total}</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Amount Funded</span>
-                          <span className="font-medium text-green-600">
-                            £{(stats.totalLoanAmount * 0.3).toLocaleString()}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
                   </div>
                 </div>
               </div>

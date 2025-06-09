@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { extractFinancialsWithOpenAI, OpenAIExtractResult } from "@/services/openai";
+import { analyzeFinancialDocument, FinancialDataResult } from "@/services/openai/profitAndLoss";
 import FileExtractor, { ExtractedFile } from "./FileExtractor";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import FinancialsTable from "@/pages/Business/Documents/FinancialsTable";
@@ -19,8 +19,9 @@ import {
 } from 'firebase/firestore';
 import { getFirestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { toast } from '@/hooks/use-toast';
+import { Trash2 } from 'lucide-react';
 
 import freeagentLogo from "@/assets/accountinglogos/freeagent.png";
 import sageLogo from "@/assets/accountinglogos/sage.png";
@@ -67,11 +68,6 @@ const DOCUMENT_STEPS = [
     description: "A summary of your business's revenues, costs, and expenses over a period. Shows net profit or loss."
   },
   {
-    key: "bs",
-    label: "Balance Sheet",
-    description: "A snapshot of your business's assets, liabilities, and equity at a specific point in time."
-  },
-  {
     key: "tb",
     label: "Trial Balance",
     description: "A report listing all ledger accounts and their balances to check that debits equal credits."
@@ -102,7 +98,7 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
   // Store extracted text for each document type
   const [extracted, setExtracted] = useState<{ [key: string]: ExtractedFile | null }>({});
   // Store OpenAI results for each document type
-  const [aiResults, setAiResults] = useState<{ [key: string]: OpenAIExtractResult | null }>({});
+  const [aiResults, setAiResults] = useState<{ [key: string]: FinancialDataResult | null }>({});
   const [aiLoading, setAiLoading] = useState<{ [key: string]: boolean }>({});
   const [aiError, setAiError] = useState<{ [key: string]: string | null }>({});
   const [saving, setSaving] = useState<{ [key: string]: boolean }>({});
@@ -152,13 +148,13 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
     setAiLoading((prev) => ({ ...prev, [key]: true }));
     setAiError((prev) => ({ ...prev, [key]: null }));
     try {
-      const aiResult = await extractFinancialsWithOpenAI({
-        text: result.content,
-        docType: DOCUMENT_STEPS.find((s) => s.key === key)?.label || key,
-      });
+      const documentType = DOCUMENT_STEPS.find((s) => s.key === key)?.label || key;
+      
+      // Use the new comprehensive analyzer for all financial documents
+      const aiResult = await analyzeFinancialDocument(result.file);
+      
       setAiResults((prev) => ({ ...prev, [key]: aiResult }));
       
-      const documentType = DOCUMENT_STEPS.find((s) => s.key === key)?.label || key;
       toast({
         title: "Processing complete",
         description: `${documentType} data extracted successfully.`,
@@ -464,7 +460,7 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
 
         const querySnapshot = await getDocs(financialsQuery);
         const savedFinancials: { [key: string]: { url: string; name: string; createdAt?: Date; docId?: string } } = {};
-        const savedResults: { [key: string]: OpenAIExtractResult } = {};
+        const savedResults: { [key: string]: FinancialDataResult } = {};
         const completedDocKeys: string[] = [];
         
         querySnapshot.forEach((doc) => {
@@ -573,7 +569,7 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
 
     return (
       <div className="flex items-center justify-between bg-blue-50 rounded-md p-3 mt-3 text-sm">
-        <div className="flex items-center">
+        <div className="flex items-center flex-1">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600 mr-2" viewBox="0 0 20 20" fill="currentColor">
             <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
           </svg>
@@ -581,17 +577,31 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
             <span className="font-medium">{documentType}</span> document saved: {savedDocs[docKey].name}
           </span>
         </div>
-        <a 
-          href={savedDocs[docKey].url} 
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-blue-600 hover:text-blue-800 hover:underline flex items-center"
-        >
-          <span className="mr-1">View</span>
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-          </svg>
-        </a>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={(e) => { 
+              e.preventDefault();
+              if (window.confirm('Are you sure you want to delete this document?')) {
+                handleDeleteDocument(docKey);
+              }
+            }}
+            className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+            title="Delete document"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+          <a 
+            href={savedDocs[docKey].url} 
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 hover:text-blue-800 hover:underline flex items-center"
+          >
+            <span className="mr-1">View</span>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+            </svg>
+          </a>
+        </div>
       </div>
     );
   };
@@ -739,7 +749,19 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
             <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <p className="text-green-700 font-medium text-sm">{savedDocs[key].name}</p>
+                <p className="text-green-700 font-medium text-sm flex-1">{savedDocs[key].name}</p>
+                <button
+                  onClick={(e) => { 
+                    e.preventDefault();
+                    if (window.confirm('Are you sure you want to delete this document?')) {
+                      handleDeleteDocument(key);
+                    }
+                  }}
+                  className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                  title="Delete document"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
               </div>
               
               {/* Enhanced replace button */}
@@ -858,6 +880,84 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
         </div>
       </div>
     );
+  };
+
+  // Handler for deleting a document
+  const handleDeleteDocument = async (key: string) => {
+    try {
+      const auth = getAuth();
+      const user = auth.currentUser;
+      
+      if (!user) {
+        toast({
+          title: "Error",
+          description: "You must be logged in to delete documents.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (!savedDocs[key]?.docId) {
+        toast({
+          title: "Error", 
+          description: "No document found to delete.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const db = getFirestore();
+      const storage = getStorage();
+      const docId = savedDocs[key].docId;
+      
+      // Delete from Firestore
+      const docRef = doc(db, "businesses", user.uid, "financials", docId);
+      await deleteDoc(docRef);
+      
+      // Try to delete from Storage if there's a file URL
+      if (savedDocs[key].url) {
+        try {
+          const storageRef = ref(storage, savedDocs[key].url);
+          await deleteObject(storageRef);
+        } catch (storageError) {
+          console.warn("Could not delete file from storage:", storageError);
+          // Continue with deletion even if storage deletion fails
+        }
+      }
+
+      // Update local state
+      setSavedDocs(prev => {
+        const updated = { ...prev };
+        delete updated[key];
+        return updated;
+      });
+
+      setCompletedUploads(prev => prev.filter(completed => completed !== key));
+      setAiResults(prev => {
+        const updated = { ...prev };
+        delete updated[key];
+        return updated;
+      });
+      setExtracted(prev => {
+        const updated = { ...prev };
+        delete updated[key];
+        return updated;
+      });
+
+      toast({
+        title: "Document deleted",
+        description: `${DOCUMENT_STEPS.find(s => s.key === key)?.label} has been deleted successfully.`,
+        variant: "default"
+      });
+
+    } catch (error) {
+      console.error("Error deleting document:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete document. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   return (
@@ -1215,7 +1315,7 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
                     
                     {savedDocs[step.key] && (
                       <div className="flex items-center justify-between bg-green-50 rounded-md p-3 mb-4 text-sm">
-                        <div className="flex items-center">
+                        <div className="flex items-center flex-1">
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                           </svg>
@@ -1223,17 +1323,31 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
                             <span className="font-medium">Auto-saved:</span> {savedDocs[step.key].name}
                           </span>
                         </div>
-                        <a 
-                          href={savedDocs[step.key].url} 
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-green-600 hover:text-green-800 hover:underline flex items-center"
-                        >
-                          <span className="mr-1">View</span>
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-                          </svg>
-                        </a>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={(e) => { 
+                              e.preventDefault();
+                              if (window.confirm('Are you sure you want to delete this document?')) {
+                                handleDeleteDocument(step.key);
+                              }
+                            }}
+                            className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                            title="Delete document"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                          <a 
+                            href={savedDocs[step.key].url} 
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-green-600 hover:text-green-800 hover:underline flex items-center"
+                          >
+                            <span className="mr-1">View</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                            </svg>
+                          </a>
+                        </div>
                       </div>
                     )}
                     

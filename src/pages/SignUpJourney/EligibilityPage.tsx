@@ -25,7 +25,7 @@ const EligibilityPage = () => {
   const { showNavbar, hideNavbar } = useNavbar();
   const { startTour } = useTour();
   const { user } = useAuth();
-  const [currentStep] = useState(4); // This is step 4 in the sign up journey
+  const [currentStep] = useState(4); // This is now step 5 in the updated journey
   const [showTourModal, setShowTourModal] = useState(false);
   
   // Hide navbar on mount and show on unmount
@@ -48,8 +48,8 @@ const EligibilityPage = () => {
   const steps = [
     { label: 'Email & Password', path: '/signup-journey/email-password' },
     { label: 'Funding Amount', path: '/signup-journey/apply' },
-    { label: 'Funding Matches', path: '/signup-journey/funding-matches' },
     { label: 'Business Details', path: '/signup-journey/business-details' },
+    { label: 'Industry Specifics', path: '/signup-journey/industry-specifics' },
     { label: 'Eligibility', path: '/signup-journey/eligibility' },
   ];
 
@@ -62,10 +62,10 @@ const EligibilityPage = () => {
         navigate('/signup-journey/apply');
         break;
       case 2:
-        navigate('/signup-journey/funding-matches');
+        navigate('/signup-journey/business-details');
         break;
       case 3:
-        navigate('/signup-journey/business-details');
+        navigate('/signup-journey/industry-specifics');
         break;
       case 4:
         navigate('/signup-journey/eligibility');
@@ -74,7 +74,7 @@ const EligibilityPage = () => {
   };
 
   const handlePrevious = () => {
-    navigate('/signup-journey/business-details');
+    navigate('/signup-journey/industry-specifics');
   };
 
   const handleNext = () => {

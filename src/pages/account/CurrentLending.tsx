@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import PageLayout from '../../components/PageLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
-import { Input } from '../../components/ui/input';
+import { Input as BaseInput } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { Textarea } from '../../components/ui/textarea';
+import { Select as BaseSelect, SelectContent, SelectItem, SelectTrigger as BaseSelectTrigger, SelectValue } from '../../components/ui/select';
+import { Textarea as BaseTextarea } from '../../components/ui/textarea';
 import { 
   Plus, 
   Trash2, 
@@ -25,6 +25,14 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import { getDocument, updateDocument, getDocuments, createDocument } from '../../firebase';
 import { toast } from 'sonner';
+
+// Override Input, Textarea, and Select components with styles
+const Input = (props) => <BaseInput className="bg-white border border-slate-900 placeholder:text-slate-600" {...props} />;
+const Textarea = (props) => <BaseTextarea className="bg-white border border-slate-900 placeholder:text-slate-600" {...props} />;
+const Select = (props) => <BaseSelect {...props} />;
+const SelectTrigger = (props) => <BaseSelectTrigger className="bg-white border border-slate-900 text-slate-900" {...props} />;
+
+// (The rest of the CurrentLending component remains the same, but all usages of <Input>, <Textarea>, <Select>, and <SelectTrigger> should now use the styled versions.)
 
 // Current Lending Data Types
 interface CurrentLoan {

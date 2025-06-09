@@ -1,5 +1,6 @@
 import React from 'react';
 import StatusBadge from '@/components/StatusBadge';
+import { formatApplicationNumber } from '@/lib/applicationUtils';
 
 interface ApplicationHeaderProps {
   application: any;
@@ -12,7 +13,7 @@ const ApplicationHeader: React.FC<ApplicationHeaderProps> = ({ application }) =>
     <div className="bg-[#212936] text-white rounded-xl p-8 mb-8 shadow-xl border-b-2 border-[#ff8000]">
       <h1 className="text-4xl font-bold mb-3 tracking-tight">
         {application?.isLender 
-          ? `Application #${application?.application_number || application?.id?.substring(0, 8)}`
+          ? `Application #${formatApplicationNumber(application, application?.id)}`
           : 'Application Details'
         }
       </h1>

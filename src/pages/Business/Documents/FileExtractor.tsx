@@ -3,8 +3,9 @@ import React from "react";
 export type ExtractedFile = {
   name: string;
   type: string;
-  content: string; // extracted text
+  content: string; // extracted text (empty for PDFs that will be processed directly)
   file: File;
+  isPdfForDirectAnalysis?: boolean; // flag to indicate PDF should be sent directly to OpenAI
 };
 
 export interface FileExtractorProps {
@@ -15,41 +16,41 @@ export interface FileExtractorProps {
 }
 
 // Utility: extract text from file (PDF, CSV, TXT, DOCX, XLSX, etc.)
-async function extractTextFromFile(file: File): Promise<string> {
+async function extractTextFromFile(file: File): Promise<{ content: string; isPdfForDirectAnalysis?: boolean }> {
   const ext = file.name.split('.').pop()?.toLowerCase();
+  
+  // For PDFs, we'll send them directly to OpenAI Vision API
+  if (ext === 'pdf') {
+    return {
+      content: '', // Empty content for PDFs
+      isPdfForDirectAnalysis: true
+    };
+  }
+  
   if (ext === 'txt') {
-    return await file.text();
+    return { content: await file.text() };
   }
   if (ext === 'csv') {
     const text = await file.text();
-    return text;
+    return { content: text };
   }
-  if (ext === 'pdf') {
-    // Lazy load pdfjs
-    const pdfjsLib = await import('pdfjs-dist');
-    // Use new URL to get worker path for Vite compatibility
-    const workerSrc = new URL('pdfjs-dist/build/pdf.worker.mjs', import.meta.url).toString();
-    (pdfjsLib as any).GlobalWorkerOptions.workerSrc = workerSrc;
-    const arrayBuffer = await file.arrayBuffer();
-    const pdf = await (pdfjsLib as any).getDocument({ data: arrayBuffer }).promise;
-    let text = '';
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      const content = await page.getTextContent();
-      text += content.items.map((item: any) => item.str).join(' ') + '\n';
-    }
-    return text;
-  }
+  
   // Fallback: try to read as text
-  return await file.text();
+  return { content: await file.text() };
 }
 
 const FileExtractor: React.FC<FileExtractorProps> = ({ accept, onExtracted, children, className }) => {
   const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const content = await extractTextFromFile(file);
-    onExtracted({ name: file.name, type: file.type, content, file });
+    const result = await extractTextFromFile(file);
+    onExtracted({ 
+      name: file.name, 
+      type: file.type, 
+      content: result.content, 
+      file,
+      isPdfForDirectAnalysis: result.isPdfForDirectAnalysis 
+    });
   };
 
   return (

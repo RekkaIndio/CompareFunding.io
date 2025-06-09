@@ -11,11 +11,10 @@ const FooterUpdated = ({ className }: FooterProps) => {
   const year = new Date().getFullYear();
   
   return (
-    <footer className={cn("bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white relative overflow-hidden", className)}>
+    <footer className={cn("bg-slate-900 text-white relative overflow-hidden", className)}>
       {/* Background Pattern */}
-      <div className="absolute inset-0 bg-gradient-to-r from-blue-600/5 via-purple-600/5 to-orange-600/5"></div>
       <div 
-        className="absolute inset-0 opacity-[0.02]"
+        className="absolute inset-0 opacity-[0.02] pointer-events-none"
         style={{
           backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Ccircle cx='30' cy='30' r='1'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
         }}
@@ -41,7 +40,7 @@ const FooterUpdated = ({ className }: FooterProps) => {
             <div className="space-y-2 mb-4">
               <div className="flex items-center space-x-3">
                 <Mail size={16} className="text-orange-400" />
-                <span className="text-slate-300 text-sm">hello@comparefunding.com</span>
+                <span className="text-slate-300 text-sm">hello@comparefunding.io</span>
               </div>
               <div className="flex items-center space-x-3">
                 <Phone size={16} className="text-orange-400" />
@@ -49,7 +48,7 @@ const FooterUpdated = ({ className }: FooterProps) => {
               </div>
               <div className="flex items-center space-x-3">
                 <MapPin size={16} className="text-orange-400" />
-                <span className="text-slate-300 text-sm">London, United Kingdom</span>
+                <span className="text-slate-300 text-sm">71-75 SHELTON STREET, COVENT GARDEN, LONDON, WC2H 9JQ</span>
               </div>
             </div>
             
@@ -95,14 +94,10 @@ const FooterUpdated = ({ className }: FooterProps) => {
                   About Us
                 </Link>
               </li>
+              
               <li>
-                <Link to="/careers" className="text-slate-300 hover:text-orange-400 transition-colors text-sm hover:translate-x-1 inline-block duration-200">
-                  Careers
-                </Link>
-              </li>
-              <li>
-                <Link to="/blog" className="text-slate-300 hover:text-orange-400 transition-colors text-sm hover:translate-x-1 inline-block duration-200">
-                  Blog
+                <Link to="/team" className="text-slate-300 hover:text-orange-400 transition-colors text-sm hover:translate-x-1 inline-block duration-200">
+                  Our Team
                 </Link>
               </li>
               <li>
@@ -132,11 +127,6 @@ const FooterUpdated = ({ className }: FooterProps) => {
                   Pricing
                 </Link>
               </li>
-              <li>
-                <Link to="/integrations" className="text-slate-300 hover:text-orange-400 transition-colors text-sm hover:translate-x-1 inline-block duration-200">
-                  Integrations
-                </Link>
-              </li>
             </ul>
           </div>
           
@@ -152,16 +142,6 @@ const FooterUpdated = ({ className }: FooterProps) => {
               <li>
                 <Link to="/guides" className="text-slate-300 hover:text-orange-400 transition-colors text-sm hover:translate-x-1 inline-block duration-200">
                   Guides
-                </Link>
-              </li>
-              <li>
-                <Link to="/api" className="text-slate-300 hover:text-orange-400 transition-colors text-sm hover:translate-x-1 inline-block duration-200">
-                  API Docs
-                </Link>
-              </li>
-              <li>
-                <Link to="/status" className="text-slate-300 hover:text-orange-400 transition-colors text-sm hover:translate-x-1 inline-block duration-200">
-                  Status
                 </Link>
               </li>
             </ul>
@@ -218,9 +198,9 @@ const FooterUpdated = ({ className }: FooterProps) => {
                 &copy; {year} CompareFunding. All rights reserved.
               </p>
               <div className="flex items-center space-x-2 text-xs text-slate-500">
-                <span>Authorised by the FCA</span>
+              
                 <span>•</span>
-                <span>Company No. 12345678</span>
+                <span>Company No. 15908176</span>
               </div>
             </div>
             <div className="flex items-center space-x-4">

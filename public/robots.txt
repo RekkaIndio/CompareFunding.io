@@ -1,0 +1,32 @@
+User-agent: *
+Allow: /
+
+# Disallow private/authenticated pages
+Disallow: /dashboard
+Disallow: /applications
+Disallow: /business/profile
+Disallow: /business/dashboard
+Disallow: /business/documents
+Disallow: /lender/
+Disallow: /messages
+Disallow: /settings
+Disallow: /notifications
+Disallow: /signup-journey
+Disallow: /account/
+Disallow: /integrations/
+
+# Allow public pages
+Allow: /for-businesses
+Allow: /for-lenders
+Allow: /how-it-works
+Allow: /about
+Allow: /contact
+Allow: /products
+Allow: /help/
+Allow: /funding-options/
+
+# Sitemap location
+Sitemap: https://comparefunding.com/sitemap.xml
+
+# Crawl delay (optional - be nice to servers)
+Crawl-delay: 1

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
+import { formatApplicationNumber } from '@/lib/applicationUtils';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ArrowLeft, CheckCircle, AlertTriangle, Download, Shield, Building2, TrendingUp, FileText, Upload, Zap, Loader2 } from 'lucide-react';
@@ -845,7 +846,7 @@ const ApplicationReview = () => {
                         <div>
                           <CardTitle className="text-xl text-white">Application Summary</CardTitle>
                           <CardDescription className="text-gray-200">
-                            Application #{application.application_number || id?.substring(0, 8)}
+                            Application #{formatApplicationNumber(application, id)}
                           </CardDescription>
                         </div>
                         <StatusBadge status={application.status} />

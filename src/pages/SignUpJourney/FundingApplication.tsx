@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { PoundSterling, Calendar, Target, Clock } from 'lucide-react';
+import { PoundSterling, Calendar, Target } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -19,7 +19,6 @@ const FundingApplication = () => {
   const [fundingPurpose, setFundingPurpose] = useState('expansion');
   const [amount, setAmount] = useState('100000');
   const [timeframe, setTimeframe] = useState('1_week');
-  const [duration, setDuration] = useState('');
   const [marketingConsent, setMarketingConsent] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -33,14 +32,13 @@ const FundingApplication = () => {
   const steps = [
     { label: 'Email & Password', path: '/signup-journey/email-password' },
     { label: 'Funding Amount', path: '/signup-journey/apply' },
-    { label: 'Funding Matches', path: '/signup-journey/funding-matches' },
     { label: 'Business Details', path: '/signup-journey/business-details' },
-    { label: 'Eligibility', path: '/signup-journey/eligibility' },
+    { label: 'Industry Specifics', path: '/signup-journey/industry-specifics' },
   ];
   const currentStep = 1;
 
   const handleStepNavigation = (stepIndex: number) => {
-    const state = { fundingPurpose, amount, timeframe, duration, marketingConsent };
+    const state = { fundingPurpose, amount, timeframe, marketingConsent };
     
     switch (stepIndex) {
       case 0:
@@ -50,13 +48,10 @@ const FundingApplication = () => {
         navigate('/signup-journey/apply', { state });
         break;
       case 2:
-        navigate('/signup-journey/funding-matches', { state });
-        break;
-      case 3:
         navigate('/signup-journey/business-details', { state });
         break;
-      case 4:
-        navigate('/signup-journey/eligibility', { state });
+      case 3:
+        navigate('/signup-journey/industry-specifics', { state });
         break;
     }
   };
@@ -66,8 +61,8 @@ const FundingApplication = () => {
   };
 
   const handleNext = () => {
-    navigate('/signup-journey/funding-matches', { 
-      state: { fundingPurpose, amount, timeframe, duration, marketingConsent } 
+    navigate('/signup-journey/business-details', { 
+      state: { fundingPurpose, amount, timeframe, marketingConsent } 
     });
   };
 
@@ -86,7 +81,6 @@ const FundingApplication = () => {
         fundingPurpose, 
         amount, 
         timeframe, 
-        duration, 
         marketingConsent 
       });
 
@@ -193,27 +187,6 @@ const FundingApplication = () => {
                   <SelectItem value="1_month" className="text-sm sm:text-base">Within 1 Month</SelectItem>
                   <SelectItem value="3_months" className="text-sm sm:text-base">Within 3 Months</SelectItem>
                   <SelectItem value="6_months" className="text-sm sm:text-base">Within 6 Months</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-[#2a3441] text-sm sm:text-base font-medium flex items-center gap-2">
-                <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#ff8000]" />
-                Preferred Repayment Duration
-              </Label>
-              <Select value={duration} onValueChange={setDuration}>
-                <SelectTrigger className="h-10 sm:h-12 bg-white border-2 border-gray-200 focus:border-[#ff8000] text-[#2a3441] text-sm sm:text-base rounded-lg sm:rounded-xl">
-                  <SelectValue placeholder="Select duration" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="6_months" className="text-sm sm:text-base">6 Months</SelectItem>
-                  <SelectItem value="12_months" className="text-sm sm:text-base">12 Months</SelectItem>
-                  <SelectItem value="18_months" className="text-sm sm:text-base">18 Months</SelectItem>
-                  <SelectItem value="2_years" className="text-sm sm:text-base">2 Years</SelectItem>
-                  <SelectItem value="3_years" className="text-sm sm:text-base">3 Years</SelectItem>
-                  <SelectItem value="5_years" className="text-sm sm:text-base">5+ Years</SelectItem>
-                  <SelectItem value="flexible" className="text-sm sm:text-base">Flexible</SelectItem>
                 </SelectContent>
               </Select>
             </div>

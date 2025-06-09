@@ -78,20 +78,74 @@ const HeroSection = () => {
                   </div>
                 </div>
                 
-                {/* CTA Buttons */}
-                <div className="flex flex-wrap sm:flex-nowrap gap-2 sm:gap-3 mb-4 sm:mb-6">
-                  <Link 
-                    to="/signup-journey/email-password"
-                    className="bg-blue-900 hover:bg-blue-800 text-white font-semibold py-2 sm:py-3 px-4 sm:px-6 rounded-lg transition-colors text-xs sm:text-sm w-full sm:w-auto text-center"
-                  >
-                    Apply Now
-                  </Link>
-                  <Link 
-                    to="/contact"
-                    className="bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 sm:py-3 px-4 sm:px-6 rounded-lg transition-colors text-xs sm:text-sm w-full sm:w-auto text-center"
-                  >
-                    Book Free Consultation
-                  </Link>
+                {/* CTA Options */}
+                <div className="space-y-4 mb-4 sm:mb-6">
+                  <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4">
+                    Know what you're looking for?
+                  </h2>
+                  
+                  {/* Three option boxes */}
+                  <div className="space-y-3">
+                    {/* Option 1: Explore All Products */}
+                    <Link 
+                      to="/products"
+                      className="block bg-blue-50 hover:bg-blue-100 border-2 border-blue-200 rounded-lg p-4 transition-all duration-200 hover:shadow-md group"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-blue-900 text-sm sm:text-base mb-1">
+                            Know what you are looking for
+                          </h3>
+                          <p className="text-blue-700 text-xs sm:text-sm">
+                            Explore loans, cashflow finance, asset finance & more
+                          </p>
+                        </div>
+                        <svg className="w-5 h-5 text-blue-600 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </div>
+                    </Link>
+
+                    {/* Option 2: Quick Application */}
+                    <Link 
+                      to="/signup-journey/email-password"
+                      className="block bg-green-50 hover:bg-green-100 border-2 border-green-200 rounded-lg p-4 transition-all duration-200 hover:shadow-md group"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-green-900 text-sm sm:text-base mb-1">
+                            Have a need
+                          </h3>
+                          <p className="text-green-700 text-xs sm:text-sm">
+                            Get matched with suitable funding in minutes
+                          </p>
+                        </div>
+                        <svg className="w-5 h-5 text-green-600 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </div>
+                    </Link>
+
+                    {/* Option 3: Expert Consultation */}
+                    <Link 
+                      to="/contact"
+                      className="block bg-orange-50 hover:bg-orange-100 border-2 border-orange-200 rounded-lg p-4 transition-all duration-200 hover:shadow-md group"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-orange-900 text-sm sm:text-base mb-1">
+                            Need Support
+                          </h3>
+                          <p className="text-orange-700 text-xs sm:text-sm">
+                            Free advice from our funding specialists
+                          </p>
+                        </div>
+                        <svg className="w-5 h-5 text-orange-600 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </div>
+                    </Link>
+                  </div>
                 </div>
                 
                 {/* Learn more link */}

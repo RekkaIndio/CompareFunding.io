@@ -10,10 +10,11 @@ import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, ChevronRight, Download, InboxIcon, MessageSquare, Star, ArrowRight, RefreshCcw, Edit, 
   PoundSterling, Calendar, TrendingUp, Target, Users, Clock, BarChart3, 
-  Award, Building2, Shield, TrendingDown, Filter } from 'lucide-react';
+  Award, Building2, Shield, TrendingDown, Filter, Archive } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import LenderReviewDialog from '@/components/LenderReviewDialog';
 import { Badge } from '@/components/ui/badge';
+import { formatApplicationNumber } from '@/lib/applicationUtils';
 
 // Import lender logos
 import santanderLogo from '@/assets/lenderlogos/santanderlogo.png';
@@ -77,17 +78,6 @@ type GroupedOffers = {
     };
     offers: Offer[];
   };
-};
-
-// Utility function to format application numbers consistently
-const formatApplicationNumber = (application: any, applicationId?: string) => {
-  if (application?.application_number) {
-    return application.application_number;
-  }
-  if (applicationId) {
-    return applicationId.slice(-8);
-  }
-  return 'Unknown';
 };
 
 const OffersList = () => {
@@ -259,6 +249,7 @@ const OffersList = () => {
                   // Mimic the Supabase nested structure
                   applications: app ? {
                     id: app.id,
+                    application_number: app.application_number, // Added missing application_number field
                     loan_amount: app.loan_amount,
                     loan_term_months: app.loan_term_months,
                     purpose: app.purpose,
@@ -1240,19 +1231,52 @@ const OffersList = () => {
             )}
           </div>
           
-          {/* Statistics Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            {/* Statistics content - placeholder for now */}
-            <Card className="bg-white/90 backdrop-blur-sm border border-slate-200/50 shadow-lg">
-              <CardContent className="p-6">
-                <div className="text-center">
-                  <p className="text-sm font-medium text-gray-600">Total Applications</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {isLoading ? '...' : (offers?.length || 0)}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+         
+
+          {/* Tab Navigation */}
+          <div className="mb-6">
+            <div className="border-b border-gray-200 bg-white rounded-t-lg">
+              <nav className="-mb-px flex space-x-8 px-6" aria-label="Tabs">
+                <button
+                  onClick={() => setActiveTab('active')}
+                  className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
+                    activeTab === 'active'
+                      ? 'border-[#ff8800] text-[#ff8800]'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  Active Offers
+                  {activeOffers.length > 0 && (
+                    <span className={`ml-2 py-0.5 px-2 rounded-full text-xs ${
+                      activeTab === 'active' 
+                        ? 'bg-[#ff8800] text-white' 
+                        : 'bg-gray-100 text-gray-600'
+                    }`}>
+                      {isLender ? activeOffers.length : Object.keys(groupedActiveOffers).length}
+                    </span>
+                  )}
+                </button>
+                <button
+                  onClick={() => setActiveTab('historical')}
+                  className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
+                    activeTab === 'historical'
+                      ? 'border-[#ff8800] text-[#ff8800]'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  Historical Offers
+                  {historicalOffers.length > 0 && (
+                    <span className={`ml-2 py-0.5 px-2 rounded-full text-xs ${
+                      activeTab === 'historical' 
+                        ? 'bg-[#ff8800] text-white' 
+                        : 'bg-gray-100 text-gray-600'
+                    }`}>
+                      {isLender ? historicalOffers.length : Object.keys(groupedHistoricalOffers).length}
+                    </span>
+                  )}
+                </button>
+              </nav>
+            </div>
           </div>
 
           {/* Main Content */}
@@ -1308,21 +1332,86 @@ const OffersList = () => {
               </div>
             ) : (
               <div className="space-y-6">
-                {isLender ? (
-                  // Lender view: Show individual offers
-                  offers.map((offer) => (
-                    <IndividualOfferCard key={offer.id} offer={offer} />
-                  ))
+                {/* Show content based on active tab */}
+                {activeTab === 'active' ? (
+                  // Active offers
+                  isEmptyActiveOffers ? (
+                    <div className="flex flex-col items-center justify-center py-12 px-4">
+                      <div className="text-center max-w-md mx-auto">
+                        <div className="mb-6">
+                          <Clock className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                          <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                            No Active Offers
+                          </h3>
+                          <p className="text-gray-600">
+                            {isLender 
+                              ? "You don't have any active offers at the moment." 
+                              : "You don't have any active offers. Check back later or create a new application."
+                            }
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {isLender ? (
+                        // Lender view: Show individual active offers
+                        activeOffers.map((offer) => (
+                          <IndividualOfferCard key={offer.id} offer={offer} />
+                        ))
+                      ) : (
+                        // Business view: Show grouped active offers by application
+                        Object.entries(groupedActiveOffers as GroupedOffers).map(([applicationId, groupData]) => (
+                          <ApplicationOffersCard 
+                            key={applicationId} 
+                            applicationId={applicationId} 
+                            groupData={groupData} 
+                            id={`application-${applicationId}`}
+                          />
+                        ))
+                      )}
+                    </>
+                  )
                 ) : (
-                  // Business view: Show grouped offers by application with offers displayed vertically
-                  Object.entries(groupOffersByApplication(offers) as GroupedOffers).map(([applicationId, groupData]) => (
-                    <ApplicationOffersCard 
-                      key={applicationId} 
-                      applicationId={applicationId} 
-                      groupData={groupData} 
-                      id={`application-${applicationId}`}
-                    />
-                  ))
+                  // Historical offers
+                  isEmptyHistoricalOffers ? (
+                    <div className="flex flex-col items-center justify-center py-12 px-4">
+                      <div className="text-center max-w-md mx-auto">
+                        <div className="mb-6">
+                          <Archive className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                          <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                            No Historical Offers
+                          </h3>
+                          <p className="text-gray-600">
+                            {isLender 
+                              ? "You don't have any completed, declined, or expired offers yet." 
+                              : "You don't have any completed, declined, or expired offers yet."
+                            }
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {isLender ? (
+                        // Lender view: Show individual historical offers
+                        historicalOffers.map((offer) => (
+                          <IndividualOfferCard key={offer.id} offer={offer} isHistorical={true} />
+                        ))
+                      ) : (
+                        // Business view: Show grouped historical offers by application
+                        Object.entries(groupedHistoricalOffers as GroupedOffers).map(([applicationId, groupData]) => (
+                          <ApplicationOffersCard 
+                            key={applicationId} 
+                            applicationId={applicationId} 
+                            groupData={groupData} 
+                            isHistorical={true}
+                            id={`application-${applicationId}`}
+                          />
+                        ))
+                      )}
+                    </>
+                  )
                 )}
               </div>
             )}

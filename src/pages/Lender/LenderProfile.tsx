@@ -8,10 +8,7 @@ import { Button } from '@/components/ui/button';
 import PageLayout from '@/components/PageLayout';
 import { Building, Mail, ImageIcon, PoundSterling } from 'lucide-react';
 import { 
-  Building, 
-  Mail, 
-  ImageIcon, 
-  PoundSterling, 
+  
   FileText, 
   CreditCard, 
   Truck, 

@@ -248,7 +248,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ className, role: propRole }) =
   return (
     <div
       className={cn(
-        "bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white flex flex-col fixed left-0 z-40 transition-all duration-300 ease-in-out relative overflow-hidden",
+        "bg-slate-900 text-white flex flex-col fixed left-0 z-40 transition-all duration-300 ease-in-out relative overflow-hidden",
         isCollapsed ? "w-12" : "w-64",
         className
       )}
@@ -262,9 +262,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ className, role: propRole }) =
       }}
     >
       {/* Background Pattern */}
-      <div className="absolute inset-0 bg-gradient-to-r from-blue-600/5 via-purple-600/5 to-orange-600/5"></div>
       <div 
-        className="absolute inset-0 opacity-[0.02]"
+        className="absolute inset-0 opacity-[0.02] pointer-events-none"
         style={{
           backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Ccircle cx='30' cy='30' r='1'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
         }}
