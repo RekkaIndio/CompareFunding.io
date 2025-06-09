@@ -3,7 +3,7 @@ import { Card, CardHeader, CardContent, CardTitle, CardDescription } from "../..
 import { Input } from "../../../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
 import { Textarea } from "../../../components/ui/textarea";
-import { BadgePoundSterling, Calendar, Target, FileText, TrendingUp, DollarSign } from "lucide-react";
+import { BadgePoundSterling, Calendar, Target, FileText, TrendingUp, PoundSterling } from "lucide-react";
 import { UseFormReturn } from "react-hook-form";
 import { loanTypeOptions, loanTermOptions, loanPurposeOptions } from "./constants";
 
@@ -20,7 +20,7 @@ export const LoanDetailsCard = ({ form }: LoanDetailsCardProps) => {
       <CardHeader className="pb-6 bg-gradient-to-br from-[#212936] to-[#2c3c53] rounded-t-lg">
         <CardTitle className="text-xl font-bold text-white flex items-center gap-3">
           <div className="bg-gradient-to-br from-[#ff8000] to-[#ffaa00] rounded-full p-2 shadow-lg">
-            <DollarSign className="h-5 w-5 text-white" />
+            <PoundSterling className="h-5 w-5 text-white" />
           </div>
           Loan Details
         </CardTitle>

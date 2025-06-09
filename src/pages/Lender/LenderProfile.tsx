@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import PageLayout from '@/components/PageLayout';
-import { Building, Mail, ImageIcon, DollarSign } from 'lucide-react';
+import { Building, Mail, ImageIcon, PoundSterling } from 'lucide-react';
 // If you have a color extraction utility, import it:
 // import { extractColors } from '@/lib/colorUtils';
 
@@ -638,7 +638,7 @@ const LenderProfile = () => {
             <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200/50 overflow-hidden">
               <div className="bg-slate-800 px-6 py-4">
                 <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-                  <DollarSign className="h-5 w-5" />
+                  <PoundSterling className="h-5 w-5" />
                   Lending Criteria
                 </h2>
                 <p className="text-sm text-slate-300 mt-1">Define your lending requirements and terms</p>

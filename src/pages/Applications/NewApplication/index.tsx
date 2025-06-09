@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
-import { getDocument, createDocument } from '../../../firebase';
+import { getDocument, getDocuments, createDocument, updateDocument } from '../../../firebase';
 import { toast } from 'sonner';
 import PageLayout from '../../../components/PageLayout';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../../../components/ui/card';
 import { Button } from '../../../components/ui/button';
-import { ArrowLeft, ArrowRight, Loader2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Loader2, CheckCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '../../../components/ui/alert';
 import { Form } from '../../../components/ui/form';
 import { useForm } from 'react-hook-form';
@@ -14,6 +14,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { LoanDetailsCard } from './LoanDetailsCard';
 import { AdditionalDetailsCard } from './AdditionalDetailsCard';
+import { fetchSignupFundingData, mapSignupDataToApplication } from '../../../lib/signupDataUtils';
 
 const applicationSchema = z.object({
   loan_amount: z.coerce.number()
@@ -37,10 +38,16 @@ type ApplicationFormValues = z.infer<typeof applicationSchema>;
 const NewApplication = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [businessProfile, setBusinessProfile] = useState<any>(null);
   const [hasAccountingConnection, setHasAccountingConnection] = useState(false);
+  const [wasDataPrefilled, setWasDataPrefilled] = useState(false);
+  const [draftApplicationId, setDraftApplicationId] = useState<string | null>(null);
+  
+  // Get draft ID from URL parameters
+  const draftId = searchParams.get('draft');
   
   const form = useForm<ApplicationFormValues>({
     resolver: zodResolver(applicationSchema),
@@ -94,6 +101,132 @@ const NewApplication = () => {
         
         setHasAccountingConnection(!!accountingData && accountingData.auth_status === 'connected');
         
+        // Load existing draft application if editing
+        if (draftId) {
+          console.log('📝 Loading existing draft application:', draftId);
+          try {
+            const { data: draftData, error: draftError } = await getDocument('applications', draftId);
+            if (draftError) {
+              console.error('Error loading draft application:', draftError);
+              toast.error('Failed to load draft application');
+            } else if (draftData) {
+              console.log('📄 Draft data loaded:', draftData);
+              setDraftApplicationId(draftId);
+              
+              // Pre-fill form with draft data
+              form.reset({
+                loan_amount: draftData.loan_amount || 25000,
+                loan_term_months: draftData.loan_term_months || 12,
+                loan_type: draftData.loan_type || 'term_loan',
+                purpose_category: draftData.purpose_category || '',
+                purpose: draftData.purpose || '',
+                has_personal_guarantee: draftData.has_personal_guarantee || false,
+                is_secured: draftData.is_secured || false,
+              });
+              
+              setWasDataPrefilled(true);
+              toast.success('Draft application loaded');
+            }
+          } catch (error) {
+            console.error('Error loading draft:', error);
+            toast.error('Failed to load draft application');
+          }
+        } else {
+          // Only try to prefill from signup data if not editing an existing draft
+          // Try to prefill form with signup journey data
+          try {
+          console.log('=== Starting prefill process ===');
+          console.log('User ID:', user.uid);
+          
+          const signupData = await fetchSignupFundingData(user.uid);
+          console.log('Signup data retrieved:', signupData);
+          
+          if (signupData && profileData) {
+            console.log('Profile data exists:', profileData);
+            const mappedData = mapSignupDataToApplication(signupData);
+            console.log('Mapped data:', mappedData);
+            
+            // Check if a draft application with prefilled data already exists
+            console.log('Checking for existing drafts...');
+            const existingDrafts = await getDocuments('applications', [
+              { field: 'user_id', operator: '==', value: user.uid },
+              { field: 'status', operator: '==', value: 'draft' },
+              { field: 'is_prefilled', operator: '==', value: true }
+            ]);
+            
+            console.log('Existing drafts query result:', existingDrafts);
+            
+            let shouldCreateDraft = true;
+            let existingDraftId = null;
+            
+            if (existingDrafts.data && existingDrafts.data.length > 0) {
+              console.log('Found existing drafts:', existingDrafts.data);
+              // Check if any existing draft has similar data
+              const similarDraft = existingDrafts.data.find((draft: any) => 
+                draft.loan_amount === mappedData.loan_amount &&
+                draft.purpose_category === mappedData.purpose_category
+              );
+              
+              if (similarDraft) {
+                shouldCreateDraft = false;
+                existingDraftId = similarDraft.id;
+                setDraftApplicationId(existingDraftId);
+                console.log('Found similar existing draft:', existingDraftId);
+              }
+            }
+            
+            // Create draft application if one doesn't exist
+            if (shouldCreateDraft) {
+              console.log('Creating new draft application...');
+              const draftId = await createDraftApplication(mappedData, profileData);
+              if (draftId) {
+                setDraftApplicationId(draftId);
+                console.log('Draft application created with ID:', draftId);
+              } else {
+                console.log('Failed to create draft application');
+              }
+            }
+            
+            // Update form with mapped data, but only for fields that are currently default
+            const currentValues = form.getValues();
+            const updatedValues = { ...currentValues };
+            
+            if (mappedData.loan_amount && currentValues.loan_amount === 25000) {
+              updatedValues.loan_amount = mappedData.loan_amount;
+            }
+            if (mappedData.loan_term_months && currentValues.loan_term_months === 12) {
+              updatedValues.loan_term_months = mappedData.loan_term_months;
+            }
+            if (mappedData.purpose_category && !currentValues.purpose_category) {
+              updatedValues.purpose_category = mappedData.purpose_category;
+            }
+            if (mappedData.purpose && !currentValues.purpose) {
+              updatedValues.purpose = mappedData.purpose;
+            }
+            
+            // Reset form with prefilled data
+            form.reset(updatedValues);
+            setWasDataPrefilled(true);
+            
+            console.log('Application form prefilled with signup data:', mappedData);
+            if (shouldCreateDraft) {
+              console.log('Draft application created for user');
+            } else {
+              console.log('Using existing draft application:', existingDraftId);
+            }
+          } else {
+            console.log('No signup data found or missing profile data');
+            console.log('Signup data:', signupData);
+            console.log('Profile data:', profileData);
+          }
+          } catch (prefillError) {
+            console.error('Error prefilling from signup data:', prefillError);
+            // Don't show error to user as this is a nice-to-have feature
+          }
+        } // End of else block for draft loading vs signup prefilling
+        
+
+        
       } catch (err) {
         console.error('Error loading business data:', err);
         toast.error('Failed to load business data');
@@ -103,7 +236,7 @@ const NewApplication = () => {
     };
     
     fetchBusinessInfo();
-  }, [user]);
+  }, [user, form]);
   
   // Add debugging log to help identify if a profile is found
   useEffect(() => {
@@ -114,6 +247,8 @@ const NewApplication = () => {
       console.log('No business profile found after loading completed');
     }
   }, [businessProfile, isLoading]);
+  
+
   
   const onSubmit = async (values: ApplicationFormValues) => {
     if (!user) return;
@@ -127,45 +262,177 @@ const NewApplication = () => {
     setIsSubmitting(true);
     
     try {
-      const applicationNumber = `APP-${Date.now().toString().slice(-8)}-${Math.floor(Math.random() * 1000)}`;
-      
-      const applicationData = {
-        application_number: applicationNumber,
-        user_id: user.uid,
-        business_id: user.uid,
-        loan_amount: values.loan_amount,
-        loan_term_months: values.loan_term_months,
-        loan_type: values.loan_type,
-        purpose_category: values.purpose_category,
-        purpose: values.purpose,
-        has_personal_guarantee: values.has_personal_guarantee || false,
-        is_secured: values.is_secured || false,
-        status: 'draft',
-        application_date: new Date().toISOString(),
-        status_updated_at: new Date().toISOString(),
-        matched_lenders: [],
-      };
-      
-      const { data, error } = await createDocument('applications', applicationData);
+      // Check if we're editing an existing draft
+      if (draftId) {
+        console.log('📝 Updating existing draft application:', draftId);
         
-      if (error) {
-        console.error('Error creating application:', error);
-        toast.error('Failed to create application');
-        return;
-      }
-      
-      if (data && data.id) {
-        toast.success('Application draft created successfully');
-        navigate(`/applications/${data.id}/review`);
+        // Update existing draft with new values
+        const updateData = {
+          loan_amount: values.loan_amount,
+          loan_term_months: values.loan_term_months,
+          loan_type: values.loan_type,
+          purpose_category: values.purpose_category,
+          purpose: values.purpose,
+          has_personal_guarantee: values.has_personal_guarantee || false,
+          is_secured: values.is_secured || false,
+          status: 'submitted', // Change status to submitted
+          status_updated_at: new Date().toISOString(),
+          completeness_percentage: 100,
+        };
+        
+        const { error: updateError } = await updateDocument('applications', draftId, updateData);
+        
+        if (updateError) {
+          console.error('Error updating draft application:', updateError);
+          toast.error('Failed to submit application');
+          return;
+        }
+        
+        toast.success('Application submitted successfully');
+        
+        // Trigger dashboard refresh to hide the submitted draft
+        if (typeof (window as any).refreshDashboard === 'function') {
+          (window as any).refreshDashboard();
+        }
+        
+        navigate(`/applications/${draftId}/review`);
+      } else {
+        // Create new application
+        console.log('📝 Creating new application');
+        
+        const applicationNumber = `APP-${Date.now().toString().slice(-8)}-${Math.floor(Math.random() * 1000)}`;
+        
+        const applicationData = {
+          application_number: applicationNumber,
+          user_id: user.uid,
+          business_id: user.uid,
+          loan_amount: values.loan_amount,
+          loan_term_months: values.loan_term_months,
+          loan_type: values.loan_type,
+          purpose_category: values.purpose_category,
+          purpose: values.purpose,
+          has_personal_guarantee: values.has_personal_guarantee || false,
+          is_secured: values.is_secured || false,
+          status: 'draft',
+          application_date: new Date().toISOString(),
+          status_updated_at: new Date().toISOString(),
+          matched_lenders: [],
+          completeness_percentage: 90,
+        };
+        
+        const { data, error } = await createDocument('applications', applicationData);
+          
+        if (error) {
+          console.error('Error creating application:', error);
+          toast.error('Failed to create application');
+          return;
+        }
+        
+        if (data && data.id) {
+          toast.success('Application draft created successfully');
+          navigate(`/applications/${data.id}/review`);
+        }
       }
       
     } catch (err) {
       console.error('Error submitting application:', err);
-      toast.error('Failed to create application');
+      toast.error('Failed to submit application');
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  // Function to create a draft application from prefilled data
+  const createDraftApplication = async (mappedData: any, businessProfile: any) => {
+    try {
+      const applicationNumber = `APP-${Date.now().toString().slice(-8)}-${Math.floor(Math.random() * 1000)}`;
+      
+      // Get company name from various possible sources
+      const companyName = businessProfile?.business_name || 
+                         businessProfile?.companyName || 
+                         businessProfile?.name || 
+                         'Your Business';
+      
+      const applicationData = {
+        application_number: applicationNumber,
+        user_id: user!.uid,
+        business_id: user!.uid,
+        company_name: companyName,
+        loan_amount: mappedData.loan_amount || 25000,
+        loan_term_months: mappedData.loan_term_months || 12,
+        loan_type: mappedData.loan_type || 'term_loan',
+        purpose_category: mappedData.purpose_category || '',
+        purpose: mappedData.purpose || '',
+        has_personal_guarantee: false,
+        is_secured: false,
+        status: 'draft',
+        application_date: new Date().toISOString(),
+        status_updated_at: new Date().toISOString(),
+        matched_lenders: [],
+        is_prefilled: true, // Flag to indicate this was auto-created from signup data
+        prefill_source: 'signup_journey', // Track where the data came from
+      };
+      
+      const { data, error } = await createDocument('applications', applicationData);
+      
+      if (error) {
+        console.error('Error creating draft application:', error);
+        return null;
+      }
+      
+      if (data && data.id) {
+        console.log('Draft application created successfully:', data.id);
+        return data.id;
+      }
+      
+    } catch (err) {
+      console.error('Error creating draft application:', err);
+      return null;
+    }
+    
+    return null;
+  };
+
+  useEffect(() => {
+    // Load existing draft application if editing
+    if (draftId) {
+      console.log('📝 Loading existing draft application:', draftId);
+      try {
+        const fetchDraftData = async () => {
+          const { data: draftData, error: draftError } = await getDocument('applications', draftId);
+          if (draftError) {
+            console.error('Error loading draft application:', draftError);
+            toast.error('Failed to load draft application');
+          } else if (draftData) {
+            console.log('📄 Draft data loaded:', draftData);
+            setDraftApplicationId(draftId);
+            
+            // Pre-fill form with draft data
+            form.reset({
+              loan_amount: draftData.loan_amount || 25000,
+              loan_term_months: draftData.loan_term_months || 12,
+              loan_type: draftData.loan_type || 'term_loan',
+              purpose_category: draftData.purpose_category || '',
+              purpose: draftData.purpose || '',
+              has_personal_guarantee: draftData.has_personal_guarantee || false,
+              is_secured: draftData.is_secured || false,
+            });
+            
+            setWasDataPrefilled(true);
+            toast.success('Draft application loaded');
+          }
+        };
+        
+        fetchDraftData();
+      } catch (error) {
+        console.error('Error loading draft:', error);
+        toast.error('Failed to load draft application');
+      }
+    } else {
+      // ...existing prefill logic...
+    }
+  }, [draftId, form]);
+  
 
   if (isLoading) {
     return (
@@ -270,6 +537,34 @@ const NewApplication = () => {
               </p>
             </div>
             
+            {/* Prefilled data notification */}
+            {wasDataPrefilled && (
+              <Alert className="mb-6 border-green-200 bg-green-50">
+                <CheckCircle className="h-4 w-4 text-green-600" />
+                <AlertDescription className="text-green-800">
+                  <strong>Great news!</strong> We've prefilled some fields based on your signup information and saved a draft application for you. 
+                  You can review and modify any details as needed, then submit when ready.
+                  {draftApplicationId && (
+                    <div className="mt-2 space-y-1">
+                      <div className="text-sm">
+                        <strong>Application ID:</strong> {draftApplicationId.slice(0, 8).toUpperCase()}
+                      </div>
+                      <div className="text-sm">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="mt-2 h-7 text-xs border-green-300 text-green-700 hover:bg-green-100"
+                          onClick={() => navigate('/dashboard')}
+                        >
+                          View on Dashboard
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </AlertDescription>
+              </Alert>
+            )}
+            
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
@@ -287,6 +582,36 @@ const NewApplication = () => {
                   >
                     Cancel
                   </Button>
+                  
+                  {/* Test button for creating draft - only in development */}
+                  {/* {process.env.NODE_ENV === 'development' && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="px-6 py-3 border-2 border-blue-300 hover:border-blue-500 hover:bg-blue-50 text-blue-600 font-semibold transition-all duration-200"
+                      onClick={async () => {
+                        try {
+                          const testData = {
+                            loan_amount: 50000,
+                            purpose_category: 'expansion',
+                            purpose: 'Business expansion test',
+                            loan_term_months: 24,
+                            loan_type: 'term_loan'
+                          };
+                          const draftId = await createDraftApplication(testData, businessProfile);
+                          if (draftId) {
+                            toast.success(`Test draft created: ${draftId}`);
+                            console.log('Test draft application created:', draftId);
+                          }
+                        } catch (err) {
+                          console.error('Error creating test draft:', err);
+                        }
+                      }}
+                    >
+                      Create Test Draft
+                    </Button>
+                  )} */}
+                  
                   <Button 
                     type="submit" 
                     className="px-8 py-3 bg-gradient-to-r from-[#ff8000] to-[#ffaa00] hover:from-[#ff9900] hover:to-[#ffbb00] text-white font-semibold shadow-lg transition-all duration-200 hover:shadow-xl hover:-translate-y-0.5"

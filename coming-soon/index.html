@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -75,7 +76,7 @@
         .submit-btn {
             padding: 1rem 2rem;
             background: #fff;
-            color: #667eea;
+            color: #ff8000;
             border: none;
             border-radius: 8px;
             font-weight: 600;
@@ -109,20 +110,98 @@
             h1 {
                 font-size: 2rem;
             }
-            
+
             .email-form {
                 flex-direction: column;
             }
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <img src="/assets/cflogowhite.png" alt="Fund Connector Logo" class="logo" onerror="this.style.display='none'">
-        
+
         <h1>Compare Funding</h1>
-          <h2>Coming Soon!</h2>
-        <p>We're building something amazing to connect businesses with the perfect funding opportunities. Get ready for a revolutionary platform that will transform how businesses find and secure funding.</p>
-    
+        <h2 style="font-size: 1.5rem; margin-bottom: 1rem; opacity: 0.9;">Coming Soon!</h2>
+        <p>We're building something amazing to connect businesses with the perfect funding opportunities. Get ready for
+            a revolutionary platform that will transform how businesses find and secure funding.</p>
+
+        <form class="email-form" action="https://formspree.io/f/xvgrzrlp" method="POST" onsubmit="handleSubmit(event)">
+            <input type="email" name="email" class="email-input" placeholder="Enter your email for early access"
+                required>
+            <input type="hidden" name="_subject" value="New Early Access Signup - Compare Funding">
+            <input type="hidden" name="message" value="New early access signup for Compare Funding">
+            <button type="submit" class="submit-btn" id="submit-btn">Notify Me</button>
+        </form>
+
+        <p style="font-size: 1rem; opacity: 0.7; margin-bottom: 1rem;">Launching Soon • Be the first to know</p>
+    </div>
+
+    <script>
+        function handleSubmit(event) {
+            event.preventDefault();
+            const form = event.target;
+            const email = form.querySelector('.email-input').value;
+            const submitBtn = document.getElementById('submit-btn');
+
+            // Update button to show loading state
+            submitBtn.textContent = 'Sending...';
+            submitBtn.disabled = true;
+
+            // Submit to Formspree
+            fetch(form.action, {
+                method: 'POST',
+                body: new FormData(form),
+                headers: {
+                    'Accept': 'application/json'
+                }
+            }).then(response => {
+                if (response.ok) {
+                    // Success
+                    submitBtn.textContent = '✓ Sent!';
+                    submitBtn.style.background = '#4ade80';
+                    form.reset();
+
+                    // Show success message
+                    setTimeout(() => {
+                        alert('Thank you! We\'ve received your email and will notify you when Compare Funding launches.');
+                        submitBtn.textContent = 'Notify Me';
+                        submitBtn.style.background = '#fff';
+                        submitBtn.disabled = false;
+                    }, 1000);
+                } else {
+                    throw new Error('Form submission failed');
+                }
+            }).catch(error => {
+                // Error handling
+                submitBtn.textContent = 'Try Again';
+                submitBtn.disabled = false;
+                alert('There was an issue submitting your email. Please try the contact button below or email us directly at hello@comparefunding.io');
+            });
+        }
+    </script>
+
+    <style>
+        .contact-btn {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            text-decoration: none;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            font-weight: 600;
+            margin-bottom: 2rem;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .contact-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+    </style>
 </body>
+
 </html>

@@ -674,196 +674,236 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
       <div 
         key={key} 
         className={`
-          bg-white rounded-lg shadow p-6 flex-1 min-w-[180px] max-w-[220px] 
-          flex flex-col mx-auto relative
-          ${isDisabled ? 'opacity-60 bg-gray-50' : 'bg-white'}
-          ${isCompleted ? 'border-2 border-green-500' : ''}
-          ${isSkipped ? 'border-2 border-yellow-500' : ''}
-          ${isCurrent ? 'border-2 border-blue-500' : ''}
-          ${isReplacing ? 'border-2 border-orange-500' : ''}
-          ${isDisabled && !isReplacing && !isCompleted && !isSkipped ? 'pointer-events-none' : ''}
+          bg-white/95 backdrop-blur-sm rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 
+          border border-slate-200/50 hover:border-slate-300 overflow-hidden p-6 flex flex-col h-full relative
+          ${isDisabled ? 'opacity-60' : ''}
+          ${isCompleted ? 'border-green-400 shadow-green-100' : ''}
+          ${isSkipped ? 'border-yellow-400 shadow-yellow-100' : ''}
+          ${isCurrent ? 'border-blue-400 shadow-blue-100' : ''}
+          ${isReplacing ? 'border-orange-400 shadow-orange-100' : ''}
         `}
       >
-        {/* Success badge for completed documents */}
+        {/* Enhanced status indicator bar */}
+        <div className={`h-1.5 w-full absolute top-0 left-0 ${
+          isReplacing ? 'bg-gradient-to-r from-orange-400 to-orange-500' :
+          isCompleted ? 'bg-gradient-to-r from-green-400 to-green-500' : 
+          isSkipped ? 'bg-gradient-to-r from-yellow-400 to-yellow-500' :
+          isCurrent ? 'bg-gradient-to-r from-blue-400 to-blue-500' :
+          'bg-gradient-to-r from-gray-300 to-gray-400'
+        }`}></div>
+
+        {/* Enhanced success badge for completed documents */}
         {isCompleted && !isReplacing && (
-          <div className="absolute -top-3 -right-3 bg-green-500 text-white rounded-full p-1">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="absolute -top-2 -right-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-full p-2 shadow-lg">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           </div>
         )}
         
-        {/* Current badge */}
+        {/* Enhanced current badge */}
         {isCurrent && !isCompleted && (
-          <div className="absolute -top-3 -right-3 bg-blue-500 text-white rounded-full p-1">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="absolute -top-2 -right-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-full p-2 shadow-lg">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4M4 17h12m0 0l-4-4m4 4l-4 4" />
             </svg>
           </div>
         )}
         
-        {/* Replacing badge */}
+        {/* Enhanced replacing badge */}
         {isReplacing && (
-          <div className="absolute -top-3 -right-3 bg-orange-500 text-white rounded-full p-1">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="absolute -top-2 -right-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-full p-2 shadow-lg">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
           </div>
         )}
         
-        {/* Skipped badge */}
+        {/* Enhanced skipped badge */}
         {isSkipped && !isReplacing && (
-          <div className="absolute -top-3 -right-3 bg-yellow-500 text-white rounded-full p-1">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="absolute -top-2 -right-2 bg-gradient-to-r from-yellow-500 to-yellow-600 text-white rounded-full p-2 shadow-lg">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
         )}
         
-        <h2 className="text-lg font-semibold mb-2 text-center">{step.label}</h2>
-        <p className="text-sm text-slate-500 mb-2 text-center">Upload your {step.label} document here.</p>
-        
-        {/* Show saved document info if completed */}
-        {isCompleted && savedDocs[key] && !isReplacing && (
-          <div className="bg-green-50 rounded p-2 mb-3 text-sm">
-            <p className="text-green-700 font-medium text-center">{savedDocs[key].name}</p>
-            
-            {/* Replace button - only shown when all documents are uploaded */}
-            {(completedUploads.length + skippedUploads.length) === DOCUMENT_STEPS.length && (
-              <button
-                onClick={(e) => { 
-                  e.preventDefault();
-                  handleReplaceDocument(key);
-                }}
-                className="mt-2 w-full px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded hover:bg-orange-200 transition"
-              >
-                Replace Document
-              </button>
-            )}
-          </div>
-        )}
-        
-        {/* Show skipped document info */}
-        {isSkipped && !isReplacing && (
-          <div className="bg-yellow-50 rounded p-2 mb-3 text-sm">
-            <p className="text-yellow-700 font-medium text-center">Document Skipped</p>
-            <p className="text-yellow-600 text-xs text-center mt-1">You can upload this later if needed</p>
-            
-            {/* Upload button for skipped documents - only shown when all documents are processed */}
-            {(completedUploads.length + skippedUploads.length) === DOCUMENT_STEPS.length && (
-              <button
-                onClick={(e) => { 
-                  e.preventDefault();
-                  // Remove from skipped list and allow upload
-                  setSkippedUploads(prev => prev.filter(skipped => skipped !== key));
-                  setReplacementMode(true);
-                  setReplacingDocKey(key);
-                  setActiveTab(key);
-                }}
-                className="mt-2 w-full px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition"
-              >
-                Upload Now
-              </button>
-            )}
-          </div>
-        )}
-        
-        {/* Upload button - disabled if not current step and not in replacing mode */}
-        {(!isCompleted && !isSkipped) || isReplacing ? (
-          <>
-            {/* Render disabled button UI when the card is disabled */}
-            {isDisabled && !isReplacing ? (
-              <div className="space-y-2">
-                <span
-                  className="inline-block w-full px-4 py-2 font-semibold rounded text-center bg-gray-300 text-gray-500 opacity-70 cursor-not-allowed pointer-events-none"
-                >
-                  Upload
-                </span>
-                <span
-                  className="inline-block w-full px-4 py-1 text-sm font-medium rounded text-center bg-gray-200 text-gray-400 opacity-70 cursor-not-allowed pointer-events-none"
-                >
-                  Skip
-                </span>
+        <div className="flex-1 pt-2">
+          <h2 className="text-lg font-semibold mb-3 text-center text-gray-800">{step.label}</h2>
+          <p className="text-sm text-slate-600 mb-4 text-center leading-relaxed">
+            Upload your {step.label} document here.
+          </p>
+          
+          {/* Enhanced saved document info */}
+          {isCompleted && savedDocs[key] && !isReplacing && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <p className="text-green-700 font-medium text-sm">{savedDocs[key].name}</p>
               </div>
-            ) : (
-              /* Render active FileExtractor when the card is active */
-              <div className="space-y-2">
-                <FileExtractor
-                  accept="application/pdf,.csv,.xlsx,.xls,.doc,.docx,image/*"
-                  onExtracted={handleExtracted(key)}
-                  className="block"
+              
+              {/* Enhanced replace button */}
+              {(completedUploads.length + skippedUploads.length) === DOCUMENT_STEPS.length && (
+                <button
+                  onClick={(e) => { 
+                    e.preventDefault();
+                    handleReplaceDocument(key);
+                  }}
+                  className="w-full px-3 py-2 text-sm bg-gradient-to-r from-orange-100 to-orange-200 text-orange-700 rounded-lg hover:from-orange-200 hover:to-orange-300 transition-all duration-200 font-medium"
                 >
-                  <span
-                    className="inline-block w-full px-4 py-2 font-semibold rounded text-center cursor-pointer transition-colors bg-[#ff8000] text-white hover:bg-orange-600"
-                  >
-                    {isReplacing ? 'Replace' : 'Upload'}
-                  </span>
-                </FileExtractor>
-                
-                {/* Skip button - only show for current step and not in replacement mode */}
-                {isCurrent && !isReplacing && (
-                  <button
-                    onClick={(e) => { 
-                      e.preventDefault();
-                      handleSkipDocument(key);
-                    }}
-                    className="w-full px-4 py-1 text-sm font-medium rounded text-center bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
-                  >
-                    Skip for Now
-                  </button>
-                )}
+                  Replace Document
+                </button>
+              )}
+            </div>
+          )}
+          
+          {/* Enhanced skipped document info */}
+          {isSkipped && !isReplacing && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                <p className="text-yellow-700 font-medium text-sm">Document Skipped</p>
               </div>
-            )}
-            
-            {files[key] && (
-              <div className="text-green-700 text-sm text-center mt-2">Selected: {files[key]?.name}</div>
-            )}
-          </>
-        ) : null}
+              <p className="text-yellow-600 text-xs mb-3">You can upload this later if needed</p>
+              
+              {/* Enhanced upload button for skipped documents */}
+              {(completedUploads.length + skippedUploads.length) === DOCUMENT_STEPS.length && (
+                <button
+                  onClick={(e) => { 
+                    e.preventDefault();
+                    setSkippedUploads(prev => prev.filter(skipped => skipped !== key));
+                    setReplacementMode(true);
+                    setReplacingDocKey(key);
+                    setActiveTab(key);
+                  }}
+                  className="w-full px-3 py-2 text-sm bg-gradient-to-r from-blue-100 to-blue-200 text-blue-700 rounded-lg hover:from-blue-200 hover:to-blue-300 transition-all duration-200 font-medium"
+                >
+                  Upload Now
+                </button>
+              )}
+            </div>
+          )}
+          
+          {/* Enhanced upload section */}
+          {(!isCompleted && !isSkipped) || isReplacing ? (
+            <>
+              {/* Disabled state */}
+              {isDisabled && !isReplacing ? (
+                <div className="space-y-3">
+                  <div className="w-full px-4 py-3 font-medium rounded-lg text-center bg-gray-200 text-gray-500 opacity-70 cursor-not-allowed">
+                    Upload
+                  </div>
+                  <div className="w-full px-4 py-2 text-sm font-medium rounded-lg text-center bg-gray-100 text-gray-400 opacity-70 cursor-not-allowed">
+                    Skip
+                  </div>
+                </div>
+              ) : (
+                /* Enhanced active FileExtractor */
+                <div className="space-y-3">
+                  <FileExtractor
+                    accept="application/pdf,.csv,.xlsx,.xls,.doc,.docx,image/*"
+                    onExtracted={handleExtracted(key)}
+                    className="block"
+                  >
+                    <div className="w-full px-4 py-3 font-semibold rounded-lg text-center cursor-pointer transition-all duration-200 bg-gradient-to-r from-[#ff8000] to-[#ff6b35] text-white hover:from-[#e67300] hover:to-[#e55a00] hover:shadow-lg transform hover:scale-105">
+                      {isReplacing ? 'Replace' : 'Upload'}
+                    </div>
+                  </FileExtractor>
+                  
+                  {/* Enhanced skip button */}
+                  {isCurrent && !isReplacing && (
+                    <button
+                      onClick={(e) => { 
+                        e.preventDefault();
+                        handleSkipDocument(key);
+                      }}
+                      className="w-full px-4 py-2 text-sm font-medium rounded-lg text-center bg-gray-100 text-gray-600 hover:bg-gray-200 transition-all duration-200"
+                    >
+                      Skip for Now
+                    </button>
+                  )}
+                </div>
+              )}
+              
+              {/* Enhanced file selection indicator */}
+              {files[key] && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                    <div className="text-blue-700 text-sm font-medium">
+                      Selected: {files[key]?.name}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
+          ) : null}
+          
+          {/* Enhanced loading indicator */}
+          {aiLoading[key] && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-3">
+              <div className="flex items-center justify-center">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-700 mr-3"></div>
+                <span className="text-sm text-blue-700 font-medium">Processing document...</span>
+              </div>
+            </div>
+          )}
+        </div>
         
-        {/* Loading indicator */}
-        {aiLoading[key] && (
-          <div className="flex items-center justify-center mt-2">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-700 mr-2"></div>
-            <span className="text-xs text-blue-700">Processing...</span>
+        {/* Enhanced description at bottom */}
+        <div className="mt-auto pt-4">
+          <div className="text-xs text-slate-500 text-center leading-relaxed bg-gray-50 rounded-lg p-3">
+            {step.description}
           </div>
-        )}
-        
-        <div className="text-xs text-slate-400 mt-2 text-center">{step.description}</div>
+        </div>
       </div>
     );
   };
 
   return (
     <PageLayout showSidebar={true}>
-      <div className="container py-8 mx-auto" data-tour="document-upload">
-        {/* Header with instructional text and accounting software logos side by side */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-6">
-          <div className="flex-1">
-            <h1 className="text-3xl font-bold mb-4">Upload Business Documents</h1>
-            <p className="text-muted-foreground mb-0">Please upload the required documents for your business. Each document type has its own upload card below.</p>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
+        <div className="container py-8 mx-auto px-4 md:px-6" data-tour="document-upload">
+          {/* Enhanced header with premium gradient background */}
+          <div className="relative overflow-hidden bg-gradient-to-br from-[#212936] to-[#2c3c53] text-white rounded-xl shadow-xl mb-8">
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 to-purple-600/10"></div>
+            <div className="relative p-6 md:p-8">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+                <div className="flex-1">
+                  <h1 className="text-3xl md:text-4xl font-bold mb-4 bg-gradient-to-r from-white to-gray-200 bg-clip-text text-transparent">
+                    Upload Business Documents
+                  </h1>
+                  <p className="text-gray-200 mb-0 text-lg">
+                    Please upload the required documents for your business. Each document type has its own upload card below.
+                  </p>
+                </div>
+                <div className="flex items-center justify-center gap-6 flex-shrink-0">
+                  <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+                    <div className="flex items-center gap-4">
+                      <img
+                        src={freeagentLogo}
+                        alt="FreeAgent"
+                        className="h-8 w-auto object-contain cursor-pointer hover:scale-110 transition-transform duration-200"
+                        onClick={() => setModal("freeagent")}
+                      />
+                      <img
+                        src={sageLogo}
+                        alt="Sage"
+                        className="h-8 w-auto object-contain cursor-pointer hover:scale-110 transition-transform duration-200"
+                        onClick={() => setModal("sage")}
+                      />
+                      <img
+                        src={xeroLogo}
+                        alt="Xero"
+                        className="h-8 w-auto object-contain rounded-full bg-white cursor-pointer hover:scale-110 transition-transform duration-200"
+                        onClick={() => setModal("xero")}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="flex items-center justify-center gap-8 flex-shrink-0">
-            <img
-              src={freeagentLogo}
-              alt="FreeAgent"
-              className="h-10 w-auto object-contain cursor-pointer"
-              onClick={() => setModal("freeagent")}
-            />
-            <img
-              src={sageLogo}
-              alt="Sage"
-              className="h-10 w-auto object-contain cursor-pointer"
-              onClick={() => setModal("sage")}
-            />
-            <img
-              src={xeroLogo}
-              alt="Xero"
-              className="h-10 w-auto object-contain rounded-full bg-white cursor-pointer"
-              onClick={() => setModal("xero")}
-            />
-          </div>
-        </div>
 
         {/* Logo Modal */}
         <LogoModal
@@ -885,98 +925,124 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
           alt="Xero"
         />
 
-        {/* Upload status indicator - Display which document should be uploaded next */}
-        <div className="bg-blue-50 p-4 rounded-lg mb-6">
-          <div className="font-medium text-blue-700 mb-2 flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-            </svg>
-            Upload Instructions
-          </div>
-          {replacementMode ? (
-            <p className="text-sm text-blue-600">
-              You are replacing your {DOCUMENT_STEPS.find(s => s.key === replacingDocKey)?.label} document. Your old document will be archived.
-            </p>
-          ) : (completedUploads.length + skippedUploads.length) === DOCUMENT_STEPS.length ? (
-            <p className="text-sm text-blue-600">
-              All documents have been processed ({completedUploads.length} uploaded, {skippedUploads.length} skipped). You can upload skipped documents or replace any document if needed.
-            </p>
-          ) : (
-            <div className="text-sm text-blue-600">
-              <p className="mb-1">
-                You can upload any document. Recommended next document: 
-                <span className="font-bold"> {DOCUMENT_STEPS[currentUploadStep].label}</span>
-              </p>
-              <p className="text-xs text-blue-500 mb-1">
-                📄 Documents are automatically processed and saved after upload - no manual save required!
-              </p>
-              <p className="text-xs text-yellow-600">
-                💡 Don't have a document ready? You can skip it and upload it later.
-              </p>
+          {/* Enhanced upload status indicator */}
+          <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200/50 p-6 mb-8 overflow-hidden">
+            {/* Status indicator bar */}
+            <div className="h-1.5 w-full bg-gradient-to-r from-blue-400 to-purple-500 mb-4"></div>
+            
+            <div className="font-semibold text-slate-800 mb-3 flex items-center">
+              <div className="inline-flex items-center justify-center w-8 h-8 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full mr-3">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+              </div>
+              Upload Instructions
             </div>
-          )}
-          <div className="mt-2 flex">
-            {DOCUMENT_STEPS.map((step, idx) => (
-              <div 
-                key={step.key} 
-                className={`h-2 flex-1 mr-1 rounded ${
-                  replacementMode && replacingDocKey === step.key
-                    ? 'bg-orange-500' 
-                    : completedUploads.includes(step.key) 
-                      ? 'bg-green-500' 
-                      : skippedUploads.includes(step.key)
-                        ? 'bg-yellow-500'
-                        : currentUploadStep === idx 
-                          ? 'bg-blue-500' 
-                          : 'bg-gray-300'
-                }`}
-              />
+            
+            {replacementMode ? (
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
+                <p className="text-sm text-orange-700 font-medium">
+                  🔄 You are replacing your {DOCUMENT_STEPS.find(s => s.key === replacingDocKey)?.label} document. Your old document will be archived.
+                </p>
+              </div>
+            ) : (completedUploads.length + skippedUploads.length) === DOCUMENT_STEPS.length ? (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                <p className="text-sm text-green-700 font-medium">
+                  ✅ All documents have been processed ({completedUploads.length} uploaded, {skippedUploads.length} skipped). You can upload skipped documents or replace any document if needed.
+                </p>
+              </div>
+            ) : (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <div className="text-sm text-blue-700">
+                  <p className="mb-2 font-medium">
+                    📋 You can upload any document. Recommended next document: 
+                    <span className="font-bold text-blue-800"> {DOCUMENT_STEPS[currentUploadStep].label}</span>
+                  </p>
+                  <p className="text-xs text-blue-600 mb-2 flex items-center">
+                    <span className="mr-1">📄</span> Documents are automatically processed and saved after upload - no manual save required!
+                  </p>
+                  <p className="text-xs text-amber-700 flex items-center">
+                    <span className="mr-1">💡</span> Don't have a document ready? You can skip it and upload it later.
+                  </p>
+                </div>
+              </div>
+            )}
+            
+            {/* Enhanced progress bar */}
+            <div className="mb-3">
+              <div className="flex gap-1">
+                {DOCUMENT_STEPS.map((step, idx) => (
+                  <div 
+                    key={step.key} 
+                    className={`h-3 flex-1 rounded-full transition-all duration-300 ${
+                      replacementMode && replacingDocKey === step.key
+                        ? 'bg-gradient-to-r from-orange-400 to-orange-500 shadow-sm' 
+                        : completedUploads.includes(step.key) 
+                          ? 'bg-gradient-to-r from-green-400 to-green-500 shadow-sm' 
+                          : skippedUploads.includes(step.key)
+                            ? 'bg-gradient-to-r from-yellow-400 to-yellow-500 shadow-sm'
+                            : currentUploadStep === idx 
+                              ? 'bg-gradient-to-r from-blue-400 to-blue-500 shadow-sm' 
+                              : 'bg-gray-200'
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
+            
+            {/* Enhanced progress bar legend */}
+            <div className="flex flex-wrap gap-6 text-xs">
+              <div className="flex items-center">
+                <div className="w-3 h-3 bg-gradient-to-r from-green-400 to-green-500 rounded-full mr-2 shadow-sm"></div>
+                <span className="text-slate-600 font-medium">Uploaded</span>
+              </div>
+              <div className="flex items-center">
+                <div className="w-3 h-3 bg-gradient-to-r from-yellow-400 to-yellow-500 rounded-full mr-2 shadow-sm"></div>
+                <span className="text-slate-600 font-medium">Skipped</span>
+              </div>
+              <div className="flex items-center">
+                <div className="w-3 h-3 bg-gradient-to-r from-blue-400 to-blue-500 rounded-full mr-2 shadow-sm"></div>
+                <span className="text-slate-600 font-medium">Current</span>
+              </div>
+              <div className="flex items-center">
+                <div className="w-3 h-3 bg-gray-200 rounded-full mr-2"></div>
+                <span className="text-slate-600 font-medium">Pending</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Enhanced document upload cards with premium styling */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-8">
+            {DOCUMENT_STEPS.map((step, index) => (
+              <DocumentCard key={step.key} step={step} index={index} />
             ))}
           </div>
-          
-          {/* Progress bar legend */}
-          <div className="mt-2 flex flex-wrap gap-4 text-xs text-gray-600">
-            <div className="flex items-center">
-              <div className="w-3 h-3 bg-green-500 rounded mr-1"></div>
-              <span>Uploaded</span>
-            </div>
-            <div className="flex items-center">
-              <div className="w-3 h-3 bg-yellow-500 rounded mr-1"></div>
-              <span>Skipped</span>
-            </div>
-            <div className="flex items-center">
-              <div className="w-3 h-3 bg-blue-500 rounded mr-1"></div>
-              <span>Current</span>
-            </div>
-            <div className="flex items-center">
-              <div className="w-3 h-3 bg-gray-300 rounded mr-1"></div>
-              <span>Pending</span>
-            </div>
-          </div>
-        </div>
 
-        <div className="flex gap-6 flex-col md:flex-row md:justify-evenly">
-          {DOCUMENT_STEPS.map((step, index) => (
-            <DocumentCard key={step.key} step={step} index={index} />
-          ))}
-        </div>
-
-        {/* Tabbed element for document details */}
-        <div className="mt-12">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="flex flex-wrap justify-center mb-4">
-              {DOCUMENT_STEPS.map((step) => (
-                <TabsTrigger
-                  key={step.key}
-                  value={step.key}
-                  className="mx-2 data-[state=active]:text-[#ff8000] data-[state=active]:font-bold data-[state=inactive]:text-white"
-                >
-                  {step.label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-            {DOCUMENT_STEPS.map((step) => (
-              <TabsContent key={step.key} value={step.key} className="text-center p-4 bg-white rounded shadow">
+          {/* Enhanced tabbed element for document details */}
+          <div className="mt-12">
+            <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200/50 overflow-hidden">
+              {/* Gradient header bar */}
+              <div className="h-1.5 w-full bg-gradient-to-r from-blue-400 to-purple-500"></div>
+              
+              <div className="p-6 md:p-8">
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                  <TabsList className="flex flex-wrap justify-center mb-6 bg-gray-100/80 rounded-xl p-2">
+                    {DOCUMENT_STEPS.map((step) => (
+                      <TabsTrigger
+                        key={step.key}
+                        value={step.key}
+                        className="mx-1 px-4 py-2 rounded-lg transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#ff8000] data-[state=active]:to-[#ff6b35] data-[state=active]:text-white data-[state=active]:font-semibold data-[state=active]:shadow-lg data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-white/80"
+                      >
+                        {step.label}
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
+                  {DOCUMENT_STEPS.map((step) => (
+                    <TabsContent 
+                      key={step.key} 
+                      value={step.key} 
+                      className="bg-gradient-to-br from-gray-50 to-white rounded-xl border border-gray-200/50 shadow-inner p-6"
+                    >
                 {/* Show OpenAI loading, error, summary, and JSON for this tab */}
                 {aiLoading[step.key] && (
                   <div className="flex items-center justify-center bg-blue-50 rounded-lg p-6 my-4">
@@ -1229,11 +1295,13 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
                 )}
               </TabsContent>
             ))}
-          </Tabs>
+                </Tabs>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
 
-      {/* Completion Dialog */}
+        {/* Completion Dialog */}
       <Dialog open={showCompletionDialog} onOpenChange={setShowCompletionDialog}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
@@ -1287,6 +1355,7 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
         </DialogContent>
       </Dialog>
 
+    </div>
     </PageLayout>
   );
 };

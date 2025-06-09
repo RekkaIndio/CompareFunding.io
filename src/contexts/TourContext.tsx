@@ -1,4 +1,7 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
+import { useAuth } from './AuthContext';
+import { createDraftApplication } from '../lib/signupDataUtils';
+import { toast } from 'sonner';
 
 interface TourStep {
   id: string;
@@ -61,7 +64,7 @@ const TOUR_STEPS: TourStep[] = [
   {
     id: 'documents-upload',
     title: 'Upload Documents',
-    content: 'Upload your business documents here. The more complete your documentation, the better offers you\'ll receive from lenders.',
+    content: 'Upload your business documents here. The more complete your documentation, the better offers you will receive from lenders.',
     target: '[data-tour="document-upload"]',
     sidebarTarget: '[data-tour="sidebar-documents"]',
     placement: 'bottom',
@@ -85,6 +88,16 @@ const TOUR_STEPS: TourStep[] = [
     placement: 'left',
     page: '/dashboard',
     customSpotlight: 'from-top'
+  },
+  {
+    id: 'draft-application-highlight',
+    title: 'Your Draft Application',
+    content: 'Perfect! We\'ve created a draft application for you using the information from your signup. Click here to review and complete your application.',
+    target: '[data-tour="draft-applications-section"]',
+    sidebarTarget: '[data-tour="sidebar-dashboard"]',
+    placement: 'top',
+    page: '/dashboard',
+    customSpotlight: 'full-section'
   }
 ];
 
@@ -92,19 +105,81 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isActive, setIsActive] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [steps] = useState<TourStep[]>(TOUR_STEPS);
+  const { user } = useAuth();
 
   const startTour = useCallback(() => {
     setIsActive(true);
     setCurrentStep(0);
   }, []);
 
-  const endTour = useCallback(() => {
+  const endTour = useCallback(async () => {
+    console.log('🎯 Tour ending...');
     setIsActive(false);
     setCurrentStep(0);
+    
+    // Since we now create the draft before the highlight step, 
+    // we just need to show a completion message
+    toast.success('Tour completed! Your draft application is ready to review.');
   }, []);
 
-  const nextStep = useCallback(() => {
+  const nextStep = useCallback(async () => {
     if (currentStep < steps.length - 1) {
+      // Check if we're about to show the draft application highlight step
+      const nextStepIndex = currentStep + 1;
+      const nextStepData = steps[nextStepIndex];
+      
+      if (nextStepData?.id === 'draft-application-highlight') {
+        // Create draft application before showing the highlight step
+        if (user?.uid) {
+          try {
+            console.log('🎯 Creating draft application before showing highlight step...');
+            const success = await createDraftApplication(user.uid);
+            if (success) {
+              console.log('✅ Draft application created successfully before highlight step');
+              
+              // Trigger dashboard refresh to show the new draft
+              if (typeof (window as any).refreshDashboard === 'function') {
+                console.log('🔄 Triggering dashboard refresh before highlight step...');
+                (window as any).refreshDashboard();
+                
+                // Add a longer delay to ensure the refresh completes and DOM updates
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                
+                // Check if the draft section is now visible
+                const draftSection = document.querySelector('[data-tour="draft-applications-section"]');
+                if (!draftSection) {
+                  console.warn('⚠️ Draft section not found after refresh, creating backup target');
+                  // Create a temporary target element if the draft section doesn't exist
+                  const backupElement = document.createElement('div');
+                  backupElement.setAttribute('data-tour', 'draft-applications-section');
+                  backupElement.style.position = 'absolute';
+                  backupElement.style.top = '200px';
+                  backupElement.style.left = '50%';
+                  backupElement.style.transform = 'translateX(-50%)';
+                  backupElement.style.width = '1px';
+                  backupElement.style.height = '1px';
+                  backupElement.style.opacity = '0';
+                  document.body.appendChild(backupElement);
+                  
+                  // Clean up after tour step
+                  setTimeout(() => {
+                    if (backupElement.parentNode) {
+                      backupElement.parentNode.removeChild(backupElement);
+                    }
+                  }, 5000);
+                }
+              } else {
+                console.warn('⚠️ Dashboard refresh function not available');
+              }
+            } else {
+              console.warn('⚠️ Draft application creation failed');
+            }
+          } catch (error) {
+            console.error('❌ Error creating draft application before highlight step:', error);
+          }
+        }
+      }
+      
       // Reduced delay for faster, smoother transitions
       setTimeout(() => {
         setCurrentStep(prev => prev + 1);
@@ -112,7 +187,7 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } else {
       endTour();
     }
-  }, [currentStep, steps.length, endTour]);
+  }, [currentStep, steps.length, endTour, user]);
 
   const prevStep = useCallback(() => {
     if (currentStep > 0) {

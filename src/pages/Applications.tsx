@@ -704,7 +704,7 @@ const Applications = () => {
                                 e.stopPropagation();
                                 navigate(`/applications/${application.id}`);
                               }}
-                              className="hover:bg-blue-50 border-blue-200 text-blue-700"
+                              className="hover:bg-blue-50 border-blue-200 text-[#ff8000]"
                             >
                               <Eye className="h-4 w-4 mr-1" />
                               View Details
@@ -733,7 +733,7 @@ const Applications = () => {
                                   e.stopPropagation();
                                   navigate(`/applications/${application.id}?tab=documents`);
                                 }}
-                                className="hover:bg-purple-50 border-purple-200 text-purple-700"
+                                className="hover:bg-purple-50 border-purple-200 text-white"
                               >
                                 <Upload className="h-4 w-4 mr-1" />
                                 Upload Docs

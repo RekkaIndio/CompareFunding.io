@@ -35,6 +35,7 @@ import OfferDetails from "./pages/OfferDetails";
 import LenderProfile from "./pages/Lender/LenderProfile";
 import LenderDashboard from "./pages/Lender/LenderDashboard";
 import LenderBilling from "./pages/Lender/LenderBilling";
+import LenderReporting from "./pages/Lender/LenderReporting";
 import LearnPage from "./pages/Learn";
 import HelpPage from "./pages/Help";
 import MatchedApplicationsRedirect from "./pages/MatchedApplications";
@@ -62,13 +63,10 @@ import AssetFinancePage from "./pages/FundingOptions/AssetFinance";
 // Import Integration pages
 import AccountingIntegrationPage from "./pages/Integrations/Accounting";
 import BankingIntegrationPage from "./pages/Integrations/Banking";
-import HMRCIntegrationPage from "./pages/Integrations/HMRC";
 
 // Import Account pages
 import BusinessDetailsPage from "./pages/account/BusinessDetails";
 import CurrentLendingPage from "./pages/account/CurrentLending";
-import HMRCStatusPage from "./pages/account/HMRCStatus";
-import DocumentUploadPage from "./pages/account/DocumentUpload";
 import UsersPage from "./pages/account/Users";
 import AdvisorPage from "./pages/account/Advisor";
 
@@ -150,13 +148,10 @@ const App = () => {
                         {/* Integration routes */}
                         <Route path="/integrations/accounting" element={<AccountingIntegrationPage />} />
                         <Route path="/integrations/banking" element={<BankingIntegrationPage />} />
-                        <Route path="/integrations/hmrc" element={<HMRCIntegrationPage />} />
 
                         {/* Account routes */}
                         <Route path="/account/business-details" element={<BusinessDetailsPage />} />
                         <Route path="/account/current-lending" element={<CurrentLendingPage />} />
-                        <Route path="/account/hmrc-status" element={<HMRCStatusPage />} />
-                        <Route path="/account/document-upload" element={<DocumentUploadPage />} />
                         <Route path="/account/users" element={<UsersPage />} />
                         <Route path="/account/advisor" element={<AdvisorPage />} />
 
@@ -177,6 +172,7 @@ const App = () => {
                         <Route path="/lender/profile" element={<LenderProfile />} />
                         <Route path="/lender/dashboard" element={<LenderDashboard />} />
                         <Route path="/lender/billing" element={<LenderBilling />} />
+                        <Route path="/lender/reporting" element={<LenderReporting />} />
                         <Route path="/lender/applications" element={<MatchedApplicationsRedirect />} />
                         <Route path="/matched-applications" element={<MatchedApplicationsRedirect />} />
                         <Route path="/lender/matched-applications" element={<LenderMatchedApplications />} />

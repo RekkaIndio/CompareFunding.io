@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { getDocument, getDocuments, createDocument, updateDocument } from '@/firebase';
 import { toast } from 'sonner';
@@ -53,6 +53,7 @@ const CreateOffer = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [conditions, setConditions] = useState(['']);
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   
@@ -252,6 +253,7 @@ const CreateOffer = () => {
       const notificationData = {
         user_id: application.user_id,
         type: 'new_offer',
+        category: 'offer', // Add category for easier filtering
         title: 'New Financing Offer',
         message: `${lenderName !== 'Unnamed Lender' ? lenderName : 'A lender'} has submitted a financing offer of £${formData.offered_amount.toLocaleString()} for your application`,
         application_id: id,
@@ -260,11 +262,26 @@ const CreateOffer = () => {
         created_at: new Date().toISOString()
       };
       
-      await createDocument('notifications', notificationData);
+      console.log('Creating notification for business:', application.user_id, notificationData);
+      
+      const { data: notificationResult, error: notificationError } = await createDocument('notifications', notificationData);
+      
+      if (notificationError) {
+        console.error('Failed to create notification:', notificationError);
+        // Don't throw error here as the offer was created successfully
+      } else {
+        console.log('Notification created successfully:', notificationResult);
+      }
         
       return offerData;
     },
     onSuccess: (data) => {
+      // Invalidate notifications cache to ensure the business user sees the new notification
+      if (application?.user_id) {
+        queryClient.invalidateQueries({ queryKey: ['notifications', application.user_id] });
+        queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      }
+      
       toast.success('Offer submitted successfully!');
       navigate('/matched-applications');
     },

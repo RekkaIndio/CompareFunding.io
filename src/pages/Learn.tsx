@@ -71,182 +71,248 @@ const stats = [
 
 const LearnPage: React.FC = () => {
   return (
-    <PageLayout fullWidth>
-      <div className="py-12 px-4 w-full max-w-none mx-0">
-        {/* Hero Section */}
-        <div className="relative mb-16 text-center">
-          <div className="absolute inset-0 bg-gradient-to-r from-fundhub-orange/10 to-fundhub-blue/10 rounded-3xl"></div>
-          <div className="relative py-16 px-8">
-            <h1 className="text-5xl font-bold mb-6 bg-gradient-to-r from-fundhub-orange to-fundhub-blue bg-clip-text text-transparent">
-              Master Business Funding
-            </h1>
-            <p className="text-xl text-slate-300 max-w-3xl mx-auto mb-8">
-              Transform your business with expert knowledge, proven strategies, and cutting-edge tools. 
-              Join thousands of successful entrepreneurs who've mastered the art of funding.
-            </p>
+    <PageLayout>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
+        <div className="max-w-7xl mx-auto px-4 py-8">
+          {/* Hero Section - OffersList inspired header */}
+          <div className="relative mb-12">
+            {/* Enhanced status indicator bar matching OffersList */}
+            <div className="h-3 w-full bg-gradient-to-r from-fundhub-orange to-red-500 rounded-t-xl"></div>
             
-            {/* Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto">
-              {stats.map((stat, index) => (
-                <div key={index} className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
-                  <div className="flex items-center justify-center mb-2 text-fundhub-orange">
-                    {stat.icon}
+            {/* Header with gradient background matching OffersList */}
+            <div className="relative overflow-hidden bg-gradient-to-br from-[#212936] to-[#2c3c53] text-white rounded-b-xl shadow-xl">
+              <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent"></div>
+              <div className="relative px-8 py-16 text-center">
+                <h1 className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-fundhub-orange via-yellow-400 to-red-500 bg-clip-text text-transparent">
+                  Master Business Funding
+                </h1>
+                <p className="text-xl text-slate-300 max-w-3xl mx-auto mb-12 leading-relaxed">
+                  Transform your business with expert knowledge, proven strategies, and cutting-edge tools. 
+                  Join thousands of successful entrepreneurs who've mastered the art of funding.
+                </p>
+                
+                {/* Stats with OffersList card styling */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto">
+                  {stats.map((stat, index) => (
+                    <div key={index} className="relative overflow-hidden bg-white/95 backdrop-blur-sm border-slate-200/50 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer">
+                      {/* Status indicator bar */}
+                      <div className="h-1.5 w-full bg-gradient-to-r from-fundhub-orange to-red-500"></div>
+                      <div className="p-6 text-center">
+                        <div className="flex items-center justify-center mb-3 text-fundhub-orange">
+                          {stat.icon}
+                        </div>
+                        <div className="text-3xl font-bold text-slate-800 mb-2">{stat.number}</div>
+                        <div className="text-sm text-slate-600 font-medium">{stat.label}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Featured Content */}
+          <div className="mb-16">
+            <div className="text-center mb-12">
+              <h2 className="text-4xl font-bold text-slate-800 mb-4">Featured Learning Resources</h2>
+              <p className="text-lg text-slate-600 max-w-2xl mx-auto">Handpicked content to accelerate your funding journey</p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {featuredContent.map((content, index) => (
+                <div key={index} className="group relative overflow-hidden bg-white/95 backdrop-blur-sm border border-slate-200/50 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 cursor-pointer">
+                  {/* Status indicator bar matching OffersList */}
+                  <div className="h-1.5 w-full bg-gradient-to-r from-fundhub-orange to-red-500"></div>
+                  
+                  <div className="p-8">
+                    <div className="flex items-center justify-between mb-6">
+                      <div className="p-3 bg-gradient-to-br from-fundhub-orange/10 to-red-500/10 rounded-xl">
+                        {content.type === "Video Course" ? (
+                          <Play className="h-8 w-8 text-fundhub-orange" />
+                        ) : (
+                          <BookOpen className="h-8 w-8 text-fundhub-orange" />
+                        )}
+                      </div>
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-fundhub-orange to-red-500 text-white shadow-sm">
+                        {content.type}
+                      </span>
+                    </div>
+                    
+                    <h3 className="text-xl font-bold text-slate-800 mb-3 group-hover:text-fundhub-orange transition-colors">
+                      {content.title}
+                    </h3>
+                    <p className="text-slate-600 mb-6 leading-relaxed">{content.description}</p>
+                    
+                    <div className="flex items-center justify-between mb-6">
+                      <span className="text-sm font-medium text-slate-500 flex items-center gap-1">
+                        <Calendar className="w-4 h-4" />
+                        {content.duration}
+                      </span>
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                        {content.difficulty}
+                      </span>
+                    </div>
+                    
+                    <button className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-fundhub-orange to-red-500 text-white rounded-lg hover:shadow-lg transform hover:scale-105 transition-all duration-200 font-medium">
+                      Start Learning
+                      <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    </button>
                   </div>
-                  <div className="text-2xl font-bold text-white mb-1">{stat.number}</div>
-                  <div className="text-sm text-slate-300">{stat.label}</div>
                 </div>
               ))}
             </div>
           </div>
-        </div>
 
-        {/* Featured Content */}
-        <div className="mb-16">
-          <h2 className="text-3xl font-bold mb-8 text-center text-fundhub-orange">Featured Learning Content</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {featuredContent.map((content, index) => (
-              <div key={index} className="bg-white rounded-2xl shadow-xl overflow-hidden hover:shadow-2xl transition-all duration-300 group">
-                <div className="relative">
-                  <img 
-                    src={content.image} 
-                    alt={content.title} 
-                    className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300" 
-                  />
-                  <div className="absolute top-4 left-4">
-                    <span className="bg-fundhub-orange text-white px-3 py-1 rounded-full text-sm font-semibold">
-                      {content.type}
-                    </span>
-                  </div>
-                  {content.type === "Video Course" && (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="bg-white/90 rounded-full p-4 group-hover:scale-110 transition-transform duration-300">
-                        <Play className="w-8 h-8 text-fundhub-orange" />
+          {/* Learning Categories */}
+          <div className="mb-16">
+            <div className="text-center mb-12">
+              <h2 className="text-4xl font-bold text-slate-800 mb-4">Learning Categories</h2>
+              <p className="text-lg text-slate-600 max-w-2xl mx-auto">
+                Explore comprehensive resources tailored to your business funding journey
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {resources.map((section, index) => (
+                <div key={section.title} className="group relative overflow-hidden bg-white/95 backdrop-blur-sm border border-slate-200/50 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+                  {/* Status indicator bar matching OffersList */}
+                  <div className={`h-1.5 w-full bg-gradient-to-r ${section.color}`}></div>
+                  
+                  <div className="p-8">
+                    <div className="flex items-center gap-4 mb-6">
+                      <div className="p-3 bg-gradient-to-br from-fundhub-orange/10 to-red-500/10 rounded-xl group-hover:scale-110 transition-transform duration-300">
+                        {section.icon}
                       </div>
+                      <h3 className="text-xl font-bold text-slate-800">{section.title}</h3>
                     </div>
-                  )}
-                </div>
-                <div className="p-6">
-                  <h3 className="text-xl font-bold mb-3 text-gray-900">{content.title}</h3>
-                  <p className="text-gray-600 mb-4">{content.description}</p>
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-sm text-gray-500 flex items-center gap-1">
-                      <Calendar className="w-4 h-4" />
-                      {content.duration}
-                    </span>
-                    <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-sm">
-                      {content.difficulty}
-                    </span>
+                    <p className="text-slate-600 mb-6 leading-relaxed">{section.description}</p>
+                    <div className="space-y-3">
+                      {section.links.map((link, linkIndex) => (
+                        <a 
+                          key={linkIndex}
+                          href={link.url} 
+                          className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 border border-slate-100 hover:border-fundhub-orange/20 transition-all duration-300 group/link"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-2 h-2 bg-gradient-to-r from-fundhub-orange to-red-500 rounded-full"></div>
+                            <span className="font-medium text-slate-700 group-hover/link:text-fundhub-orange transition-colors">
+                              {link.label}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs bg-slate-100 border border-slate-200 text-slate-600 px-2 py-1 rounded-full">
+                              {link.difficulty}
+                            </span>
+                            <ArrowRight className="w-4 h-4 text-slate-400 group-hover/link:text-fundhub-orange group-hover/link:translate-x-1 transition-all" />
+                          </div>
+                        </a>
+                      ))}
+                    </div>
                   </div>
-                  <a 
-                    href={content.url} 
-                    className="flex items-center gap-2 bg-fundhub-orange text-white px-6 py-3 rounded-lg font-semibold hover:bg-orange-600 transition-colors group"
-                  >
-                    Start Learning
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  </a>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
 
-        {/* Learning Categories */}
-        <div className="mb-16">
-          <h2 className="text-3xl font-bold mb-8 text-center text-fundhub-orange">Learning Categories</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {resources.map((section, index) => (
-              <div key={section.title} className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden group">
-                <div className={`h-2 bg-gradient-to-r ${section.color}`}></div>
-                <div className="p-8">
-                  <div className="flex items-center gap-4 mb-6">
-                    {section.icon}
-                    <h3 className="text-2xl font-bold text-gray-900">{section.title}</h3>
-                  </div>
-                  <p className="text-gray-600 mb-6 leading-relaxed">{section.description}</p>
-                  <div className="space-y-3">
-                    {section.links.map((link, linkIndex) => (
-                      <a 
-                        key={linkIndex}
-                        href={link.url} 
-                        className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors group/link"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-2 h-2 bg-fundhub-orange rounded-full"></div>
-                          <span className="font-medium text-gray-900 group-hover/link:text-fundhub-orange transition-colors">
-                            {link.label}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
-                            {link.difficulty}
-                          </span>
-                          <ArrowRight className="w-4 h-4 text-gray-400 group-hover/link:text-fundhub-orange group-hover/link:translate-x-1 transition-all" />
-                        </div>
-                      </a>
-                    ))}
-                  </div>
-                </div>
+          {/* Resource Downloads */}
+          <div className="mb-16">
+            {/* Enhanced header matching OffersList */}
+            <div className="relative overflow-hidden bg-gradient-to-br from-[#212936] to-[#2c3c53] text-white rounded-xl shadow-xl mb-12">
+              <div className="h-1.5 w-full bg-gradient-to-r from-fundhub-orange to-red-500"></div>
+              <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent"></div>
+              <div className="relative px-8 py-12 text-center">
+                <h2 className="text-4xl font-bold mb-4 bg-gradient-to-r from-fundhub-orange via-yellow-400 to-red-500 bg-clip-text text-transparent">
+                  Free Resource Library
+                </h2>
+                <p className="text-xl text-slate-300 max-w-2xl mx-auto leading-relaxed">
+                  Download our comprehensive guides, templates, and checklists to accelerate your funding journey
+                </p>
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Resource Downloads */}
-        <div className="mb-16 bg-gradient-to-r from-fundhub-blue to-purple-600 rounded-2xl p-8 text-white">
-          <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold mb-4">Free Resource Library</h2>
-            <p className="text-xl opacity-90 max-w-2xl mx-auto">
-              Download our comprehensive guides, templates, and checklists to accelerate your funding journey.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[
-              { title: "Funding Application Template", description: "Professional template used by successful businesses", downloads: "2.3K" },
-              { title: "Credit Improvement Checklist", description: "Step-by-step guide to boost your credit score", downloads: "1.8K" },
-              { title: "Lender Comparison Spreadsheet", description: "Compare offers side-by-side with our tool", downloads: "3.1K" },
-            ].map((resource, index) => (
-              <div key={index} className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/20">
-                <div className="flex items-center gap-3 mb-3">
-                  <Download className="w-6 h-6" />
-                  <h3 className="font-bold">{resource.title}</h3>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {[
+                { title: "Funding Application Template", description: "Professional template used by successful businesses", downloads: "2.3K" },
+                { title: "Credit Improvement Checklist", description: "Step-by-step guide to boost your credit score", downloads: "1.8K" },
+                { title: "Lender Comparison Spreadsheet", description: "Compare offers side-by-side with our tool", downloads: "3.1K" },
+              ].map((resource, index) => (
+                <div key={index} className="group relative overflow-hidden bg-white/95 backdrop-blur-sm border border-slate-200/50 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2">
+                  {/* Status indicator bar */}
+                  <div className="h-1.5 w-full bg-gradient-to-r from-fundhub-orange to-red-500"></div>
+                  
+                  <div className="p-8">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="p-3 bg-gradient-to-br from-fundhub-orange/10 to-red-500/10 rounded-xl group-hover:scale-110 transition-transform duration-300">
+                        <Download className="w-8 h-8 text-fundhub-orange" />
+                      </div>
+                      <h3 className="font-bold text-slate-800 text-xl group-hover:text-fundhub-orange transition-colors">{resource.title}</h3>
+                    </div>
+                    <p className="text-slate-600 mb-6 leading-relaxed">{resource.description}</p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-slate-500 flex items-center gap-1 font-medium">
+                        <Users className="w-4 h-4" />
+                        {resource.downloads} downloads
+                      </span>
+                      <button className="px-6 py-3 bg-gradient-to-r from-fundhub-orange to-red-500 text-white rounded-lg hover:shadow-lg transform hover:scale-105 transition-all duration-200 font-medium flex items-center gap-2">
+                        Download
+                        <Download className="w-4 h-4 group-hover:translate-y-1 transition-transform" />
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                <p className="text-sm opacity-80 mb-4">{resource.description}</p>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs opacity-70">{resource.downloads} downloads</span>
-                  <button className="bg-white text-fundhub-blue px-4 py-2 rounded-lg font-semibold hover:bg-gray-100 transition-colors text-sm">
-                    Download
-                  </button>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
 
         {/* Call to Action */}
-        <div className="text-center bg-white rounded-2xl shadow-xl p-12">
-          <h2 className="text-3xl font-bold mb-4 text-fundhub-orange">Ready to Take Action?</h2>
-          <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-            Apply your new knowledge and get personalized support from our funding experts. 
-            Your success story starts here.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <a 
-              href="/applications/new" 
-              className="inline-flex items-center gap-2 bg-fundhub-orange text-white px-8 py-4 rounded-lg font-semibold hover:bg-orange-600 transition-colors"
-            >
-              Start Your Application
-              <ArrowRight className="w-5 h-5" />
-            </a>
-            <a 
-              href="/help" 
-              className="inline-flex items-center gap-2 bg-fundhub-blue text-white px-8 py-4 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
-            >
-              Get Expert Help
-              <Users className="w-5 h-5" />
-            </a>
+        <div className="text-center relative">
+          <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-gray-900 to-black rounded-3xl"></div>
+          <div className="relative bg-white/10 backdrop-blur-sm border border-white/20 rounded-3xl p-12 shadow-2xl">
+            <div className="mb-8">
+              <h2 className="text-4xl font-bold mb-6 bg-gradient-to-r from-fundhub-orange to-red-500 bg-clip-text text-transparent">
+                Ready to Take Action?
+              </h2>
+              <p className="text-xl text-slate-300 mb-8 max-w-2xl mx-auto leading-relaxed">
+                Apply your new knowledge and get personalized support from our funding experts. 
+                Your success story starts here.
+              </p>
+            </div>
+          {/* Call to Action */}
+          <div className="text-center">
+            {/* Enhanced CTA card matching OffersList */}
+            <div className="relative overflow-hidden bg-gradient-to-br from-[#212936] to-[#2c3c53] text-white rounded-xl shadow-xl">
+              <div className="h-1.5 w-full bg-gradient-to-r from-fundhub-orange to-red-500"></div>
+              <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent"></div>
+              <div className="relative px-8 py-16">
+                <h2 className="text-4xl md:text-5xl font-bold mb-6 bg-gradient-to-r from-fundhub-orange via-yellow-400 to-red-500 bg-clip-text text-transparent">
+                  Ready to Take Action?
+                </h2>
+                <p className="text-xl text-slate-300 mb-12 max-w-2xl mx-auto leading-relaxed">
+                  Apply your new knowledge and get personalized support from our funding experts. 
+                  Your success story starts here.
+                </p>
+                
+                <div className="flex flex-col sm:flex-row gap-6 justify-center">
+                  <a 
+                    href="/applications/new" 
+                    className="inline-flex items-center justify-center gap-3 bg-gradient-to-r from-fundhub-orange to-red-500 text-white px-8 py-4 rounded-xl font-semibold hover:shadow-lg transition-all duration-300 transform hover:scale-105 group"
+                  >
+                    Start Your Application
+                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                  </a>
+                  <a 
+                    href="/help" 
+                    className="inline-flex items-center justify-center gap-3 bg-white/10 backdrop-blur-sm border border-white/20 text-white px-8 py-4 rounded-xl font-semibold hover:bg-white/20 transition-all duration-300 transform hover:scale-105 group"
+                  >
+                    Get Expert Help
+                    <Users className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                  </a>
+                </div>
+              </div>              </div>
+            </div>
           </div>
         </div>
       </div>
+    </div>
     </PageLayout>
   );
 };

@@ -6,7 +6,7 @@ import {
   CreditCard, 
   TrendingUp, 
   Users, 
-  DollarSign, 
+  PoundSterling, 
   MessageSquare, 
   Eye, 
   CheckCircle, 
@@ -22,7 +22,8 @@ import {
   ArrowDownRight,
   Building2,
   PieChart,
-  Activity
+  Activity,
+  FileText
 } from 'lucide-react';
 import { getDocument, getDocuments, createDocument, getLenderApplications } from '@/firebase';
 import { toast } from 'sonner';
@@ -428,28 +429,6 @@ const LenderDashboard = () => {
               </div>
             </div>
           </div>
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-            <div className="flex items-center space-x-2 bg-white/90 backdrop-blur-sm rounded-lg px-4 py-3 shadow-lg border border-slate-200/50">
-              <div className="w-3 h-3 bg-emerald-400 rounded-full animate-pulse"></div>
-              <span className="text-sm font-medium text-slate-700">
-                Credits: <span className="text-slate-900 font-semibold">{billingData?.credits_balance || 0}</span>
-              </span>
-            </div>
-            <Button
-              onClick={() => navigate('/lender-billing')}
-              className="bg-[#212936] hover:bg-[#212936]/90 text-white border-b-2 border-[#ff8000] hover:border-[#ff8000]/80 transition-all duration-200"
-            >
-              Manage Credits
-            </Button>
-            <div className="flex gap-2">
-              <button className="p-3 text-slate-500 hover:text-slate-700 hover:bg-white/60 rounded-lg transition-all duration-200 bg-white/30 backdrop-blur-sm border border-slate-200/50">
-                <Bell className="h-5 w-5" />
-              </button>
-              <button className="p-3 text-slate-500 hover:text-slate-700 hover:bg-white/60 rounded-lg transition-all duration-200 bg-white/30 backdrop-blur-sm border border-slate-200/50">
-                <Download className="h-5 w-5" />
-              </button>
-            </div>
-          </div>
         </div>
 
         {/* Key Metrics Cards */}
@@ -540,72 +519,7 @@ const LenderDashboard = () => {
             </div>
           </div>
         </div>
-
-        {/* Secondary Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200/50 p-6 hover:shadow-xl transition-all duration-300">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-slate-100 rounded-lg">
-                  <Activity className="h-5 w-5 text-slate-600" />
-                </div>
-                <div>
-                  <div className="font-semibold text-slate-900">Active Portfolio</div>
-                  <div className="text-sm text-slate-500">Current active loans</div>
-                </div>
-              </div>
-            </div>
-            <div className="text-2xl font-bold text-slate-900 mb-2">{stats.activeApplications}</div>
-            <div className="text-sm text-slate-600">
-              Total value: £{(stats.totalLoanAmount * 0.8).toLocaleString()}
-            </div>
-          </div>
-
-          <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200/50 p-6 hover:shadow-xl transition-all duration-300">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-slate-100 rounded-lg">
-                  <PieChart className="h-5 w-5 text-slate-600" />
-                </div>
-                <div>
-                  <div className="font-semibold text-slate-900">Monthly Pipeline</div>
-                  <div className="text-sm text-slate-500">This month's activity</div>
-                </div>
-              </div>
-            </div>
-            <div className="text-2xl font-bold text-slate-900 mb-2">{stats.monthlyConversion.total}</div>
-            <div className="w-full bg-slate-200 rounded-full h-2 mb-2">
-              <div 
-                className="bg-gradient-to-r from-[#ff8000] to-[#212936] h-2 rounded-full transition-all duration-300" 
-                style={{ width: `${stats.monthlyConversion.total ? (stats.monthlyConversion.accepted / stats.monthlyConversion.total) * 100 : 0}%` }}
-              ></div>
-            </div>
-            <div className="text-sm text-slate-600">
-              {stats.monthlyConversion.accepted} accepted ({stats.monthlyConversion.total ? 
-                Math.round((stats.monthlyConversion.accepted / stats.monthlyConversion.total) * 100) : 0}% rate)
-            </div>
-          </div>
-
-          <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200/50 p-6 hover:shadow-xl transition-all duration-300">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-slate-100 rounded-lg">
-                  <Clock className="h-5 w-5 text-slate-600" />
-                </div>
-                <div>
-                  <div className="font-semibold text-slate-900">Response Time</div>
-                  <div className="text-sm text-slate-500">Average response</div>
-                </div>
-              </div>
-            </div>
-            <div className="text-2xl font-bold text-slate-900 mb-2">2.4h</div>
-            <div className="text-sm text-emerald-600 flex items-center gap-1">
-              <ArrowUpRight className="h-3 w-3" />
-              15% faster than last month
-            </div>
-          </div>
-        </div>
-        
+  
         {/* Enhanced Tabs Navigation */}
         <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200/50 overflow-hidden">
           <div className="border-b border-slate-200/50">
@@ -773,16 +687,22 @@ const LenderDashboard = () => {
                   </div>
                 </div>
 
-                {/* Recent Activity Feed */}
+                {/* New Applications */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                   <div className="px-6 py-5 bg-slate-800">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-blue-500 rounded-lg">
-                        <Activity className="h-5 w-5 text-white" />
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-blue-500 rounded-lg">
+                          <FileText className="h-5 w-5 text-white" />
+                        </div>
+                        <div>
+                          <h2 className="text-lg font-semibold text-white">New Applications</h2>
+                          <p className="text-sm text-slate-300">Fresh funding opportunities available</p>
+                        </div>
                       </div>
-                      <div>
-                        <h2 className="text-lg font-semibold text-white">Recent Activity</h2>
-                        <p className="text-sm text-slate-300">Latest updates on your applications</p>
+                      <div className="text-right">
+                        <div className="text-2xl font-bold text-white">{availableApplications?.length || 0}</div>
+                        <div className="text-sm text-slate-300">Available</div>
                       </div>
                     </div>
                   </div>
@@ -790,51 +710,83 @@ const LenderDashboard = () => {
                     {applicationsLoading ? (
                       <div className="space-y-4">
                         {[...Array(4)].map((_, i) => (
-                          <div key={i} className="animate-pulse flex items-center space-x-3">
-                            <div className="h-8 w-8 bg-gray-200 rounded-full"></div>
-                            <div className="flex-1">
-                              <div className="h-4 bg-gray-200 rounded w-2/3 mb-1"></div>
-                              <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                          <div key={i} className="animate-pulse">
+                            <div className="flex items-center space-x-4">
+                              <div className="h-12 w-12 bg-gray-200 rounded-lg"></div>
+                              <div className="flex-1">
+                                <div className="h-4 bg-gray-200 rounded w-1/3 mb-2"></div>
+                                <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                              </div>
+                              <div className="h-6 w-16 bg-gray-200 rounded"></div>
                             </div>
                           </div>
                         ))}
                       </div>
-                    ) : lenderApplications && lenderApplications.length > 0 ? (
+                    ) : availableApplications && availableApplications.length > 0 ? (
                       <div className="space-y-4">
-                        {lenderApplications.slice(0, 6).map(app => (
+                        {availableApplications.slice(0, 5).map(app => (
                           <div 
-                            key={app.id} 
-                            className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
-                            onClick={() => navigate(`/lender/applications/${app.id}`)}
+                            key={app.id}
+                            className="group p-4 border border-gray-200 rounded-xl hover:border-blue-300 hover:shadow-md cursor-pointer transition-all duration-200 bg-gradient-to-r from-gray-50 to-blue-50/30"
+                            onClick={() => navigate(`/business/${app.id}`)}
                           >
-                            <div className="h-8 w-8 bg-gradient-to-br from-orange-100 to-orange-200 rounded-full flex items-center justify-center">
-                              <Building2 className="h-4 w-4 text-orange-600" />
-                            </div>
-                            <div className="flex-1">
-                              <div className="font-medium text-gray-900">{app.company_name || 'Business'}</div>
-                              <div className="text-sm text-gray-500">
-                                Applied for {new Intl.NumberFormat('en-GB', {
-                                  style: 'currency',
-                                  currency: 'GBP'
-                                }).format(app.loan_amount || 0)}
+                            <div className="flex justify-between items-center">
+                              <div className="flex items-center gap-4">
+                                <div className="h-12 w-12 bg-gradient-to-br from-blue-100 to-blue-200 rounded-lg flex items-center justify-center">
+                                  <Building2 className="h-6 w-6 text-blue-600" />
+                                </div>
+                                <div>
+                                  <div className="font-semibold text-gray-900 group-hover:text-blue-700 transition-colors">
+                                    {app.company_name || app.business_name || 'Business'}
+                                  </div>
+                                  <div className="text-sm text-gray-600 mt-1">
+                                    Loan Amount: {new Intl.NumberFormat('en-GB', {
+                                      style: 'currency',
+                                      currency: 'GBP'
+                                    }).format(app.loan_amount || 0)}
+                                  </div>
+                                  <div className="text-xs text-gray-500 mt-1 flex items-center gap-2">
+                                    <Calendar className="h-3 w-3" />
+                                    Applied {new Date(app.created_at || app.application_date).toLocaleDateString()}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <span className="px-3 py-1 text-xs rounded-full bg-blue-100 text-blue-800 font-medium">
+                                  New
+                                </span>
+                                <div className="p-2 text-gray-400 group-hover:text-blue-600 transition-colors">
+                                  <Eye className="h-4 w-4" />
+                                </div>
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <span className={`px-2 py-1 text-xs rounded-full ${
-                                app.isMatched 
-                                  ? 'bg-green-100 text-green-800' 
-                                  : 'bg-blue-100 text-blue-800'
-                              }`}>
-                                {app.isMatched ? 'Matched' : 'New'}
-                              </span>
-                              <Clock className="h-3 w-3 text-gray-400" />
-                            </div>
                           </div>
                         ))}
+                        {availableApplications.length > 5 && (
+                          <div className="text-center pt-4">
+                            <button 
+                              className="text-sm text-orange-600 hover:text-orange-700 font-medium"
+                              onClick={() => setActiveTab('applications')}
+                            >
+                              View all {availableApplications.length} new applications →
+                            </button>
+                          </div>
+                        )}
                       </div>
                     ) : (
-                      <div className="text-center py-8 text-gray-500">
-                        No recent activity to show.
+                      <div className="text-center py-12">
+                        <div className="mx-auto h-16 w-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                          <FileText className="h-8 w-8 text-gray-400" />
+                        </div>
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">No new applications</h3>
+                        <p className="text-gray-600 mb-4">Check back later for new funding opportunities</p>
+                        <button 
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+                          onClick={() => setActiveTab('applications')}
+                        >
+                          <Eye className="h-4 w-4" />
+                          View All Applications
+                        </button>
                       </div>
                     )}
                   </div>
@@ -855,13 +807,6 @@ const LenderDashboard = () => {
                     >
                       <Eye className="h-4 w-4" />
                       Review Applications
-                    </button>
-                    <button 
-                      className="w-full flex items-center gap-3 px-4 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                      onClick={() => navigate('/lender/billing')}
-                    >
-                      <CreditCard className="h-4 w-4" />
-                      Purchase Credits
                     </button>
                     <button 
                       className="w-full flex items-center gap-3 px-4 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
@@ -1037,7 +982,7 @@ const LenderDashboard = () => {
                       <div 
                         key={app.id} 
                         className="group p-6 hover:bg-gray-50 cursor-pointer transition-all duration-200"
-                        onClick={() => navigate(`/lender/applications/${app.id}`)}
+                        onClick={() => navigate(`/business/${app.id}`)}
                       >
                         <div className="flex items-center gap-4">
                           <div className="h-16 w-16 bg-gradient-to-br from-orange-100 to-orange-200 rounded-xl flex items-center justify-center group-hover:shadow-md transition-shadow">

@@ -50,11 +50,14 @@ interface Application extends BaseAudit {
   company_name: string;
   loan_amount: number;
   loan_purpose: string;
-  status: 'pending' | 'approved' | 'rejected' | 'under_review' | 'documents_requested' | 'submitted' | 'offered';
+  purpose_category?: string;
+  status: 'draft' | 'pending' | 'approved' | 'rejected' | 'under_review' | 'documents_requested' | 'submitted' | 'offered';
   application_date: string | Date; // ISO string or Date
   documents_submitted?: string[];
   matched_lenders?: string[]; // Array of lender IDs
   businesses_snapshot?: BusinessProfile; // Snapshot at time of application
+  is_prefilled?: boolean; // Flag for auto-created applications
+  prefill_source?: string; // Source of prefill data
 }
 
 interface Offer extends BaseAudit {
@@ -138,7 +141,7 @@ const formatCurrency = (amount: number | undefined) => {
 
 const BusinessDashboard = () => {
   const { user } = useAuth();
-  const { startTour } = useTour();
+  const { startTour, isActive: isTourActive, currentTourStep } = useTour();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [businessProfile, setBusinessProfile] = useState<BusinessProfile | null>(null);
@@ -157,6 +160,21 @@ const BusinessDashboard = () => {
   const [initialMessagesForUI, setInitialMessagesForUI] = useState<Message[]>([]);
   const [isLoadingMessagesForSelectedConvo, setIsLoadingMessagesForSelectedConvo] = useState(false);
 
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  // Function to trigger data refresh - can be called from outside
+  const refreshDashboardData = useCallback(() => {
+    console.log('🔄 Refreshing dashboard data...');
+    setRefreshTrigger(prev => prev + 1);
+  }, []);
+
+  // Expose refresh function globally for tour completion
+  useEffect(() => {
+    (window as any).refreshDashboard = refreshDashboardData;
+    return () => {
+      delete (window as any).refreshDashboard;
+    };
+  }, [refreshDashboardData]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -174,6 +192,16 @@ const BusinessDashboard = () => {
             offersPromise,
             notificationsPromise,
           ]);
+
+          console.log('=== Dashboard Data Fetch Results ===');
+          console.log('Applications result:', applicationsResult);
+          console.log('Applications data:', applicationsResult.data);
+          console.log('Number of applications:', applicationsResult.data?.length || 0);
+          
+          if (applicationsResult.data) {
+            const draftApps = applicationsResult.data.filter((app: any) => app.status === 'draft');
+            console.log('Draft applications found:', draftApps);
+          }
 
           if (profileResult.data) setBusinessProfile(profileResult.data as BusinessProfile);
           if (applicationsResult.data) setApplications(applicationsResult.data as Application[]);
@@ -217,7 +245,7 @@ const BusinessDashboard = () => {
       }
     };
     fetchData();
-  }, [user]);
+  }, [user?.uid, refreshTrigger]);
 
   // Handle tour start from URL parameter
   useEffect(() => {
@@ -1114,6 +1142,7 @@ const BusinessDashboard = () => {
     
     const pendingCount = pendingOffers.length;
     const totalCount = offers.length;
+    const hasApplications = applications.length > 0;
 
     // Get the most recent offer
     const latestOffer = pendingOffers.length > 0 
@@ -1128,14 +1157,17 @@ const BusinessDashboard = () => {
       ? Math.max(...pendingOffers.map(offer => offer.offer_amount))
       : 0;
 
+    // Show "Apply First" only if there are no applications at all
+    const showApplyFirst = totalCount === 0 && !hasApplications;
+
     return (
       <div 
         className="bg-slate-800 rounded-xl shadow-lg border border-slate-700 p-6 relative overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer"
         onClick={() => navigate('/offers')}
       >
-        <div className={`absolute -top-6 -right-6 w-20 h-20 bg-gradient-to-br ${totalCount === 0 ? 'from-orange-500 to-orange-600' : 'from-amber-500 to-amber-600'} rounded-full opacity-20`}></div>
+        <div className={`absolute -top-6 -right-6 w-20 h-20 bg-gradient-to-br ${showApplyFirst ? 'from-orange-500 to-orange-600' : 'from-amber-500 to-amber-600'} rounded-full opacity-20`}></div>
         <div className="absolute top-4 right-4">
-          {totalCount === 0 ? (
+          {showApplyFirst ? (
             <div className={`p-2 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg shadow-md`}>
               <Plus className="h-6 w-6 text-white" />
             </div>
@@ -1148,7 +1180,7 @@ const BusinessDashboard = () => {
         
         <div className="space-y-2">
           <div className="text-sm font-medium text-slate-300">Total Offers</div>
-          {totalCount === 0 ? (
+          {showApplyFirst ? (
             <>
               <div className="text-3xl font-bold text-orange-400 text-center">Apply First</div>
               <div className="flex items-center justify-center">
@@ -1160,7 +1192,13 @@ const BusinessDashboard = () => {
               <div className="text-3xl font-bold text-white text-center">{totalCount}</div>
               <div className="flex items-center justify-between">
                 <div className="text-sm text-slate-400">
-                  {pendingCount > 0 ? `${pendingCount} pending offers` : ""}
+                  {totalCount === 0 && hasApplications ? (
+                    "Waiting for offers"
+                  ) : pendingCount > 0 ? (
+                    `${pendingCount} pending offers`
+                  ) : (
+                    ""
+                  )}
                 </div>
                 <ArrowUpRight className="h-4 w-4 text-amber-400" />
               </div>
@@ -1239,6 +1277,117 @@ const BusinessDashboard = () => {
     );
   };
 
+  // Render draft applications section
+  const renderDraftApplications = () => {
+    // Filter to show only draft applications
+    const draftApplications = applications.filter(application => 
+      application.status === 'draft'
+    );
+
+    // Sort drafts by date, most recent first
+    const sortedDrafts = draftApplications.sort((a, b) => 
+      new Date(b.application_date as string).getTime() - new Date(a.application_date as string).getTime()
+    );
+
+    if (draftApplications.length === 0) {
+      return null; // Don't show section if no drafts
+    }
+
+    return (
+      <div className="space-y-6 mb-8" data-tour="draft-applications-section">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Draft Applications</h2>
+            <p className="text-gray-600">Complete your applications to submit to lenders</p>
+          </div>
+        </div>
+        
+        <div className="grid gap-4">
+          {sortedDrafts.map((application) => (
+            <Card 
+              key={application.id} 
+              className="overflow-hidden transition-all duration-300 transform hover:-translate-y-1 rounded-xl shadow-lg hover:shadow-xl bg-white/95 backdrop-blur-sm border-slate-200/50 hover:shadow-2xl cursor-pointer"
+              onClick={() => navigate(`/applications/new?draft=${application.id}`)}
+            >
+              {/* Draft status indicator bar */}
+              <div className="h-3 w-full bg-gradient-to-r from-yellow-400 to-orange-500"></div>
+              
+              {/* Header */}
+              <CardHeader className="relative overflow-hidden bg-gradient-to-br from-yellow-50 to-orange-50">
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800 border border-yellow-200">
+                        <Edit3 className="h-4 w-4" />
+                        <span className="ml-1.5">Draft</span>
+                      </div>
+                      {application.is_prefilled && (
+                        <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
+                          <Zap className="h-3 w-3 mr-1" />
+                          Auto-filled
+                        </div>
+                      )}
+                    </div>
+                    <ArrowRight className="h-5 w-5 text-gray-500 hover:text-gray-700 transition-colors" />
+                  </div>
+                  
+                  <CardTitle className="text-xl font-bold text-gray-900 mb-2">
+                    Application #{application.id.substring(0, 8).toUpperCase()}
+                  </CardTitle>
+                  
+                  <div className="flex items-center gap-6 text-gray-600 text-sm">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      <span>Created {new Date(application.application_date as string).toLocaleDateString()}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Building className="h-4 w-4" />
+                      <span className="font-semibold">{application.company_name || 'Business'}</span>
+                    </div>
+                  </div>
+                </div>
+              </CardHeader>
+              
+              <CardContent className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* Loan Amount */}
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-gray-900">
+                      {formatCurrency(application.loan_amount)}
+                    </div>
+                    <div className="text-sm text-gray-600 mt-1">Requested Amount</div>
+                  </div>
+                  
+                  {/* Purpose */}
+                  <div className="text-center">
+                    <div className="text-lg font-semibold text-gray-900">
+                      {application.purpose_category || 'Not specified'}
+                    </div>
+                    <div className="text-sm text-gray-600 mt-1">Purpose</div>
+                  </div>
+                  
+                  {/* Action */}
+                  <div className="text-center">
+                    <Button 
+                      className="bg-[#ff8800] hover:bg-[#e67700] text-white px-4 py-2 rounded-lg transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/applications/new?draft=${application.id}`);
+                      }}
+                    >
+                      <Edit3 className="h-4 w-4 mr-2" />
+                      Complete Application
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   // Main component return
   if (overallDashboardLoading) {
     return (
@@ -1300,6 +1449,7 @@ const BusinessDashboard = () => {
           {/* Overview Content - No Tabs */}
           <div className="w-full">
             {renderOverviewCards()}
+            {renderDraftApplications()}
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
               <div className="lg:col-span-3">
                 {renderCurrentApplications()}
