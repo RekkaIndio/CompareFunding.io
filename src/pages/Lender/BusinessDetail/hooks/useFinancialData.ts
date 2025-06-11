@@ -86,7 +86,22 @@ export const useFinancialData = (id: string | undefined, applicationData: Applic
             let docKey = "";
             
             // Map document types to keys matching the tabs
-            if (data.documentType?.toLowerCase().includes("profit") || 
+            // First check for the new document types from the business documents page
+            if (data.documentType === "Signed Accounts" || 
+                data.documentType?.toLowerCase().includes("signed accounts")) {
+              docKey = "signed-accounts";
+            } else if (data.documentType === "Management Accounts" || 
+                      data.documentType?.toLowerCase().includes("management accounts")) {
+              docKey = "management-accounts";
+            } else if (data.documentType === "Aged Debtors" || 
+                      data.documentType?.toLowerCase().includes("aged debtors")) {
+              docKey = "aged-debtors";
+            } else if (data.documentType === "Aged Creditors" || 
+                      data.documentType?.toLowerCase().includes("aged creditors")) {
+              docKey = "aged-creditors";
+            }
+            // Keep the old mappings for backward compatibility
+            else if (data.documentType?.toLowerCase().includes("profit") || 
                 data.documentType?.toLowerCase().includes("loss") || 
                 data.documentType === "pl") {
               docKey = "profitLoss";
@@ -139,7 +154,22 @@ export const useFinancialData = (id: string | undefined, applicationData: Applic
                 // Similar processing to above...
                 // Map document types to keys matching the tabs
                 let docKey = "";
-                if (data.documentType?.toLowerCase().includes("profit") || 
+                // First check for the new document types from the business documents page
+                if (data.documentType === "Signed Accounts" || 
+                    data.documentType?.toLowerCase().includes("signed accounts")) {
+                  docKey = "signed-accounts";
+                } else if (data.documentType === "Management Accounts" || 
+                          data.documentType?.toLowerCase().includes("management accounts")) {
+                  docKey = "management-accounts";
+                } else if (data.documentType === "Aged Debtors" || 
+                          data.documentType?.toLowerCase().includes("aged debtors")) {
+                  docKey = "aged-debtors";
+                } else if (data.documentType === "Aged Creditors" || 
+                          data.documentType?.toLowerCase().includes("aged creditors")) {
+                  docKey = "aged-creditors";
+                }
+                // Keep the old mappings for backward compatibility
+                else if (data.documentType?.toLowerCase().includes("profit") || 
                     data.documentType?.toLowerCase().includes("loss") || 
                     data.documentType === "pl") {
                   docKey = "profitLoss";

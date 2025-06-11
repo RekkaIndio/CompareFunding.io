@@ -58,10 +58,47 @@ export interface Application {
 export interface Business {
   id?: string;
   business_name?: string;
+  businessDescription?: string; // camelCase version used in database
   industry_sector?: string;
   description?: string;
   business_type?: string;
+  logo_url?: string;
+  website?: string;
   credit_info?: any;
+  // Registration and company details (both camelCase and snake_case for compatibility)
+  companyNumber?: string; // camelCase version used in database
+  companyName?: string; // alternative company name field
+  company_number?: string;
+  registration_number?: string;
+  // Trading information
+  years_trading?: number;
+  year_founded?: number;
+  incorporation_date?: string;
+  // Address information
+  address?: {
+    line1?: string;
+    city?: string;
+    postal_code?: string;
+    country?: string;
+  };
+  registered_address?: {
+    line1?: string;
+    city?: string;
+    postal_code?: string;
+    country?: string;
+  };
+  trading_address?: {
+    line1?: string;
+    city?: string;
+    postal_code?: string;
+    country?: string;
+  };
+  // Contact and business details
+  business_email?: string;
+  business_phone?: string;
+  annual_revenue?: string | number;
+  company_size?: string;
+  vat_number?: string;
 }
 
 export interface ApplicationData {

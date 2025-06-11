@@ -186,16 +186,16 @@ export const useBusinessData = (id: string | undefined, user: any) => {
     retry: 1
   });
 
-  // Check for accepted connections between lender and this application
+  // Check for connections between lender and this application (any status)
   const { data: lenderConnection } = useQuery({
     queryKey: ['lenderConnection', user?.uid, id],
     queryFn: async () => {
       if (!user?.uid || !id) return null;
       
+      // Check for any connection (pending or accepted) - this is for basic access to view the application
       const { data, error } = await getDocuments('lender_connections', [
         { field: 'lender_id', operator: '==', value: user.uid },
-        { field: 'application_id', operator: '==', value: id },
-        { field: 'status', operator: '==', value: 'accepted' }
+        { field: 'application_id', operator: '==', value: id }
       ]);
       
       if (error) {
@@ -208,20 +208,12 @@ export const useBusinessData = (id: string | undefined, user: any) => {
     enabled: !!id && !!user?.uid,
   });
 
-  // Check if lender has accepted interest or made an offer (can see business details)
+  // Check if lender has made an offer (can see business details)
   const canSeeBusinessDetails = () => {
     if (!applicationData?.application) {
 
       return false;
     }
-    
-    // Check if lender has an accepted connection
-    const hasAcceptedConnection = !!lenderConnection;
-    
-    // Check if lender has expressed interest AND it has been accepted
-    const hasAcceptedInterest = applicationData.application.interested_lenders?.some(
-      l => l.lender_id === user?.uid && l.status === 'accepted'
-    );
     
     // Check if lender has made an offer
     const hasMadeOffer = applicationData.application.offers?.some(o => o.lender_id === user?.uid);
@@ -231,28 +223,23 @@ export const useBusinessData = (id: string | undefined, user: any) => {
       o => o.lender_id === user?.uid && o.status === 'accepted'
     );
     
-    // Check if lender is in matched_lenders array
-    const isMatched = applicationData.application.matched_lenders?.includes(user?.uid);
-    
-    // Check if application has been approved (accepting any offer approves the application)
-    const isApplicationApproved = applicationData.application?.status === 'approved';
+    // Check if application has been approved AND this lender was the one approved
+    const isApplicationApprovedForThisLender = applicationData.application?.status === 'approved' && 
+                                              applicationData.application?.lender_id === user?.uid;
     
     console.log('[DEBUG Access] Access control check:', { 
       userId: user?.uid, 
-      hasAcceptedConnection,
-      hasAcceptedInterest,
       hasMadeOffer,
       hasAcceptedOffer,
-      isMatched,
-      isApplicationApproved,
+      isApplicationApprovedForThisLender,
       applicationStatus: applicationData.application?.status,
-      interestedLenders: applicationData.application.interested_lenders || [],
-      offers: applicationData.application.offers || [],
-      matchedLenders: applicationData.application.matched_lenders || [],
-      lenderConnection: lenderConnection
+      offers: applicationData.application.offers || []
     });
     
-    return hasAcceptedConnection || hasAcceptedInterest || hasMadeOffer || isMatched || hasAcceptedOffer || isApplicationApproved;
+    // Only allow access if lender has made an offer, has an accepted offer, 
+    // or if the application was approved for this specific lender
+    // NOTE: Removed hasAcceptedConnection check - connections are for basic access only, not business details
+    return hasMadeOffer || hasAcceptedOffer || isApplicationApprovedForThisLender;
   };
 
   // Check if lender is already matched
@@ -270,7 +257,10 @@ export const useBusinessData = (id: string | undefined, user: any) => {
   const isLenderMatched = () => {
     if (!applicationData?.application) return false;
     
-    const hasAcceptedConnection = !!lenderConnection;
+    // Check if lender has an accepted connection (new connection system)
+    const hasAcceptedConnection = !!(lenderConnection && lenderConnection.status === 'accepted');
+    
+    // Legacy checks for backwards compatibility
     const isInMatchedLenders = applicationData.application.matched_lenders?.includes(user?.uid);
     const isAcceptedInterest = applicationData.application.interested_lenders?.some(
       l => l.lender_id === user?.uid && l.status === 'accepted'
@@ -293,6 +283,7 @@ export const useBusinessData = (id: string | undefined, user: any) => {
     
     console.log('[DEBUG Match] Lender match status check:', {
       hasAcceptedConnection,
+      connectionStatus: lenderConnection?.status,
       isInMatchedLenders,
       isAcceptedInterest,
       hasAcceptedOffer,
@@ -324,6 +315,12 @@ export const useBusinessData = (id: string | undefined, user: any) => {
     return `Application #${applicationData.application.application_number || id?.substring(0, 8)}`;
   };
 
+  // Check if lender has made an offer (for UI state management)
+  const hasLenderMadeOffer = () => {
+    if (!applicationData?.application) return false;
+    return applicationData.application.offers?.some(o => o.lender_id === user?.uid) || false;
+  };
+
   // Check if lender has expressed interest
   const hasExpressedInterest = () => {
     if (!applicationData?.application) return false;
@@ -340,6 +337,7 @@ export const useBusinessData = (id: string | undefined, user: any) => {
     isAlreadyMatched,
     isLenderMatched,
     getDisplayName,
-    hasExpressedInterest
+    hasExpressedInterest,
+    hasLenderMadeOffer
   };
 };

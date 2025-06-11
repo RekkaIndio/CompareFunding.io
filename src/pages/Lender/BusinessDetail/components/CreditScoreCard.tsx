@@ -415,7 +415,7 @@ export const CreditScoreCard: React.FC<CreditScoreCardProps> = ({ creditScore })
   };
 
   return (
-    <Card className="bg-[#1d2432] shadow-lg rounded-xl overflow-hidden border-0 h-fit">
+    <Card className="bg-[#1d2432] shadow-lg rounded-xl overflow-hidden border-0 flex flex-col h-full">
       <CardHeader className="bg-[#1d2432] text-white p-4">
         <div className="flex justify-between items-start">
           <CardTitle className="text-lg font-semibold text-white">Credit Score</CardTitle>
@@ -459,7 +459,7 @@ export const CreditScoreCard: React.FC<CreditScoreCardProps> = ({ creditScore })
           </TooltipProvider>
         </div>
       </CardHeader>
-      <CardContent className="p-4 flex flex-col items-center">
+      <CardContent className="p-4 flex flex-col items-center flex-1 justify-center">
         {creditScore ? (
           <>
             <div className="flex flex-col items-center justify-center mb-3">
@@ -509,7 +509,7 @@ export const CreditScoreCard: React.FC<CreditScoreCardProps> = ({ creditScore })
               </div>
             </div>
             
-            <div className="w-full mt-4 border-t border-gray-700 pt-3">
+            <div className="w-full mt-4 border-t border-gray-700 pt-3 mt-auto">
               <div className="grid grid-cols-1 gap-3">
                 {/* Business Category */}
                 <div className="bg-[#1a2030] p-3 rounded-md border border-slate-700/50">
@@ -534,7 +534,7 @@ export const CreditScoreCard: React.FC<CreditScoreCardProps> = ({ creditScore })
             </div>
           </>
         ) : (
-          <div className="text-center py-6">
+          <div className="text-center py-6 flex-1 flex flex-col justify-center">
             <AlertCircle className="mx-auto h-12 w-12 text-slate-600 mb-3" />
             <p className="text-slate-300 font-medium">Credit Score Not Available</p>
             <p className="text-xs text-slate-400">No credit information provided yet.</p>

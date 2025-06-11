@@ -45,6 +45,7 @@ import HelpPage from "./pages/Help";
 import MatchedApplicationsRedirect from "./pages/MatchedApplications";
 import LenderMatchedApplications from "./pages/Lender/MatchedApplications";
 import Messages from "./pages/Messages";
+import MessagesPage from "./pages/MessagesPage";
 import ApplicationDetail from "./pages/Applications/ApplicationDetail";
 import CreateOffer from "./pages/CreateOffer";
 import Settings from "./pages/Settings";
@@ -53,6 +54,7 @@ import BusinessDetail from "./pages/BusinessDetail";
 import CreditScorePage from "./pages/CreditScore"; // Import the CreditScorePage
 
 // Import the new SignUpJourney components
+import FundingPathChoice from "./pages/SignUpJourney/FundingPathChoice";
 import SignUpBusinessDetailsForm from "./pages/SignUpJourney/BusinessDetailsForm";
 import IndustrySpecifics from "./pages/SignUpJourney/IndustrySpecifics";
 import EmailPasswordPage from "./pages/SignUpJourney/EmailPasswordPage";
@@ -129,7 +131,8 @@ const App = () => {
                       {/* <Route path="/business-details" element={<BusinessDetailsForm />} /> */}
                       
                       {/* New SignUpJourney routes */}
-                      <Route path="/signup-journey" element={<Navigate to="/signup-journey/email-password" replace />} />
+                      <Route path="/signup-journey" element={<Navigate to="/signup-journey/funding-path-choice" replace />} />
+                      <Route path="/signup-journey/funding-path-choice" element={<FundingPathChoice />} />
                       <Route path="/signup-journey/email-password" element={<EmailPasswordPage />} />
                       <Route path="/signup-journey/business-details" element={<SignUpBusinessDetailsForm />} />
                       <Route path="/signup-journey/additional-details" element={<AdditionalDetails />} />
@@ -205,7 +208,8 @@ const App = () => {
                         <Route path="/lender/offers" element={<OffersList />} />
                         
                         {/* Shared routes */}
-                        <Route path="/messages" element={<Messages />} />
+                        <Route path="/messages" element={<MessagesPage />} />
+                        <Route path="/messages-old" element={<Messages />} />
                         <Route path="/settings" element={<Settings />} />
                         <Route path="/notifications" element={<Notifications />} />
                       </Route>

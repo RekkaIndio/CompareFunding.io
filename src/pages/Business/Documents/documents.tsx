@@ -115,6 +115,8 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
   const [skippedUploads, setSkippedUploads] = useState<string[]>([]); // Keys of skipped document uploads
   const [replacementMode, setReplacementMode] = useState<boolean>(false); // Whether we're in replacement mode
   const [replacingDocKey, setReplacingDocKey] = useState<string | null>(null); // Key of the document being replaced
+  // Track when documents were last processed to prevent overwriting fresh data
+  const [lastProcessedTime, setLastProcessedTime] = useState<{ [key: string]: number }>({});
   
   // Tab control - automatically sync with current upload step
   const [activeTab, setActiveTab] = useState<string>(DOCUMENT_STEPS[0].key);
@@ -151,6 +153,7 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
     setExtracted((prev) => ({ ...prev, [key]: result }));
     setAiLoading((prev) => ({ ...prev, [key]: true }));
     setAiError((prev) => ({ ...prev, [key]: null }));
+    
     try {
       const documentType = DOCUMENT_STEPS.find((s) => s.key === key)?.label || key;
       
@@ -159,14 +162,42 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
       
       setAiResults((prev) => ({ ...prev, [key]: aiResult }));
       
-      toast({
-        title: "Processing complete",
-        description: `${documentType} data extracted successfully.`,
-        variant: "default"
-      });
+      // Track when this document was processed
+      setLastProcessedTime(prev => ({ ...prev, [key]: Date.now() }));
+      
+      // Check if meaningful financial data was extracted
+      const hasFinancialData = aiResult.json && (
+        (aiResult.json.lineItems && Array.isArray(aiResult.json.lineItems) && aiResult.json.lineItems.length > 0) ||
+        aiResult.json.profitAndLoss ||
+        aiResult.json.balanceSheet ||
+        aiResult.json.trialBalance ||
+        aiResult.json.agedPayables ||
+        aiResult.json.agedReceivables
+      );
+      
+      if (hasFinancialData) {
+        toast({
+          title: "Processing complete",
+          description: `${documentType} data extracted successfully.`,
+          variant: "default"
+        });
+      } else {
+        toast({
+          title: "Document processed",
+          description: `${documentType} was processed but limited financial data was extracted. This may be due to document format or quality.`,
+          variant: "default"
+        });
+      }
     } catch (err: any) {
-      setAiError((prev) => ({ ...prev, [key]: err?.message || "OpenAI error" }));
+      console.error(`AI processing failed for ${key}:`, err);
+      setAiError((prev) => ({ ...prev, [key]: err?.message || "Processing error" }));
       setAiResults((prev) => ({ ...prev, [key]: null }));
+      
+      toast({
+        title: "Processing failed",
+        description: `Failed to process ${DOCUMENT_STEPS.find((s) => s.key === key)?.label || key}. Please try again or upload a different format.`,
+        variant: "destructive"
+      });
     } finally {
       setAiLoading((prev) => ({ ...prev, [key]: false }));
     }
@@ -212,7 +243,6 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
         const querySnapshot = await getDocs(pendingQuery);
         
         if (!querySnapshot.empty) {
-          console.log(`Found ${querySnapshot.size} legacy pending documents from signup journey`);
           setPendingDocsCount(querySnapshot.size);
           setProcessingPendingDocs(true);
           
@@ -230,8 +260,6 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
               if (aiLoading[documentKey] || completedUploads.includes(documentKey)) {
                 continue;
               }
-              
-              console.log(`Processing legacy pending document: ${documentType} (${documentKey})`);
               
               // Fetch the file from Storage
               const response = await fetch(fileUrl);
@@ -579,6 +607,11 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
       const currentUser = auth.currentUser;
       if (!currentUser) return;
 
+      // Don't fetch if we're currently in replacement mode to avoid overwriting freshly processed data
+      if (replacementMode) {
+        return;
+      }
+
       try {
         setLoadingSaved(true);
         
@@ -599,20 +632,32 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
         
         querySnapshot.forEach((doc) => {
           const data = doc.data();
+          
           // Map document types to their corresponding keys
           const docTypeToKey: { [key: string]: string } = {
-            'Profit and Loss': 'pl',
-            'Balance Sheet': 'bs',
-            'Trial Balance': 'tb',
-            'Aged Payables': 'ap',
-            'Aged Receivables': 'ar'
+            'Signed Accounts': 'signed-accounts',
+            'Management Accounts': 'management-accounts', 
+            'Aged Debtors': 'aged-debtors',
+            'Aged Creditors': 'aged-creditors',
+            // Legacy mappings for backwards compatibility
+            'Profit and Loss': 'signed-accounts',
+            'Balance Sheet': 'signed-accounts',
+            'Trial Balance': 'management-accounts',
+            'Aged Payables': 'aged-creditors',
+            'Aged Receivables': 'aged-debtors'
           };
           
-          // Also map by documentKey for signup journey documents
+          // Try to find the key using documentType first
           let key = docTypeToKey[data.documentType];
+          
+          // If no key found from documentType, try documentKey for signup journey documents
           if (!key && data.documentKey) {
-            // For signup journey documents, use the documentKey directly since it matches our DOCUMENT_STEPS keys
             key = data.documentKey;
+          }
+          
+          // If still no key, check if it's one of our expected document step keys
+          if (!key && DOCUMENT_STEPS.some(step => step.key === data.documentType)) {
+            key = data.documentType;
           }
           
           if (key) {
@@ -638,19 +683,21 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
                 if (!completedDocKeys.includes(key)) {
                   completedDocKeys.push(key);
                 }
+              } else {
+                // Skip if this document type not fully processed yet
               }
             }
+          } else {
+            // No mapping found for document type
           }
         });
         
         // Update state with saved documents and results
         setSavedDocs(savedFinancials);
         
-        // Only set AI results for documents that aren't already being processed
+        // Set AI results for all saved documents - we want to load them back into the UI
         Object.entries(savedResults).forEach(([key, result]) => {
-          if (!aiLoading[key]) {
-            setAiResults(prev => ({ ...prev, [key]: result }));
-          }
+          setAiResults(prev => ({ ...prev, [key]: result }));
         });
         
         // Update completedUploads state
@@ -683,7 +730,7 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
     };
 
     fetchSavedDocuments();
-  }, [auth.currentUser]);
+  }, [auth.currentUser, replacementMode]);
 
   // Automatically update active tab when current upload step changes
   useEffect(() => {
@@ -971,20 +1018,20 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
                       {isReplacing ? 'Replace' : 'Upload'}
                     </div>
                   </FileExtractor>
-                  
-                  {/* Enhanced skip button */}
-                  {isCurrent && !isReplacing && (
-                    <button
-                      onClick={(e) => { 
-                        e.preventDefault();
-                        handleSkipDocument(key);
-                      }}
-                      className="w-full px-4 py-2 text-sm font-medium rounded-lg text-center bg-gray-100 text-gray-600 hover:bg-gray-200 transition-all duration-200"
-                    >
-                      Skip for Now
-                    </button>
-                  )}
-                </div>
+                    
+                    {/* Enhanced skip button */}
+                    {isCurrent && !isReplacing && (
+                      <button
+                        onClick={(e) => { 
+                          e.preventDefault();
+                          handleSkipDocument(key);
+                        }}
+                        className="w-full px-4 py-2 text-sm font-medium rounded-lg text-center bg-gray-100 text-gray-600 hover:bg-gray-200 transition-all duration-200"
+                      >
+                        Skip for Now
+                      </button>
+                    )}
+                  </div>
               )}
               
               {/* Enhanced file selection indicator */}
@@ -1516,7 +1563,9 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
                         let cleanData = aiResults[step.key]?.json;
                         
                         // Safety check
-                        if (!cleanData) return {};
+                        if (!cleanData) {
+                          return {};
+                        }
                         
                         // If cleanData is a string, try to parse it
                         if (typeof cleanData === 'string') {

@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { getDocument, updateDocument, createDocument, serverTimestamp, getDocuments } from '@/firebase';
+import { getDocument, updateDocument, createDocument, serverTimestamp } from '@/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { formatApplicationNumber } from '@/lib/applicationUtils';
 import PageLayout from '@/components/PageLayout';
-import ConversationsUI from '@/components/ConversationsUI';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -66,7 +65,6 @@ const OfferDetails = () => {
   const { user } = useAuth();
   const [declineReason, setDeclineReason] = useState('');
   const [isDeclineDialogOpen, setIsDeclineDialogOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('details');
   const [isLenderProfileModalOpen, setIsLenderProfileModalOpen] = useState(false);
   const isLender = user?.role === 'lender';
   
@@ -149,34 +147,6 @@ const OfferDetails = () => {
     enabled: !!id && !!user,
   });
 
-  // Fetch messages for this specific application/offer
-  const { data: messages, refetch: refetchMessages } = useQuery({
-    queryKey: ['messages', offer?.application_id, user?.uid],
-    queryFn: async () => {
-      if (!offer?.application_id || !user?.uid) return [];
-      
-      try {
-        const { data: messageData } = await getDocuments('messages', [
-          { field: 'application_id', operator: '==', value: offer.application_id }
-        ]);
-        
-        if (!messageData) return [];
-        
-        // Filter messages for this specific conversation (business <-> lender for this offer)
-        return messageData
-          .filter(msg => 
-            (msg.sender_id === user.uid && msg.recipient_id === (isLender ? offer.applications?.user_id : offer.lender_id)) ||
-            (msg.sender_id === (isLender ? offer.applications?.user_id : offer.lender_id) && msg.recipient_id === user.uid)
-          )
-          .sort((a, b) => new Date(a.sent_at).getTime() - new Date(b.sent_at).getTime());
-      } catch (error) {
-        console.error('Error fetching messages:', error);
-        return [];
-      }
-    },
-    enabled: !!offer?.application_id && !!user?.uid && activeTab === 'messages',
-  });
-
   // Fetch detailed lender profile for modal
   const { data: lenderProfile, isLoading: isLoadingLenderProfile } = useQuery({
     queryKey: ['lenderProfile', offer?.lender_id],
@@ -211,50 +181,6 @@ const OfferDetails = () => {
     },
     enabled: !!offer?.lender_id && isLenderProfileModalOpen,
   });
-
-  // Message handlers
-  const handleSendMessage = async (applicationId: string, recipientId: string, content: string) => {
-    try {
-      await createDocument('messages', {
-        application_id: applicationId,
-        sender_id: user.uid,
-        recipient_id: recipientId,
-        content: content.trim(),
-        sent_at: serverTimestamp(),
-        read: false,
-      });
-      
-      // Refetch messages to update UI
-      refetchMessages();
-      toast.success('Message sent successfully!');
-    } catch (error) {
-      console.error('Error sending message:', error);
-      toast.error('Failed to send message');
-    }
-  };
-
-  const handleFetchMessages = async (conversationId: string, applicationId: string, lenderId: string) => {
-    // This is handled by the useQuery above, but we need to provide this function for ConversationsUI
-    return messages || [];
-  };
-
-  // Create conversation data for ConversationsUI
-  const conversation = offer ? {
-    id: `${offer.application_id}-${offer.lender_id}`,
-    userId: isLender ? offer.applications?.user_id || '' : user?.uid || '',
-    lenderId: isLender ? user?.uid || '' : offer.lender_id,
-    lenderName: isLender ? (offer.business?.business_name || 'Business') : offer.lender_name,
-    lenderAvatar: isLender ? '' : (offer.company_logo || ''),
-    applicationId: offer.application_id,
-    applicationPurpose: offer.applications?.purpose || 'Business Funding',
-    lastMessage: messages?.[messages.length - 1]?.content || 'No messages yet',
-    lastMessageTime: messages?.[messages.length - 1]?.sent_at ? new Date(messages[messages.length - 1].sent_at) : new Date(),
-    unreadCount: 0,
-    applicationAmount: offer.offered_amount,
-    offerStatus: offer.status,
-    businessName: offer.business?.business_name,
-    businessId: offer.applications?.business_id,
-  } : null;
 
   // Accept offer
   const handleAcceptOffer = async () => {
@@ -997,17 +923,10 @@ const OfferDetails = () => {
                             </DialogContent>
                           </Dialog>
 
-                          {offer.business && conversation && (
+                          {offer.business && isAccepted && (
                             <Button 
                               className="w-full bg-[#212936] hover:bg-[#212936]/90"
-                              onClick={() => {
-                                // Scroll to messaging section
-                                const messagingCard = document.querySelector('[data-messaging-card]');
-                                if (messagingCard) {
-                                  messagingCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                }
-                                toast.info('Use the messaging section below to contact the business');
-                              }}
+                              onClick={() => navigate('/messages')}
                             >
                               <MessageSquare className="mr-2 h-4 w-4" />
                               Message Business
@@ -1211,47 +1130,34 @@ const OfferDetails = () => {
                   </CardContent>
                 </Card>
                 
-                {/* Messaging Card - Contextual to this offer */}
-                {(isAccepted || (isLender && isPending) || isNegotiating) && (
-                  <Card className="bg-white/95 backdrop-blur-sm border-slate-200/50 shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl" data-messaging-card>
+                {/* Messaging Navigation - Available after offer acceptance */}
+                {isAccepted && (
+                  <Card className="bg-white/95 backdrop-blur-sm border-slate-200/50 shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl">
                     <CardHeader className="bg-gradient-to-br from-[#212936] to-[#2c3c53] text-white rounded-t-xl">
                       <CardTitle className="text-white flex items-center gap-2">
                         <MessageSquare className="h-5 w-5" />
-                        Messages
+                        Communication
                       </CardTitle>
                       <CardDescription className="text-gray-200">
-                        Communicate about this offer with {isLender ? 'the business' : 'the lender'}
+                        Message with {isLender ? 'the business' : 'the lender'} about this offer
                       </CardDescription>
                     </CardHeader>
-                    <CardContent className="p-0">
-                      {conversation ? (
-                        <div className="h-[500px] min-h-[500px]">
-                          <ConversationsUI
-                            conversations={[conversation]}
-                            initialSelectedConversation={conversation}
-                            initialMessages={messages || []}
-                            currentUserId={user?.uid || ''}
-                            userRole={isLender ? 'lender' : 'business'}
-                            onSendMessage={handleSendMessage}
-                            onFetchMessages={handleFetchMessages}
-                            isLoadingConversations={false}
-                            isLoadingMessages={false}
-                          />
+                    <CardContent className="p-6">
+                      <div className="text-center space-y-4">
+                        <div className="bg-slate-50 rounded-lg p-4">
+                          <MessageSquare className="h-12 w-12 text-[#ff8000] mx-auto mb-3" />
+                          <p className="text-sm text-slate-600 mb-4">
+                            Continue your conversation with {isLender ? 'the business' : offer?.lender_name} about this accepted offer.
+                          </p>
+                          <Button 
+                            onClick={() => navigate('/messages')}
+                            className="bg-[#ff8000] hover:bg-[#ff8000]/90 text-white"
+                          >
+                            <MessageSquare className="mr-2 h-4 w-4" />
+                            Open Messages
+                          </Button>
                         </div>
-                      ) : (
-                        <div className="p-6 text-center space-y-4">
-                          <div className="bg-slate-50 rounded-lg p-4">
-                            <MessageSquare className="h-8 w-8 text-slate-400 mx-auto mb-2" />
-                            <p className="text-sm text-slate-600">
-                              {isAccepted 
-                                ? 'Messaging will be available once both parties are ready to communicate.'
-                                : isPending && isLender
-                                ? 'You can message the business once they respond to your offer.'
-                                : 'Messaging is available for this offer.'}
-                            </p>
-                          </div>
-                        </div>
-                      )}
+                      </div>
                     </CardContent>
                   </Card>
                 )}

@@ -77,7 +77,7 @@ export const FinancialDocumentsCard: React.FC<FinancialDocumentsCardProps> = ({
   };
   
   return (
-    <Card className="bg-white/90 backdrop-blur-sm border border-slate-200/50 shadow-xl hover:shadow-2xl transition-all duration-300 mb-8">
+    <Card className="bg-white/90 backdrop-blur-sm border border-slate-200/50 shadow-xl hover:shadow-2xl transition-all duration-300 flex flex-col h-full">
       <CardHeader className={`${isLenderMatched ? 'bg-green-800' : 'bg-[#212936]'} text-white rounded-t-xl border-b-2 border-[#ff8000]`}>
         <div className="flex justify-between items-center">
           <div>
@@ -97,9 +97,9 @@ export const FinancialDocumentsCard: React.FC<FinancialDocumentsCardProps> = ({
           </div>
         </div>
       </CardHeader>
-      <CardContent className="p-6">
+      <CardContent className="p-6 flex-1 flex flex-col">
         {!isLenderMatched ? (
-          <div className="flex flex-col items-center justify-center py-6 text-center">
+          <div className="flex flex-col items-center justify-center py-6 text-center flex-1">
             <Lock className="h-12 w-12 text-slate-400 mb-3" />
             <h3 className="text-lg font-medium text-slate-700 mb-2">Documents Locked</h3>
             <p className="text-sm text-slate-500 max-w-md mb-4">
@@ -113,7 +113,7 @@ export const FinancialDocumentsCard: React.FC<FinancialDocumentsCardProps> = ({
             </Alert>
           </div>
         ) : !financialData || !hasDocuments() ? (
-          <div className="flex flex-col items-center justify-center py-6 text-center">
+          <div className="flex flex-col items-center justify-center py-6 text-center flex-1">
             <FileText className="h-12 w-12 text-slate-400 mb-3" />
             <h3 className="text-lg font-medium text-slate-700 mb-2">No Documents Available</h3>
             <p className="text-sm text-slate-500 max-w-md mb-4">
@@ -127,7 +127,7 @@ export const FinancialDocumentsCard: React.FC<FinancialDocumentsCardProps> = ({
             </Alert>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-6 flex-1 overflow-hidden">
             <Alert variant="default" className="bg-green-50 border-green-100 text-green-800 mb-4">
               <CheckCircle2 className="h-4 w-4" />
               <AlertDescription>
@@ -136,64 +136,66 @@ export const FinancialDocumentsCard: React.FC<FinancialDocumentsCardProps> = ({
             </Alert>
             
             {/* Display financial data in structured tables */}
-            {Object.entries(financialData).map(([key, document]) => {
-              if (!document) return null;
-              
-              const documentUrl = document?.fileUrl || document?.documentUrl || document?.url;
-              const hasData = document?.data && Object.keys(document.data).length > 0;
-              
-              // Only show documents that have either a file URL or processed data
-              if (!documentUrl && !hasData) return null;
-              
-              return (
-                <div key={key} className="space-y-4">
-                  {/* Document Header with Download Button */}
-                  <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-                    <div className="flex items-center">
-                      <FileText className="h-5 w-5 text-[#ff8000] mr-3" />
-                      <div>
-                        <p className="font-medium text-slate-900">{getDocumentTypeName(key)}</p>
-                        <p className="text-xs text-slate-500">
-                          {document?.documentName || document?.fileName || 'Financial document'}
-                        </p>
+            <div className="overflow-y-auto max-h-96">
+              {Object.entries(financialData).map(([key, document]) => {
+                if (!document) return null;
+                
+                const documentUrl = document?.fileUrl || document?.documentUrl || document?.url;
+                const hasData = document?.data && Object.keys(document.data).length > 0;
+                
+                // Only show documents that have either a file URL or processed data
+                if (!documentUrl && !hasData) return null;
+                
+                return (
+                  <div key={key} className="space-y-4 mb-6">
+                    {/* Document Header with Download Button */}
+                    <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+                      <div className="flex items-center">
+                        <FileText className="h-5 w-5 text-[#ff8000] mr-3" />
+                        <div>
+                          <p className="font-medium text-slate-900">{getDocumentTypeName(key)}</p>
+                          <p className="text-xs text-slate-500">
+                            {document?.documentName || document?.fileName || 'Financial document'}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                    {documentUrl && (
-                      <a 
-                        href={documentUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="no-underline"
-                        download
-                      >
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          className="flex items-center gap-1 text-blue-600 border-blue-200 hover:bg-blue-50"
+                      {documentUrl && (
+                        <a 
+                          href={documentUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="no-underline"
+                          download
                         >
-                          <DownloadCloud className="h-4 w-4" />
-                          <span>Download</span>
-                        </Button>
-                      </a>
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="flex items-center gap-1 text-blue-600 border-blue-200 hover:bg-blue-50"
+                          >
+                            <DownloadCloud className="h-4 w-4" />
+                            <span>Download</span>
+                          </Button>
+                        </a>
+                      )}
+                    </div>
+                    
+                    {/* Display financial data table if available */}
+                    {hasData ? (
+                      <div className="bg-white rounded-lg border border-slate-200">
+                        <FinancialsTable 
+                          data={document.data}
+                          title={getDocumentTypeName(key)}
+                        />
+                      </div>
+                    ) : (
+                      <div className="bg-slate-50 rounded-lg p-4 text-center text-slate-500 text-sm">
+                        Document uploaded but data processing is still in progress
+                      </div>
                     )}
                   </div>
-                  
-                  {/* Display financial data table if available */}
-                  {hasData ? (
-                    <div className="bg-white rounded-lg border border-slate-200">
-                      <FinancialsTable 
-                        data={document.data}
-                        title={getDocumentTypeName(key)}
-                      />
-                    </div>
-                  ) : (
-                    <div className="bg-slate-50 rounded-lg p-4 text-center text-slate-500 text-sm">
-                      Document uploaded but data processing is still in progress
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         )}
       </CardContent>
