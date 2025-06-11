@@ -18,12 +18,17 @@ export interface FinancialData {
   trialBalance?: FinancialDocumentData;
   agedPayables?: FinancialDocumentData;
   agedReceivables?: FinancialDocumentData;
+  // New document types matching the business documents page
+  'signed-accounts'?: FinancialDocumentData;
+  'management-accounts'?: FinancialDocumentData;
+  'aged-debtors'?: FinancialDocumentData;
+  'aged-creditors'?: FinancialDocumentData;
 }
 
 // Types for business data
 export interface Application {
   id?: string;  // Add the id field
-  application_number?: string;
+  application_number: string;
   business_id?: string;
   user_id?: string;
   loan_amount?: number;

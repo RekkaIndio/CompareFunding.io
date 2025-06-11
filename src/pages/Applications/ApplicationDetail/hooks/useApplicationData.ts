@@ -20,7 +20,7 @@ interface ApplicationData {
   loan_type?: string;
   purpose?: string;
   purpose_details?: string;
-  application_number?: string;
+  application_number: string;
   application_date?: string;
   status_updated_at?: string;
   is_secured?: boolean;

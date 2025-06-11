@@ -3,6 +3,40 @@
  */
 
 /**
+ * Generates a structured application number
+ * @param companyNumber - Company number (e.g., "GB-0-15908176" or "15908176")
+ * @returns Formatted application number (e.g., "APP-15908176-247")
+ * 
+ * Examples:
+ * - generateApplicationNumber("GB-0-15908176") → "APP-15908176-247"
+ * - generateApplicationNumber("15908176") → "APP-15908176-891"
+ * - generateApplicationNumber("SC-123456") → "APP-123456-634"
+ * - generateApplicationNumber() → "APP-156789-432" (timestamp-based fallback)
+ */
+export const generateApplicationNumber = (companyNumber?: string): string => {
+  // Extract numeric part from company number
+  let cleanCompanyNumber = '';
+  
+  if (companyNumber) {
+    // Remove prefixes like "GB-", "UK-", spaces, hyphens, and extract numbers
+    cleanCompanyNumber = companyNumber.replace(/^(GB|UK|EN|SC|NI)-?/i, '')
+                                     .replace(/[^0-9]/g, '')
+                                     .slice(-8); // Take last 8 digits max
+  }
+  
+  // If no company number or it's too short, use a timestamp-based fallback
+  if (!cleanCompanyNumber || cleanCompanyNumber.length < 4) {
+    const timestamp = Date.now().toString().slice(-6); // Last 6 digits of timestamp
+    cleanCompanyNumber = timestamp;
+  }
+  
+  // Generate 3 random digits
+  const randomDigits = Math.floor(100 + Math.random() * 900); // 100-999
+  
+  return `APP-${cleanCompanyNumber}-${randomDigits}`;
+};
+
+/**
  * Formats application number consistently across the application
  * @param application - Application object with potential application_number field
  * @param applicationId - Fallback application ID if application_number is not available

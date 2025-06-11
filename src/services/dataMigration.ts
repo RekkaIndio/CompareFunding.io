@@ -40,6 +40,8 @@ interface MigrationResult {
 export const normalizeCreditScoreData = (creditData: any) => {
   if (!creditData) return null;
   
+  console.log('[DEBUG normalizeCreditScoreData] Input creditData:', creditData);
+  
   // Standard format we want to return
   const normalized = {
     score: null,
@@ -51,35 +53,72 @@ export const normalizeCreditScoreData = (creditData: any) => {
     _updatedAt: new Date().toISOString()
   };
   
-  // Handle format from business_profiles.credit_info
-  if (creditData.credit_score) {
+  // Handle format from Firebase subcollection (businesses/{id}/credit_score/latest)
+  // Check if we have a nested data structure from Firebase
+  if (creditData.data && typeof creditData.data === 'object') {
+    // Firebase subcollection format
+    if (creditData.data.credit_score !== undefined && creditData.data.credit_score !== null) {
+      normalized.score = creditData.data.credit_score;
+    } else if (creditData.data.score !== undefined && creditData.data.score !== null) {
+      normalized.score = creditData.data.score;
+    } else if (creditData.data.details?.report?.creditScore?.currentCreditRating?.providerValue?.value) {
+      // Extract from deep nested Firebase structure
+      normalized.score = creditData.data.details.report.creditScore.currentCreditRating.providerValue.value;
+    }
+    
+    // Risk level from nested data
+    if (creditData.data.risk) {
+      normalized.risk_level = creditData.data.risk;
+    } else if (creditData.data.common_description) {
+      normalized.risk_level = creditData.data.common_description;
+    } else if (creditData.data.risk_level) {
+      normalized.risk_level = creditData.data.risk_level;
+    } else if (creditData.data.details?.report?.creditScore?.currentCreditRating?.commonDescription) {
+      // Extract risk level from deep nested Firebase structure
+      normalized.risk_level = creditData.data.details.report.creditScore.currentCreditRating.commonDescription;
+    }
+  }
+  
+  // Fallback to direct fields if nested data didn't have what we need
+  if (normalized.score === null && creditData.credit_score !== undefined && creditData.credit_score !== null) {
     normalized.score = creditData.credit_score;
-  } else if (creditData.score) {
+  } else if (normalized.score === null && creditData.score !== undefined && creditData.score !== null) {
     normalized.score = creditData.score;
+  } else if (normalized.score === null && creditData.raw_data?.report?.creditScore?.currentCreditRating?.providerValue?.value) {
+    // Extract from raw_data structure at root level
+    normalized.score = creditData.raw_data.report.creditScore.currentCreditRating.providerValue.value;
   }
   
-  // Risk level
-  if (creditData.risk_level) {
-    normalized.risk_level = creditData.risk_level;
-  } else if (creditData.risk) {
-    normalized.risk_level = creditData.risk;
-  } else if (creditData.common_description) {
-    normalized.risk_level = creditData.common_description;
+  // Risk level - fallback to direct fields
+  if (!normalized.risk_level) {
+    if (creditData.risk_level) {
+      normalized.risk_level = creditData.risk_level;
+    } else if (creditData.risk) {
+      normalized.risk_level = creditData.risk;
+    } else if (creditData.common_description) {
+      normalized.risk_level = creditData.common_description;
+    }
   }
   
-  // Last updated
+  // Last updated - handle different field names
   if (creditData.last_updated) {
     normalized.last_updated = creditData.last_updated;
   } else if (creditData.updatedAt) {
     normalized.last_updated = creditData.updatedAt;
   } else if (creditData.date) {
     normalized.last_updated = creditData.date;
+  } else if (creditData._createdAt) {
+    normalized.last_updated = creditData._createdAt;
+  } else if (creditData.createdAt) {
+    normalized.last_updated = creditData.createdAt;
   } else {
     normalized.last_updated = new Date().toISOString();
   }
   
-  // Additional details
+  // Additional details - preserve all original data
   normalized.details = { ...creditData };
+  
+  console.log('[DEBUG normalizeCreditScoreData] Normalized result:', normalized);
   
   return normalized;
 };

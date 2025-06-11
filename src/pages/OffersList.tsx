@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getDocuments, getDocument } from '@/firebase';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNavbar } from '@/contexts/NavbarContext';
 import { toast } from 'sonner';
 import PageLayout from '@/components/PageLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -82,10 +83,16 @@ type GroupedOffers = {
 
 const OffersList = () => {
   const { user } = useAuth();
+  const { showNavbar } = useNavbar();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('active');
   const isLender = user?.role === 'lender';
+  
+  // Ensure navbar is visible when component mounts
+  useEffect(() => {
+    showNavbar();
+  }, [showNavbar]);
   
   // Get application parameter from URL for scrolling
   const targetApplicationId = searchParams.get('application');

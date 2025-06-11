@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { 
@@ -25,7 +25,7 @@ import {
   Activity,
   FileText
 } from 'lucide-react';
-import { getDocument, getDocuments, createDocument, getLenderApplications } from '@/firebase';
+import { getDocument, getDocuments, createDocument, getLenderApplications, updateDocument } from '@/firebase';
 import { toast } from 'sonner';
 import PageLayout from '@/components/PageLayout';
 import { useAuth } from '@/contexts/AuthContext';
@@ -34,6 +34,7 @@ import { formatAddress, getBusinessDisplayName } from '@/lib/formatters';
 const LenderDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [newMessage, setNewMessage] = useState('');
@@ -282,6 +283,49 @@ const LenderDashboard = () => {
     enabled: !!user?.uid,
   });
 
+  // Fetch pending connections from businesses
+  const { data: pendingConnections, isLoading: connectionsLoading } = useQuery({
+    queryKey: ['pendingConnections', user?.uid],
+    queryFn: async () => {
+      if (!user?.uid) {
+        throw new Error('User not authenticated');
+      }
+      
+      const { data, error } = await getDocuments('lender_connections', [
+        { field: 'lender_id', operator: '==', value: user.uid },
+        { field: 'status', operator: '==', value: 'pending' }
+      ]);
+      
+      if (error) {
+        console.error('Error loading pending connections:', error);
+        return [];
+      }
+      
+      return data || [];
+    },
+    enabled: !!user?.uid,
+    refetchInterval: 5000, // Refetch every 5 seconds to catch new connections
+  });
+
+  // Handle accepting/declining connection requests
+  const handleConnectionRequest = async (connectionId: string, action: 'accept' | 'decline') => {
+    try {
+      await updateDocument('lender_connections', connectionId, {
+        status: action === 'accept' ? 'accepted' : 'declined',
+        [`${action}ed_at`]: new Date()
+      });
+      
+      toast.success(`Connection request ${action}ed successfully.`);
+      
+      // Refetch connections and applications to update the lists
+      queryClient.invalidateQueries({ queryKey: ['pendingConnections', user?.uid] });
+      queryClient.invalidateQueries({ queryKey: ['lenderApplications', user?.uid] });
+    } catch (error) {
+      console.error(`Error ${action}ing connection:`, error);
+      toast.error(`Failed to ${action} connection request.`);
+    }
+  };
+
   // Function to send a new message
   const sendMessage = async (e) => {
     e.preventDefault();
@@ -372,6 +416,7 @@ const LenderDashboard = () => {
       (offer.status === 'completed' && offer.is_active)
     ).length || 0,
     prospects: availableApplications?.filter(app => !app.isViewed).length || 0,
+    pendingConnections: pendingConnections?.length || 0,
     conversionRate: lenderOffers?.length 
       ? Math.round((lenderOffers.filter(offer => 
           offer.status === 'accepted' || 
@@ -461,6 +506,22 @@ const LenderDashboard = () => {
                 {stats.prospects > 0 && (
                   <span className="ml-1 px-2 py-0.5 text-xs bg-[#ff8000] text-white rounded-full">
                     {stats.prospects}
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={() => setActiveTab('connections')}
+                className={`flex items-center gap-2 px-6 py-4 font-medium transition-all duration-200 ${
+                  activeTab === 'connections'
+                    ? 'border-b-2 border-[#ff8000] text-[#212936] bg-gradient-to-r from-[#ff8000]/5 to-[#212936]/5'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+                }`}
+              >
+                <Building2 className="h-4 w-4" />
+                Connection Requests
+                {pendingConnections && pendingConnections.length > 0 && (
+                  <span className="ml-1 px-2 py-0.5 text-xs bg-blue-500 text-white rounded-full">
+                    {pendingConnections.length}
                   </span>
                 )}
               </button>
@@ -1076,6 +1137,121 @@ const LenderDashboard = () => {
           </div>
         )}
         
+        {activeTab === 'connections' && (
+          <div className="p-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="px-6 py-5 bg-slate-800">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-500 rounded-lg">
+                    <Building2 className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-white">Connection Requests</h2>
+                    <p className="text-sm text-slate-300">Businesses that want to connect with you</p>
+                  </div>
+                </div>
+              </div>
+              
+              {connectionsLoading ? (
+                <div className="p-6">
+                  <div className="animate-pulse space-y-4">
+                    {[1, 2, 3].map(i => (
+                      <div key={i} className="h-32 bg-gray-200 rounded-lg"></div>
+                    ))}
+                  </div>
+                </div>
+              ) : pendingConnections && pendingConnections.length > 0 ? (
+                <div className="divide-y divide-gray-200">
+                  {pendingConnections.map((connection) => (
+                    <div key={connection.id} className="p-6 hover:bg-gray-50 transition-colors">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-4 mb-4">
+                            <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-[#212936] to-[#2a3441] flex items-center justify-center">
+                              <Building2 className="h-6 w-6 text-white" />
+                            </div>
+                            <div>
+                              <h3 className="text-lg font-semibold text-gray-900">
+                                Application #{connection.application_data?.application_number || connection.application_id?.slice(-8).toUpperCase() || 'Unknown'}
+                              </h3>
+                              <p className="text-sm text-gray-600">
+                                Connected on {new Date(connection.connected_at).toLocaleDateString()}
+                              </p>
+                            </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                            <div className="bg-blue-50 p-4 rounded-lg">
+                              <div className="text-sm font-medium text-blue-700">Product Type</div>
+                              <div className="text-lg font-bold text-blue-900">
+                                {connection.application_data?.product_type?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'N/A'}
+                              </div>
+                            </div>
+                            <div className="bg-green-50 p-4 rounded-lg">
+                              <div className="text-sm font-medium text-green-700">Loan Amount</div>
+                              <div className="text-lg font-bold text-green-900">
+                                £{connection.application_data?.loan_amount?.toLocaleString() || 'N/A'}
+                              </div>
+                            </div>
+                            <div className="bg-purple-50 p-4 rounded-lg">
+                              <div className="text-sm font-medium text-purple-700">Term</div>
+                              <div className="text-lg font-bold text-purple-900">
+                                {connection.application_data?.loan_term_months || 'N/A'} months
+                              </div>
+                            </div>
+                            <div className="bg-amber-50 p-4 rounded-lg">
+                              <div className="text-sm font-medium text-amber-700">Industry</div>
+                              <div className="text-lg font-bold text-amber-900">
+                                {connection.application_data?.industry || 'N/A'}
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {connection.application_data?.purpose && (
+                            <div className="mb-4">
+                              <div className="text-sm font-medium text-gray-700 mb-1">Purpose</div>
+                              <p className="text-gray-600">{connection.application_data.purpose}</p>
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className="flex items-center gap-3 ml-6">
+                          <Button
+                            variant="outline"
+                            onClick={() => handleConnectionRequest(connection.id, 'decline')}
+                            className="border-red-300 text-red-700 hover:bg-red-50"
+                          >
+                            Decline
+                          </Button>
+                          <Button
+                            onClick={() => {
+                              // First accept the connection
+                              handleConnectionRequest(connection.id, 'accept');
+                              // Then navigate to business detail page
+                              navigate(`/business/${connection.application_id}`);
+                            }}
+                            className="bg-[#ff8000] hover:bg-[#e6720e] text-white"
+                          >
+                            Review
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-12 text-center">
+                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Building2 className="h-8 w-8 text-gray-400" />
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No connection requests</h3>
+                  <p className="text-gray-600">Businesses will appear here when they want to connect with you.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         </div>
       </div>
       </div>

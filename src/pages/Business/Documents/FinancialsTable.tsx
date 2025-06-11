@@ -319,7 +319,7 @@ const renderDynamicFinancialData = (data: any) => {
                 <tr key={idx} className={`hover:bg-gray-100 ${rowClass}`}>
                   <td 
                     colSpan={columnsToDisplay.length} 
-                    className="py-2.5 px-4 text-sm font-semibold uppercase tracking-wider"
+                    className="py-2.5 px-4 text-sm text-gray-900 font-semibold uppercase tracking-wider"
                   >
                     {item.item || item.description || item.account}
                   </td>
@@ -375,7 +375,7 @@ const renderDynamicFinancialData = (data: any) => {
                   return (
                     <td 
                       key={colIdx} 
-                      className={`py-2.5 px-4 text-sm ${
+                      className={`py-2.5 px-4 text-sm text-gray-900 ${
                         isItemColumn ? 'text-left font-medium' :
                         isValueColumn ? 'text-right' : 
                         colKey.toLowerCase().includes('note') ? 'text-center' : 'text-left'
@@ -499,7 +499,7 @@ const renderFinancialSection = (data: Record<string, any>) => {
                 <tr key={idx} className={`hover:bg-gray-100 ${rowClass}`}>
                   <td 
                     colSpan={columnsToDisplay.length} 
-                    className="py-2.5 px-4 text-sm font-semibold uppercase tracking-wider"
+                    className="py-2.5 px-4 text-sm text-gray-900 font-semibold uppercase tracking-wider"
                   >
                     {item.item}
                   </td>
@@ -545,7 +545,7 @@ const renderFinancialSection = (data: Record<string, any>) => {
                   return (
                     <td 
                       key={colIdx} 
-                      className={`py-2.5 px-4 text-sm ${isValueColumn ? 'text-right' : 'text-left'} ${isTotalRow && isValueColumn ? 'border-t border-gray-400' : ''}`}
+                      className={`py-2.5 px-4 text-sm text-gray-900 ${isValueColumn ? 'text-right' : 'text-left'} ${isTotalRow && isValueColumn ? 'border-t border-gray-400' : ''}`}
                     >
                       {cellValue}
                     </td>

@@ -52,8 +52,12 @@ const BusinessDetailsForm = () => {
     companyNumber: '',
     industry: '',
     website: '',
-    forecastRevenue: '10000000',
+    forecastRevenue: '250000',
     companySize: '',
+    // Funding fields
+    fundingPurpose: 'expansion',
+    fundingAmount: '100000',
+    fundingTimeframe: '1_week',
   });
   
   // Company search state
@@ -73,22 +77,26 @@ const BusinessDetailsForm = () => {
   // Define the signup steps
   const signupSteps = [
     { label: 'Email & Password', path: '/signup-journey/email-password' },
-    { label: 'Funding Amount', path: '/signup-journey/apply' },
     { label: 'Business Details', path: '/signup-journey/business-details' },
-    { label: 'Industry Specifics', path: '/signup-journey/industry-specifics' },
+    { label: 'Additional Details', path: '/signup-journey/additional-details' },
+    { label: 'Current Funding', path: '/signup-journey/current-funding' },
+    { label: 'HMRC Status', path: '/signup-journey/hmrc-status' },
+    { label: 'Document Upload', path: '/signup-journey/document-upload' },
+    { label: 'Lender Preferences', path: '/signup-journey/lender-preferences' },
+    { label: 'Review & Submit', path: '/signup-journey/application-review' },
   ];
 
-  const currentStepIndex = 2; // Business Details is now step 3 (0-indexed)
+  const currentStepIndex = 1; // Business Details is now step 2 (0-indexed)
   
   // Navigation handlers
   const handlePrevious = () => {
-    navigate('/signup-journey/apply', { state: { ...userInfo, ...formData } });
+    navigate('/signup-journey/email-password', { state: { ...userInfo, ...formData } });
   };
   
   const handleNext = () => {
     // Only allow next if the form is valid
     if (isFormValid()) {
-      navigate('/signup-journey/industry-specifics', { state: { ...userInfo, ...formData } });
+      navigate('/signup-journey/additional-details', { state: { ...userInfo, ...formData } });
     }
   };
 
@@ -99,7 +107,10 @@ const BusinessDetailsForm = () => {
       formData.website.trim() !== '' &&
       formData.industry !== '' &&
       formData.companySize !== '' &&
-      formData.forecastRevenue !== ''
+      formData.forecastRevenue !== '' &&
+      formData.fundingPurpose !== '' &&
+      formData.fundingAmount !== '' &&
+      formData.fundingTimeframe !== ''
     );
   };
 
@@ -113,32 +124,51 @@ const BusinessDetailsForm = () => {
   useEffect(() => {
     hideNavbar();
     
-    // Try to restore form data from session storage
-    const savedFormData = sessionStorage.getItem('businessDetailsFormData');
-    if (savedFormData) {
-      try {
-        const parsedData = JSON.parse(savedFormData);
-        setFormData(parsedData);
-        if (parsedData.companyName) {
-          setSearchTerm(parsedData.companyName);
+    // Check if we're coming from email-password page (fresh signup)
+    // If userInfo has userId/email but no business data, it's a fresh signup
+    const isFreshSignup = userInfo && (userInfo.userId || userInfo.email) && !userInfo.companyName;
+    
+    if (isFreshSignup) {
+      // Clear any existing business form data for fresh signups
+      sessionStorage.removeItem('businessDetailsFormData');
+      // Set a session identifier for this signup session
+      const signupSessionId = Date.now().toString();
+      sessionStorage.setItem('currentSignupSession', signupSessionId);
+      console.log('Fresh signup detected - cleared previous form data and started new session');
+    } else {
+      // Only restore form data if this is NOT a fresh signup (i.e., navigating back/forward)
+      const savedFormData = sessionStorage.getItem('businessDetailsFormData');
+      const currentSession = sessionStorage.getItem('currentSignupSession');
+      
+      if (savedFormData && currentSession) {
+        try {
+          const parsedData = JSON.parse(savedFormData);
+          setFormData(parsedData);
+          if (parsedData.companyName) {
+            setSearchTerm(parsedData.companyName);
+          }
+        } catch (error) {
+          console.error('Error parsing saved form data:', error);
         }
-      } catch (error) {
-        console.error('Error parsing saved form data:', error);
       }
     }
     
     return () => {
       showNavbar();
-      // Save data when leaving the form
+      // Save data when leaving the form (only if form has meaningful data)
       if (isFormValid()) {
         sessionStorage.setItem('businessDetailsFormData', JSON.stringify(formData));
       }
     };
   }, [hideNavbar, showNavbar]);
 
-  // Save form data to session storage whenever it changes
+  // Save form data to session storage whenever it changes (but not for fresh signups initially)
   useEffect(() => {
-    if (Object.values(formData).some(value => value !== '')) {
+    // Only save if we have meaningful form data and there's an active signup session
+    const currentSession = sessionStorage.getItem('currentSignupSession');
+    const hasFormData = Object.values(formData).some(value => value !== '' && value !== '250000' && value !== 'expansion' && value !== '100000' && value !== '1_week');
+    
+    if (hasFormData && currentSession) {
       sessionStorage.setItem('businessDetailsFormData', JSON.stringify(formData));
     }
   }, [formData]);
@@ -497,8 +527,8 @@ const BusinessDetailsForm = () => {
         // Don't block the flow if credit score fetch fails
       });
       
-      // Continue to the next step in the sign-up journey (Industry Specifics)
-      navigate('/signup-journey/industry-specifics', {
+      // Continue to the next step in the sign-up journey (Additional Details)
+      navigate('/signup-journey/additional-details', {
         state: combinedUserData
       });
     } catch (error) {
@@ -513,9 +543,13 @@ const BusinessDetailsForm = () => {
       currentStep={currentStepIndex}
       onStepNavigation={(stepIndex) => {
         if (stepIndex === 0) navigate('/signup-journey/email-password', { state: userInfo });
-        if (stepIndex === 1) navigate('/signup-journey/apply', { state: userInfo });
-        if (stepIndex === 2) navigate('/signup-journey/business-details', { state: userInfo });
-        if (stepIndex === 3) navigate('/signup-journey/industry-specifics', { state: userInfo });
+        if (stepIndex === 1) navigate('/signup-journey/business-details', { state: userInfo });
+        if (stepIndex === 2) navigate('/signup-journey/additional-details', { state: userInfo });
+        if (stepIndex === 3) navigate('/signup-journey/current-funding', { state: userInfo });
+        if (stepIndex === 4) navigate('/signup-journey/hmrc-status', { state: userInfo });
+        if (stepIndex === 5) navigate('/signup-journey/document-upload', { state: userInfo });
+        if (stepIndex === 6) navigate('/signup-journey/lender-preferences', { state: userInfo });
+        if (stepIndex === 7) navigate('/signup-journey/application-review', { state: userInfo });
       }}
       onPrevious={handlePrevious}
       onNext={handleNext}
@@ -699,12 +733,14 @@ const BusinessDetailsForm = () => {
                 <SelectValue placeholder="Select revenue range" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="100000" className="py-1 sm:py-2 text-sm sm:text-base">Under £100k</SelectItem>
-                <SelectItem value="500000" className="py-1 sm:py-2 text-sm sm:text-base">£100k - £500k</SelectItem>
+                <SelectItem value="50000" className="py-1 sm:py-2 text-sm sm:text-base">Under £50k</SelectItem>
+                <SelectItem value="100000" className="py-1 sm:py-2 text-sm sm:text-base">£50k - £100k</SelectItem>
+                <SelectItem value="250000" className="py-1 sm:py-2 text-sm sm:text-base">£100k - £250k</SelectItem>
+                <SelectItem value="500000" className="py-1 sm:py-2 text-sm sm:text-base">£250k - £500k</SelectItem>
                 <SelectItem value="1000000" className="py-1 sm:py-2 text-sm sm:text-base">£500k - £1M</SelectItem>
-                <SelectItem value="5000000" className="py-1 sm:py-2 text-sm sm:text-base">£1M - £5M</SelectItem>
-                <SelectItem value="10000000" className="py-1 sm:py-2 text-sm sm:text-base">£5M - £10M</SelectItem>
-                <SelectItem value="50000000" className="py-1 sm:py-2 text-sm sm:text-base">£10M+</SelectItem>
+                <SelectItem value="2500000" className="py-1 sm:py-2 text-sm sm:text-base">£1M - £2.5M</SelectItem>
+                <SelectItem value="5000000" className="py-1 sm:py-2 text-sm sm:text-base">£2.5M - £5M</SelectItem>
+                <SelectItem value="10000000" className="py-1 sm:py-2 text-sm sm:text-base">£5M+</SelectItem>
               </SelectContent>
             </Select>
           </div>

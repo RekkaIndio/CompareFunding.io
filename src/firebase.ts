@@ -324,6 +324,16 @@ const getLenderApplications = async (lenderId: string) => {
       where('matched_lenders', 'array-contains', lenderId)
     ));
     
+    // Get applications with accepted connections
+    const acceptedConnectionsSnap = await getDocs(query(
+      collection(firestore, 'lender_connections'),
+      where('lender_id', '==', lenderId),
+      where('status', '==', 'accepted')
+    ));
+    
+    // Get application IDs from accepted connections
+    const acceptedConnectionAppIds = acceptedConnectionsSnap.docs.map(doc => doc.data().application_id);
+    
     // Process matched applications and get business data
     const matchedApplications = await Promise.all(matchedSnap.docs.map(async docSnap => {
       const appData = docSnap.data();
@@ -345,6 +355,44 @@ const getLenderApplications = async (lenderId: string) => {
       };
     }));
 
+    // Process applications with accepted connections
+    const acceptedConnectionApplications = await Promise.all(
+      acceptedConnectionAppIds.map(async appId => {
+        // Skip if already in matched applications
+        if (matchedApplications.some(app => app.id === appId)) {
+          return null;
+        }
+        
+        const appRef = doc(firestore, 'applications', appId);
+        const appSnap = await getDoc(appRef);
+        
+        if (!appSnap.exists()) {
+          return null;
+        }
+        
+        const appData = appSnap.data();
+        const businessRef = doc(firestore, 'businesses', appData.user_id);
+        const businessSnap = await getDoc(businessRef);
+        const businessData = businessSnap.data() as BusinessProfile | undefined;
+        
+        return {
+          ...appData,
+          id: appSnap.id,
+          user_id: appData.user_id,
+          business_id: appData.user_id,
+          isMatched: true, // Treat accepted connections as matched
+          business: businessSnap.exists() ? {
+            business_name: businessData?.business_name || 'Unnamed Business',
+            logo_url: businessData?.logo_url,
+            industry_sector: businessData?.industry_sector
+          } : null
+        };
+      })
+    );
+
+    // Filter out null values
+    const validAcceptedConnectionApplications = acceptedConnectionApplications.filter(app => app !== null);
+
     // Get available applications
     const availableSnap = await getDocs(query(
       collection(firestore, 'applications'),
@@ -352,7 +400,12 @@ const getLenderApplications = async (lenderId: string) => {
     ));
     
     const availableApplications = (await Promise.all(availableSnap.docs
-      .filter(docSnap => !docSnap.data().matched_lenders?.includes(lenderId))
+      .filter(docSnap => {
+        const appId = docSnap.id;
+        // Exclude if already matched or has accepted connection
+        return !docSnap.data().matched_lenders?.includes(lenderId) && 
+               !acceptedConnectionAppIds.includes(appId);
+      })
       .map(async docSnap => {
         const appData = docSnap.data();
         const businessRef = doc(firestore, 'businesses', appData.user_id);
@@ -374,7 +427,7 @@ const getLenderApplications = async (lenderId: string) => {
       })));
     
     return { 
-      data: [...matchedApplications, ...availableApplications], 
+      data: [...matchedApplications, ...validAcceptedConnectionApplications, ...availableApplications], 
       error: null 
     };
   } catch (error: any) {

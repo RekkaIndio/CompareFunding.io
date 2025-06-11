@@ -15,6 +15,7 @@ import * as z from 'zod';
 import { LoanDetailsCard } from './LoanDetailsCard';
 import { AdditionalDetailsCard } from './AdditionalDetailsCard';
 import { fetchSignupFundingData, mapSignupDataToApplication } from '../../../lib/signupDataUtils';
+import { generateApplicationNumber } from '../../../lib/applicationUtils';
 
 const applicationSchema = z.object({
   loan_amount: z.coerce.number()
@@ -300,10 +301,8 @@ const NewApplication = () => {
         // Create new application
         console.log('📝 Creating new application');
         
-        const applicationNumber = `APP-${Date.now().toString().slice(-8)}-${Math.floor(Math.random() * 1000)}`;
-        
         const applicationData = {
-          application_number: applicationNumber,
+          application_number: generateApplicationNumber(businessProfile?.company_number),
           user_id: user.uid,
           business_id: user.uid,
           loan_amount: values.loan_amount,
@@ -345,8 +344,6 @@ const NewApplication = () => {
   // Function to create a draft application from prefilled data
   const createDraftApplication = async (mappedData: any, businessProfile: any) => {
     try {
-      const applicationNumber = `APP-${Date.now().toString().slice(-8)}-${Math.floor(Math.random() * 1000)}`;
-      
       // Get company name from various possible sources
       const companyName = businessProfile?.business_name || 
                          businessProfile?.companyName || 
@@ -354,7 +351,7 @@ const NewApplication = () => {
                          'Your Business';
       
       const applicationData = {
-        application_number: applicationNumber,
+        application_number: generateApplicationNumber(businessProfile?.company_number),
         user_id: user!.uid,
         business_id: user!.uid,
         company_name: companyName,

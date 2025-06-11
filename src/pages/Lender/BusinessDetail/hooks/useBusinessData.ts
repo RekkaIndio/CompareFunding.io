@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { getDocument } from '@/firebase';
+import { getDocument, getDocuments } from '@/firebase';
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import { normalizeCreditScoreData } from '@/services';
 import { useState } from 'react';
@@ -30,6 +30,13 @@ export const useBusinessData = (id: string | undefined, user: any) => {
             console.error('[DEBUG Business ID] Application missing both business_id and user_id');
             throw new Error('Could not determine business reference');
           }
+          
+          console.log('[DEBUG Business ID] Using business ID for lookups:', businessId);
+          console.log('[DEBUG Business ID] Application data:', { 
+            application_id: application.id, 
+            business_id: application.business_id, 
+            user_id: application.user_id 
+          });
 
 
 
@@ -75,40 +82,49 @@ export const useBusinessData = (id: string | undefined, user: any) => {
             businessId
           );
 
-          // Get credit score data - UPDATED TO CHECK BOTH LOCATIONS
+          // Get credit score data - UPDATED TO CHECK CREDIT_SCORE SUBCOLLECTION
           let creditScore = null;
           
-          // First check businesses (current location)
-          if (business && business.credit_info) {
-
-            creditScore = business.credit_info;
-          } else {
-            // If not found, try the businesses collection
-            try {
-              const businessDoc = await getDoc(doc(db, "businesses", businessId));
-              if (businessDoc.exists() && businessDoc.data().credit_info) {
-
-                creditScore = businessDoc.data().credit_info;
-              }
-            } catch (err) {
-              console.error('[DEBUG] Error fetching credit score from businesses collection:', err);
+          console.log('[DEBUG Credit Score Fetch] Starting credit score fetch for business ID:', businessId);
+          
+          // First check the credit_score/latest subcollection (current Firebase structure)
+          try {
+            const creditScoreDoc = await getDoc(doc(db, "businesses", businessId, "credit_score", "latest"));
+            if (creditScoreDoc.exists()) {
+              creditScore = creditScoreDoc.data();
+              console.log('[DEBUG Credit Score] Found credit score in subcollection:', creditScore);
+            } else {
+              console.log('[DEBUG Credit Score] No credit score found in subcollection path: businesses/' + businessId + '/credit_score/latest');
             }
-            
-            // If still not found, try dedicated credit_scores collection as a fallback
-            if (!creditScore) {
-              const { data: creditScoreData } = await getDocument(
-                'credit_scores',
-                businessId
-              );
-              if (creditScoreData) {
-
-                creditScore = creditScoreData;
-              }
+          } catch (err) {
+            console.error('[DEBUG] Error fetching credit score from subcollection:', err);
+          }
+          
+          // If not found in subcollection, check business.credit_info (legacy)
+          if (!creditScore && business && business.credit_info) {
+            console.log('[DEBUG Credit Score] Found credit score in business.credit_info:', business.credit_info);
+            creditScore = business.credit_info;
+          }
+          
+          // If still not found, try dedicated credit_scores collection as fallback
+          if (!creditScore) {
+            const { data: creditScoreData } = await getDocument(
+              'credit_scores',
+              businessId
+            );
+            if (creditScoreData) {
+              console.log('[DEBUG Credit Score] Found credit score in credit_scores collection:', creditScoreData);
+              creditScore = creditScoreData;
+            } else {
+              console.log('[DEBUG Credit Score] No credit score found in credit_scores collection');
             }
           }
+          
+          console.log('[DEBUG Credit Score Final] Final creditScore before normalization:', creditScore);
 
           // Normalize credit score data before returning
           const normalizedCreditScore = normalizeCreditScoreData(creditScore);
+          console.log('[DEBUG Credit Score Normalized] After normalization:', normalizedCreditScore);
           
           return {
             application,
@@ -138,11 +154,22 @@ export const useBusinessData = (id: string | undefined, user: any) => {
           id
         );
 
-        // Get credit score data if available
-        const { data: creditScore } = await getDocument(
-          'credit_scores',
-          id
-        );
+        // Get credit score data from subcollection
+        let creditScore = null;
+        try {
+          const creditScoreDoc = await getDoc(doc(db, "businesses", id, "credit_score", "latest"));
+          if (creditScoreDoc.exists()) {
+            creditScore = creditScoreDoc.data();
+            console.log('[DEBUG Credit Score Direct] Found credit score in subcollection:', creditScore);
+          }
+        } catch (err) {
+          console.error('[DEBUG] Error fetching credit score from subcollection (direct):', err);
+          // Fallback to old method
+          const { data: creditScoreData } = await getDocument('credit_scores', id);
+          if (creditScoreData) {
+            creditScore = creditScoreData;
+          }
+        }
 
         return {
           business,
@@ -159,12 +186,37 @@ export const useBusinessData = (id: string | undefined, user: any) => {
     retry: 1
   });
 
+  // Check for accepted connections between lender and this application
+  const { data: lenderConnection } = useQuery({
+    queryKey: ['lenderConnection', user?.uid, id],
+    queryFn: async () => {
+      if (!user?.uid || !id) return null;
+      
+      const { data, error } = await getDocuments('lender_connections', [
+        { field: 'lender_id', operator: '==', value: user.uid },
+        { field: 'application_id', operator: '==', value: id },
+        { field: 'status', operator: '==', value: 'accepted' }
+      ]);
+      
+      if (error) {
+        console.error('Error checking lender connection:', error);
+        return null;
+      }
+      
+      return data && data.length > 0 ? data[0] : null;
+    },
+    enabled: !!id && !!user?.uid,
+  });
+
   // Check if lender has accepted interest or made an offer (can see business details)
   const canSeeBusinessDetails = () => {
     if (!applicationData?.application) {
 
       return false;
     }
+    
+    // Check if lender has an accepted connection
+    const hasAcceptedConnection = !!lenderConnection;
     
     // Check if lender has expressed interest AND it has been accepted
     const hasAcceptedInterest = applicationData.application.interested_lenders?.some(
@@ -187,6 +239,7 @@ export const useBusinessData = (id: string | undefined, user: any) => {
     
     console.log('[DEBUG Access] Access control check:', { 
       userId: user?.uid, 
+      hasAcceptedConnection,
       hasAcceptedInterest,
       hasMadeOffer,
       hasAcceptedOffer,
@@ -195,26 +248,29 @@ export const useBusinessData = (id: string | undefined, user: any) => {
       applicationStatus: applicationData.application?.status,
       interestedLenders: applicationData.application.interested_lenders || [],
       offers: applicationData.application.offers || [],
-      matchedLenders: applicationData.application.matched_lenders || []
+      matchedLenders: applicationData.application.matched_lenders || [],
+      lenderConnection: lenderConnection
     });
     
-    return hasAcceptedInterest || hasMadeOffer || isMatched || hasAcceptedOffer || isApplicationApproved;
+    return hasAcceptedConnection || hasAcceptedInterest || hasMadeOffer || isMatched || hasAcceptedOffer || isApplicationApproved;
   };
 
   // Check if lender is already matched
   const isAlreadyMatched = () => {
     if (!applicationData?.application) return false;
+    const hasAcceptedConnection = !!lenderConnection;
     const isInMatchedLenders = applicationData.application.matched_lenders?.includes(user?.uid);
     const hasExpressedInterest = applicationData.application.interested_lenders?.some(
       l => l.lender_id === user?.uid && (l.status === 'accepted' || l.status === 'pending')
     );
-    return isInMatchedLenders || hasExpressedInterest;
+    return hasAcceptedConnection || isInMatchedLenders || hasExpressedInterest;
   };
 
   // Add a function to check if lender is matched
   const isLenderMatched = () => {
     if (!applicationData?.application) return false;
     
+    const hasAcceptedConnection = !!lenderConnection;
     const isInMatchedLenders = applicationData.application.matched_lenders?.includes(user?.uid);
     const isAcceptedInterest = applicationData.application.interested_lenders?.some(
       l => l.lender_id === user?.uid && l.status === 'accepted'
@@ -236,6 +292,7 @@ export const useBusinessData = (id: string | undefined, user: any) => {
     const isApprovedForThisLender = isApplicationApproved && applicationData.application?.lender_id === user?.uid;
     
     console.log('[DEBUG Match] Lender match status check:', {
+      hasAcceptedConnection,
       isInMatchedLenders,
       isAcceptedInterest,
       hasAcceptedOffer,
@@ -247,7 +304,8 @@ export const useBusinessData = (id: string | undefined, user: any) => {
       lenderId: applicationData.application?.lender_id
     });
     
-    return isInMatchedLenders || 
+    return hasAcceptedConnection ||
+           isInMatchedLenders || 
            isAcceptedInterest || 
            hasAcceptedOffer || 
            isOfferAccepter || 

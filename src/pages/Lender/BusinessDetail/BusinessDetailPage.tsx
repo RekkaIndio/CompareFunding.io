@@ -65,14 +65,12 @@ const BusinessDetailPage = () => {
   // Debug logs for visibility checks and financial data
   useEffect(() => {
     if (applicationData) {
-
-
-
+      console.log('[DEBUG BusinessDetailPage] Application data:', applicationData);
+      console.log('[DEBUG BusinessDetailPage] Credit score data:', applicationData.creditScore);
     }
     
-
     if (financialData) {
-
+      console.log('[DEBUG BusinessDetailPage] Financial data:', financialData);
     }
   }, [applicationData, financialData, canSeeBusinessDetails]);
 
@@ -172,24 +170,29 @@ const BusinessDetailPage = () => {
           />
 
           {/* Main Content Area */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Left Column */}
-            <div className="lg:col-span-2 space-y-8">
-              <BusinessOverview 
-                applicationData={applicationData} 
-                canSeeBusinessDetails={canSeeBusinessDetails()}
-                isLenderMatched={isLenderMatched()}
-              />
-
-              <FinancialDataTabs 
-                financialData={financialData}
-                isLenderMatched={isLenderMatched()}
-              />
+          <div className="space-y-8">
+            {/* Top Section - Business Overview and Credit Score (side by side) */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-2">
+                <BusinessOverview 
+                  applicationData={applicationData} 
+                  canSeeBusinessDetails={canSeeBusinessDetails()}
+                  isLenderMatched={isLenderMatched()}
+                />
+              </div>
+              <div>
+                <CreditScoreCard creditScore={applicationData.creditScore} />
+              </div>
             </div>
 
-            {/* Right Column */}
-            <div className="space-y-8">
-              <CreditScoreCard creditScore={applicationData.creditScore} />
+            {/* Full Width Financial Data Section */}
+            <FinancialDataTabs 
+              financialData={financialData}
+              isLenderMatched={isLenderMatched()}
+            />
+
+            {/* Bottom Section - Funding Request and Documents (side by side) */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <FundingRequestCard 
                 application={applicationData.application}
                 isLenderMatched={isLenderMatched()}

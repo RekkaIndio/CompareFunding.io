@@ -31,9 +31,11 @@ import BusinessDashboard from "./pages/BusinessDashboard";
 import BusinessDocuments from "./pages/Business/Documents/documents";
 // import { AccountingConnect } from "./pages/AccountingConnect";
 import NewApplication from "./pages/Applications/NewApplication";
-import ApplicationReview from "./pages/ApplicationReview";
+import ApplicationReview from "./pages/SignUpJourney/ApplicationReview";
+import ExistingApplicationReview from "./pages/ApplicationReview";
 import OffersList from "./pages/OffersList";
 import OfferDetails from "./pages/Business/OfferDetails";
+import LenderMarketplace from "./pages/LenderMarketplace";
 import LenderProfile from "./pages/Lender/LenderProfile";
 import LenderDashboard from "./pages/Lender/LenderDashboard";
 import LenderBilling from "./pages/Lender/LenderBilling";
@@ -51,10 +53,14 @@ import BusinessDetail from "./pages/BusinessDetail";
 import CreditScorePage from "./pages/CreditScore"; // Import the CreditScorePage
 
 // Import the new SignUpJourney components
-import SignUpFundingApplication from "./pages/SignUpJourney/FundingApplication";
 import SignUpBusinessDetailsForm from "./pages/SignUpJourney/BusinessDetailsForm";
 import IndustrySpecifics from "./pages/SignUpJourney/IndustrySpecifics";
 import EmailPasswordPage from "./pages/SignUpJourney/EmailPasswordPage";
+import AdditionalDetails from "./pages/SignUpJourney/AdditionalDetails";
+import CurrentFunding from "./pages/SignUpJourney/CurrentFunding";
+import HMRCStatus from "./pages/SignUpJourney/HMRCStatus";
+import DocumentUpload from "./pages/SignUpJourney/DocumentUpload";
+import LenderPreferences from "./pages/SignUpJourney/LenderPreferences";
 // import SignUpCustomizeOffers from "./pages/SignUpJourney/CustomizeOffers";
 
 // Import Funding Options pages
@@ -73,6 +79,7 @@ import AdvisorPage from "./pages/account/Advisor";
 
 // Import Products page
 import Products from "./pages/Products";
+import FundingNeeds from "./pages/FundingNeeds";
 
 // Import Help pages
 import BusinessInsurancePage from "./pages/help/BusinessInsurance";
@@ -113,6 +120,7 @@ const App = () => {
                       <Route path="/cookies" element={<CookiePolicy />} />
                       <Route path="/sitemap" element={<Sitemap />} />
                       <Route path="/products" element={<Products />} />
+                      <Route path="/funding-needs" element={<FundingNeeds />} />
                       <Route path="/login" element={<Login />} />
                       <Route path="/signup" element={<SignUp />} />
                       
@@ -123,9 +131,16 @@ const App = () => {
                       {/* New SignUpJourney routes */}
                       <Route path="/signup-journey" element={<Navigate to="/signup-journey/email-password" replace />} />
                       <Route path="/signup-journey/email-password" element={<EmailPasswordPage />} />
-                      <Route path="/signup-journey/apply" element={<SignUpFundingApplication />} />
                       <Route path="/signup-journey/business-details" element={<SignUpBusinessDetailsForm />} />
+                      <Route path="/signup-journey/additional-details" element={<AdditionalDetails />} />
+                      <Route path="/signup-journey/current-funding" element={<CurrentFunding />} />
+                      <Route path="/signup-journey/hmrc" element={<HMRCStatus />} />
+                      <Route path="/signup-journey/document-upload" element={<DocumentUpload />} />
+                      <Route path="/signup-journey/lender-preferences" element={<LenderPreferences />} />
+                      <Route path="/signup-journey/review" element={<Navigate to="/signup-journey/application-review" replace />} />
                       <Route path="/signup-journey/industry-specifics" element={<IndustrySpecifics />} />
+                      <Route path="/signup-journey/application-review" element={<ApplicationReview />} />
+                      <Route path="/application-review" element={<Navigate to="/signup-journey/application-review" replace />} />
                       {/* <Route path="/signup-journey/customize-offers" element={<SignUpCustomizeOffers />} /> */}
                       
                       {/* Protected routes */}
@@ -139,9 +154,10 @@ const App = () => {
                          <Route path="/business/learn" element={<LearnPage />} />
                         {/* <Route path="/business/accounting/connect" element={<AccountingConnect />} /> */}
                         <Route path="/applications/new" element={<NewApplication />} />
-                        <Route path="/applications/:id/review" element={<ApplicationReview />} />
+                        <Route path="/applications/:id/review" element={<ExistingApplicationReview />} />
                         <Route path="/offers" element={<OffersList />} />
                         <Route path="/offers/:id" element={<OfferDetails />} />
+                        <Route path="/lender-marketplace/:applicationId?" element={<LenderMarketplace />} />
                         
 
                         {/* Business Documents page */}

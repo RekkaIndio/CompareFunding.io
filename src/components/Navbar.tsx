@@ -71,7 +71,7 @@ const Navbar = () => {
   const getNavLinks = () => {
     if (!user) return publicNavLinks;
     
-    if (user.role === 'business') {
+    if (user.role === 'business' || user.role === 'business_owner') {
       return businessNavLinks;
     } else if (user.role === 'lender') {
       return lenderNavLinks;
@@ -94,10 +94,57 @@ const Navbar = () => {
   
   const navLinks = getNavLinks();
 
-  // Comment out the navbar visibility check to ensure it always shows
-  // if (!isNavbarVisible) { 
-  //   return null;
-  // }
+  // When navbar should be hidden during sign-up journey, only show the logo
+  if (!isNavbarVisible) {
+    return (
+      <div 
+        className="!fixed !top-0 !left-0 !right-0 !z-[9999] w-full h-16"
+        style={{ 
+          position: 'fixed', 
+          top: 0, 
+          left: 0, 
+          right: 0, 
+          zIndex: 9999,
+          width: '100%',
+          height: '4rem'
+        }}
+      >
+        <header 
+          className={cn(
+            "w-full h-full transition-all duration-300 relative overflow-hidden",
+            "bg-slate-900 text-white",
+            isScrolled && "shadow-lg backdrop-blur-sm"
+          )}
+        >
+          {/* Background Pattern */}
+          <div 
+            className="absolute inset-0 opacity-[0.02] pointer-events-none"
+            style={{
+              backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Ccircle cx='30' cy='30' r='1'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+            }}
+          ></div>
+          <div className="w-full flex justify-between items-center px-4 h-full relative z-10">
+            {/* Logo Only */}
+            <Link 
+              to="/"
+              className="flex items-center space-x-2 group mx-auto"
+            >
+              <img
+                src={cflogowhiteUrl}
+                alt="Compare Funding Logo"
+                className={cn("transition-all duration-300", isScrolled ? "h-8" : "h-10")}
+              />
+              <img
+                src={comparefundingUrl}
+                alt="Compare Funding Text"
+                className={cn("transition-all duration-300", isScrolled ? "h-20" : "h-20")}
+              />
+            </Link>
+          </div>
+        </header>
+      </div>
+    );
+  }
 
   return (
     <div 
@@ -208,11 +255,11 @@ const Navbar = () => {
                 <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuLabel>{user.displayName || 'My Account'}</DropdownMenuLabel>
                   <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">
-                    {user.role === 'business' ? 'Business Account' : 'Lender Account'}
+                    {user.role === 'business' || user.role === 'business_owner' ? 'Business Account' : 'Lender Account'}
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   
-                  {user.role === 'business' ? (
+                  {user.role === 'business' || user.role === 'business_owner' ? (
                     <>
                       <DropdownMenuItem asChild>
                         <Link to="/business/dashboard" className="cursor-pointer w-full">Dashboard</Link>
@@ -333,7 +380,7 @@ const Navbar = () => {
                   </Link>
                 </div>
 
-                {user.role === 'business' ? (
+                {user.role === 'business' || user.role === 'business_owner' ? (
                   <>
                     <Link to="/business/profile" className="px-4 py-2 rounded-md text-white hover:bg-gray-700">
                       Profile

@@ -8,7 +8,7 @@ import { firestore } from '@/firebase';
 
 // Define a custom user type that includes role information
 type UserWithRole = FirebaseUser & {
-  role?: 'business' | 'lender';
+  role?: 'business' | 'business_owner' | 'lender';
 };
 
 type AuthContextType = {
@@ -43,7 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Enhance user object with role
           const enhancedUser = {
             ...currentUser,
-            role: userData.role as 'business' | 'lender'
+            role: userData.role as 'business' | 'business_owner' | 'lender'
           };
           return enhancedUser;
         }
