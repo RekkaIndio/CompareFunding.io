@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNavbar } from '@/contexts/NavbarContext';
 import { getDocument, updateDocument, createDocument } from '@/firebase';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -14,7 +15,7 @@ import * as z from 'zod';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import PageLayout from '@/components/PageLayout';
-import { Building2, Image as ImageIcon, Loader2, ChevronRight, BadgePoundSterling, MailIcon, PhoneIcon, Mail, Phone } from 'lucide-react';
+import { Building2, Image as ImageIcon, Loader2, ChevronRight, BadgePoundSterling, MailIcon, PhoneIcon, Mail, Phone, User, Briefcase } from 'lucide-react';
 
 // Add window type definition for logo fetch timer
 declare global {
@@ -69,6 +70,12 @@ const businessProfileSchema = z.object({
   trading_address_city: z.string().optional(),
   trading_address_postal_code: z.string().optional(),
   trading_address_country: z.string().optional(),
+  // Personal information fields from signup
+  first_name: z.string().optional(),
+  last_name: z.string().optional(),
+  personal_email: z.string().email('Invalid email address').optional().or(z.literal('')),
+  mobile: z.string().optional(),
+  role: z.string().optional(),
   social_media: z.object({
     linkedin: z.string().optional(),
     twitter: z.string().optional(),
@@ -123,11 +130,17 @@ const generateLetterLogo = (name: string): string => {
 
 const BusinessProfile = () => {
   const { user } = useAuth();
+  const { showNavbar } = useNavbar();
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [profileExists, setProfileExists] = useState(false);
   const [profile, setProfile] = useState<BusinessProfileFormValues | null>(null);
   const navigate = useNavigate();
+
+  // Ensure navbar is visible when component mounts
+  useEffect(() => {
+    showNavbar();
+  }, [showNavbar]);
 
   const form = useForm<BusinessProfileFormValues>({
     resolver: zodResolver(businessProfileSchema),
@@ -153,6 +166,11 @@ const BusinessProfile = () => {
       trading_address_city: '',
       trading_address_postal_code: '',
       trading_address_country: 'United Kingdom',
+      first_name: '',
+      last_name: '',
+      personal_email: '',
+      mobile: '',
+      role: '',
     },
   });
 
@@ -226,6 +244,11 @@ const BusinessProfile = () => {
           logo_url: data.logo_url || '',
           vat_number: data.vat_number || '',
           annual_revenue: data.forecastRevenue || data.annual_revenue || '',
+          first_name: data.firstName || data.first_name || '',
+          last_name: data.lastName || data.last_name || '',
+          personal_email: data.email || data.personal_email || '',
+          mobile: data.mobile || '',
+          role: data.role || '',
         });
 
         console.log('Profile loaded successfully:', {
@@ -309,6 +332,15 @@ const BusinessProfile = () => {
         address: address,
         trading_address: tradingAddress,
         incorporation_date: incorporationDate,
+        // Personal information from signup
+        firstName: values.first_name,
+        first_name: values.first_name,
+        lastName: values.last_name,
+        last_name: values.last_name,
+        email: values.personal_email,
+        personal_email: values.personal_email,
+        mobile: values.mobile,
+        role: values.role,
         updatedAt: new Date(),
       };
       const profileData = cleanObject(profileDataRaw);
@@ -874,6 +906,103 @@ const BusinessProfile = () => {
                                 <Input className="pl-8 bg-white text-slate-900" type="tel" placeholder="+44" {...field} />
                               </div>
                             </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Personal Information */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                      <User className="h-5 w-5 text-slate-700" />
+                      Personal Information
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-slate-900">
+                      <FormField
+                        control={form.control}
+                        name="first_name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>First Name</FormLabel>
+                            <FormControl>
+                              <Input className="bg-white text-slate-900" type="text" placeholder="John" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="last_name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Last Name</FormLabel>
+                            <FormControl>
+                              <Input className="bg-white text-slate-900" type="text" placeholder="Smith" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="personal_email"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Personal Email</FormLabel>
+                            <FormControl>
+                              <div className="flex">
+                                <MailIcon className="w-4 h-4 text-muted-foreground absolute mt-2.5 ml-2.5" />
+                                <Input className="pl-8 bg-white text-slate-900" type="email" placeholder="john@example.com" {...field} />
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="mobile"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Mobile Number</FormLabel>
+                            <FormControl>
+                              <div className="flex">
+                                <PhoneIcon className="w-4 h-4 text-muted-foreground absolute mt-2.5 ml-2.5" />
+                                <Input className="pl-8 bg-white text-slate-900" type="tel" placeholder="+44 7XXX XXXXXX" {...field} />
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="role"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Role</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl>
+                                <SelectTrigger className="bg-white text-slate-900">
+                                  <SelectValue placeholder="Select your role" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="business_owner">Business Owner</SelectItem>
+                                <SelectItem value="finance_director">Finance Director</SelectItem>
+                                <SelectItem value="personal_assistant">Personal Assistant</SelectItem>
+                                <SelectItem value="accountant">Accountant</SelectItem>
+                                <SelectItem value="manager">Manager</SelectItem>
+                                <SelectItem value="other">Other</SelectItem>
+                              </SelectContent>
+                            </Select>
                             <FormMessage />
                           </FormItem>
                         )}

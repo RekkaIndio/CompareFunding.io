@@ -220,67 +220,67 @@ const LenderProfile = () => {
         state: profile.state || '',
         postal_code: profile.postal_code || '',
         country: profile.country || '',
-        min_loan_amount: profile.lending_criteria?.min_loan_amount?.toString() || '',
-        max_loan_amount: profile.lending_criteria?.max_loan_amount?.toString() || '',
-        preferred_industries: profile.lending_criteria?.preferred_industries || [],
-        excluded_industries: profile.lending_criteria?.excluded_industries || [],
-        min_business_age_months: profile.lending_criteria?.min_business_age_months?.toString() || '',
-        min_annual_revenue: profile.lending_criteria?.min_annual_revenue?.toString() || '',
-        funding_speed_days: profile.lending_criteria?.funding_speed_days?.toString() || '',
+        min_loan_amount: profile.product_type?.min_loan_amount?.toString() || '',
+        max_loan_amount: profile.product_type?.max_loan_amount?.toString() || '',
+        preferred_industries: profile.product_type?.preferred_industries || [],
+        excluded_industries: profile.product_type?.excluded_industries || [],
+        min_business_age_months: profile.product_type?.min_business_age_months?.toString() || '',
+        min_annual_revenue: profile.product_type?.min_annual_revenue?.toString() || '',
+        funding_speed_days: profile.product_type?.funding_speed_days?.toString() || '',
         interest_rate_range: {
-          min: profile.lending_criteria?.interest_rate_range?.min?.toString() || '',
-          max: profile.lending_criteria?.interest_rate_range?.max?.toString() || ''
+          min: profile.product_type?.interest_rate_range?.min?.toString() || '',
+          max: profile.product_type?.interest_rate_range?.max?.toString() || ''
         },
         funding_types: {
-          invoice_finance: profile.lending_criteria?.funding_types?.invoice_finance || false,
-          factoring: profile.lending_criteria?.funding_types?.factoring || false,
-          asset_finance: profile.lending_criteria?.funding_types?.asset_finance || false,
-          business_loans: profile.lending_criteria?.funding_types?.business_loans || false,
-          commercial_property_loans: profile.lending_criteria?.funding_types?.commercial_property_loans || false,
-          commercial_property_bridging_loans: profile.lending_criteria?.funding_types?.commercial_property_bridging_loans || false,
-          commercial_property_vat_funding: profile.lending_criteria?.funding_types?.commercial_property_vat_funding || false,
-          supply_chain_finance: profile.lending_criteria?.funding_types?.supply_chain_finance || false,
-          stock_funding: profile.lending_criteria?.funding_types?.stock_funding || false,
-          revolving_credit_facilities: profile.lending_criteria?.funding_types?.revolving_credit_facilities || false
+          invoice_finance: profile.product_type?.funding_types?.invoice_finance || false,
+          factoring: profile.product_type?.funding_types?.factoring || false,
+          asset_finance: profile.product_type?.funding_types?.asset_finance || false,
+          business_loans: profile.product_type?.funding_types?.business_loans || false,
+          commercial_property_loans: profile.product_type?.funding_types?.commercial_property_loans || false,
+          commercial_property_bridging_loans: profile.product_type?.funding_types?.commercial_property_bridging_loans || false,
+          commercial_property_vat_funding: profile.product_type?.funding_types?.commercial_property_vat_funding || false,
+          supply_chain_finance: profile.product_type?.funding_types?.supply_chain_finance || false,
+          stock_funding: profile.product_type?.funding_types?.stock_funding || false,
+          revolving_credit_facilities: profile.product_type?.funding_types?.revolving_credit_facilities || false
         },
         funding_type_criteria: {
-          invoice_finance: profile.lending_criteria?.funding_type_criteria?.invoice_finance || {
+          invoice_finance: profile.product_type?.funding_type_criteria?.invoice_finance || {
             min_amount: '', max_amount: '', interest_rate_min: '', interest_rate_max: '',
             max_advance_percentage: '', min_business_age_months: '', required_turnover: '', processing_time_days: ''
           },
-          factoring: profile.lending_criteria?.funding_type_criteria?.factoring || {
+          factoring: profile.product_type?.funding_type_criteria?.factoring || {
             min_amount: '', max_amount: '', interest_rate_min: '', interest_rate_max: '',
             advance_percentage: '', min_business_age_months: '', required_turnover: '', processing_time_days: ''
           },
-          asset_finance: profile.lending_criteria?.funding_type_criteria?.asset_finance || {
+          asset_finance: profile.product_type?.funding_type_criteria?.asset_finance || {
             min_amount: '', max_amount: '', interest_rate_min: '', interest_rate_max: '',
             max_ltv_percentage: '', min_business_age_months: '', asset_types: [], processing_time_days: ''
           },
-          business_loans: profile.lending_criteria?.funding_type_criteria?.business_loans || {
+          business_loans: profile.product_type?.funding_type_criteria?.business_loans || {
             min_amount: '', max_amount: '', interest_rate_min: '', interest_rate_max: '',
             max_term_months: '', min_business_age_months: '', required_turnover: '', processing_time_days: ''
           },
-          commercial_property_loans: profile.lending_criteria?.funding_type_criteria?.commercial_property_loans || {
+          commercial_property_loans: profile.product_type?.funding_type_criteria?.commercial_property_loans || {
             min_amount: '', max_amount: '', interest_rate_min: '', interest_rate_max: '',
             max_ltv_percentage: '', max_term_months: '', property_types: [], processing_time_days: ''
           },
-          commercial_property_bridging_loans: profile.lending_criteria?.funding_type_criteria?.commercial_property_bridging_loans || {
+          commercial_property_bridging_loans: profile.product_type?.funding_type_criteria?.commercial_property_bridging_loans || {
             min_amount: '', max_amount: '', interest_rate_min: '', interest_rate_max: '',
             max_ltv_percentage: '', max_term_months: '', processing_time_days: ''
           },
-          commercial_property_vat_funding: profile.lending_criteria?.funding_type_criteria?.commercial_property_vat_funding || {
+          commercial_property_vat_funding: profile.product_type?.funding_type_criteria?.commercial_property_vat_funding || {
             min_amount: '', max_amount: '', interest_rate_min: '', interest_rate_max: '',
             max_advance_percentage: '', processing_time_days: ''
           },
-          supply_chain_finance: profile.lending_criteria?.funding_type_criteria?.supply_chain_finance || {
+          supply_chain_finance: profile.product_type?.funding_type_criteria?.supply_chain_finance || {
             min_amount: '', max_amount: '', interest_rate_min: '', interest_rate_max: '',
             max_advance_percentage: '', min_business_age_months: '', required_turnover: '', processing_time_days: ''
           },
-          stock_funding: profile.lending_criteria?.funding_type_criteria?.stock_funding || {
+          stock_funding: profile.product_type?.funding_type_criteria?.stock_funding || {
             min_amount: '', max_amount: '', interest_rate_min: '', interest_rate_max: '',
             max_advance_percentage: '', min_business_age_months: '', stock_types: [], processing_time_days: ''
           },
-          revolving_credit_facilities: profile.lending_criteria?.funding_type_criteria?.revolving_credit_facilities || {
+          revolving_credit_facilities: profile.product_type?.funding_type_criteria?.revolving_credit_facilities || {
             min_amount: '', max_amount: '', interest_rate_min: '', interest_rate_max: '',
             min_business_age_months: '', required_turnover: '', processing_time_days: ''
           }
@@ -503,7 +503,7 @@ const LenderProfile = () => {
         state: formData.state || '',
         postal_code: formData.postal_code || '',
         country: formData.country || '',
-        lending_criteria: {
+        product_type: {
           min_loan_amount: validateNumber(formData.min_loan_amount),
           max_loan_amount: validateNumber(formData.max_loan_amount),
           preferred_industries: Array.isArray(formData.preferred_industries) ? formData.preferred_industries : [],

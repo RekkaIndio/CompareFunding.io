@@ -12,28 +12,50 @@
  */
 
 import { useEffect, useState } from 'react';
-import { Eye, EyeOff, Mail, Lock, Check, X } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, Check, X, User, Phone, Briefcase } from 'lucide-react';
 import { useNavbar } from '@/contexts/NavbarContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import SignUpLayout from '@/components/SignUpLayout';
 import SSOButtons from '@/components/SSOButtons';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { createDocument, updateDocument } from '@/firebase';
 import { toast } from 'sonner';
 import '../../styles/animations.css';
 
 const EmailPasswordPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const selectedProduct = searchParams.get('product');
   const { showNavbar, hideNavbar } = useNavbar();
   const { signUp, signInWithGoogle } = useAuth();
+  
+  // Personal Information fields
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
+  const [mobile, setMobile] = useState('');
+  const [role, setRole] = useState('');
+  
+  // Password fields
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Role options
+  const roleOptions = [
+    { label: 'Business Owner', value: 'business_owner' },
+    { label: 'Finance Director', value: 'finance_director' },
+    { label: 'Personal Assistant', value: 'personal_assistant' },
+    { label: 'Accountant', value: 'accountant' },
+    { label: 'Manager', value: 'manager' },
+    { label: 'Other', value: 'other' },
+  ];
 
   // Password criteria state
   const [passwordCriteria, setPasswordCriteria] = useState({
@@ -57,6 +79,18 @@ const EmailPasswordPage = () => {
 
   useEffect(() => {
     hideNavbar();
+    
+    // Clear any previous signup session data when starting fresh
+    sessionStorage.removeItem('businessDetailsFormData');
+    sessionStorage.removeItem('additionalDetailsFormData');
+    sessionStorage.removeItem('currentFundingFormData');
+    sessionStorage.removeItem('hmrcStatusFormData');
+    sessionStorage.removeItem('documentUploadFormData');
+    sessionStorage.removeItem('lenderPreferencesFormData');
+    sessionStorage.removeItem('currentSignupSession');
+    sessionStorage.removeItem('credit_data_ready');
+    sessionStorage.removeItem('credit_search_company_name');
+    
     return () => {
       showNavbar();
     };
@@ -64,9 +98,13 @@ const EmailPasswordPage = () => {
 
   const steps = [
     { label: 'Email & Password', path: '/signup-journey/email-password' },
-    { label: 'Funding Amount', path: '/signup-journey/apply' },
     { label: 'Business Details', path: '/signup-journey/business-details' },
-    { label: 'Industry Specifics', path: '/signup-journey/industry-specifics' },
+    { label: 'Additional Details', path: '/signup-journey/additional-details' },
+    { label: 'Current Funding', path: '/signup-journey/current-funding' },
+    { label: 'HMRC Status', path: '/signup-journey/hmrc-status' },
+    { label: 'Document Upload', path: '/signup-journey/document-upload' },
+    { label: 'Lender Preferences', path: '/signup-journey/lender-preferences' },
+    { label: 'Review & Submit', path: '/signup-journey/application-review' },
   ];
   const currentStep = 0;
 
@@ -78,19 +116,31 @@ const EmailPasswordPage = () => {
         navigate('/signup-journey/email-password');
         break;
       case 1:
-        navigate('/signup-journey/apply');
-        break;
-      case 2:
         navigate('/signup-journey/business-details');
         break;
+      case 2:
+        navigate('/signup-journey/additional-details');
+        break;
       case 3:
-        navigate('/signup-journey/industry-specifics');
+        navigate('/signup-journey/current-funding');
+        break;
+      case 4:
+        navigate('/signup-journey/hmrc-status');
+        break;
+      case 5:
+        navigate('/signup-journey/document-upload');
+        break;
+      case 6:
+        navigate('/signup-journey/lender-preferences');
+        break;
+      case 7:
+        navigate('/signup-journey/application-review');
         break;
     }
   };
 
   const handleNext = () => {
-    navigate('/signup-journey/apply');
+    navigate('/signup-journey/business-details');
   };
 
   // Calculate if all required criteria are met
@@ -108,7 +158,7 @@ const EmailPasswordPage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!email || !password || !confirmPassword) {
+    if (!firstName || !lastName || !email || !mobile || !role || !password || !confirmPassword) {
       toast.error('Please fill in all fields');
       return;
     }
@@ -128,7 +178,11 @@ const EmailPasswordPage = () => {
     try {
       const userData = {
         email,
-        role: 'business',
+        firstName,
+        lastName,
+        mobile,
+        role,
+        displayName: `${firstName} ${lastName}`,
       };
 
       const { error, data } = await signUp(email, password, userData, false);
@@ -137,8 +191,35 @@ const EmailPasswordPage = () => {
         throw new Error(error.message);
       }
 
+      // Save additional user data to businesses collection
+      try {
+        await createDocument('businesses', {
+          firstName: firstName,
+          first_name: firstName,
+          lastName: lastName,
+          last_name: lastName,
+          email: email,
+          personal_email: email,
+          mobile: mobile,
+          role: role,
+          displayName: `${firstName} ${lastName}`,
+          selectedProduct: selectedProduct || null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }, data.user.uid);
+      } catch (profileError) {
+        console.error('Error saving user profile:', profileError);
+        // Don't fail the signup if profile save fails
+      }
+
       toast.success('Account created successfully!');
-      navigate('/signup-journey/apply', { state: { userId: data.user.uid } });
+      navigate('/signup-journey/business-details', { 
+        state: { 
+          userId: data.user.uid,
+          userInfo: userData,
+          selectedProduct: selectedProduct
+        } 
+      });
     } catch (error: any) {
       console.error('Signup error:', error);
       toast.error(error.message || 'Failed to create account. Please try again.');
@@ -150,12 +231,19 @@ const EmailPasswordPage = () => {
   // Handle SSO success - continue the signup journey
   const handleSSOSuccess = (userData: any) => {
     // Continue to the next step in the signup journey with SSO user data
-    navigate('/signup-journey/apply', { 
+    navigate('/signup-journey/business-details', { 
       state: { 
         userId: userData.userId,
         ssoProvider: userData.provider,
-        email: userData.email,
-        displayName: userData.displayName
+        userInfo: {
+          email: userData.email,
+          firstName: userData.firstName || '',
+          lastName: userData.lastName || '',
+          displayName: userData.displayName || '',
+          mobile: '',
+          role: ''
+        },
+        selectedProduct: selectedProduct
       } 
     });
   };
@@ -170,10 +258,10 @@ const EmailPasswordPage = () => {
     description: "Start your funding journey by creating a secure account. We'll help you find the best funding options for your business.",
     highlight: "Trusted by 10,000+ businesses",
     tips: [
-      "Use Google Sign-In for quick account creation",
-      "Or create account with email and secure password",
-      "Choose a strong password with at least 6 characters",
-      "Include uppercase letters, numbers, and special characters"
+      "We collect your personal information to personalise your experience",
+      "Your role helps us understand your business needs better", 
+      "All information is securely encrypted and protected",
+      "You can update these details anytime in your profile"
     ]
   };
 
@@ -196,11 +284,18 @@ const EmailPasswordPage = () => {
       onStepNavigation={handleStepNavigation}
       onNext={handleNext}
       canGoBack={false}
-      canGoNext={email && isPasswordStrong() && doPasswordsMatch()}
+      canGoNext={firstName && lastName && email && mobile && role && isPasswordStrong() && doPasswordsMatch()}
       sidebarProps={sidebarProps}
     >
       <div className="space-y-8">
         <div className="text-center mb-6 sm:mb-8">
+          {selectedProduct && (
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-700">
+                Creating account for: <span className="font-semibold capitalize">{selectedProduct.replace(/-/g, ' ')}</span>
+              </p>
+            </div>
+          )}
           <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-[#2a3441] mb-2 sm:mb-3 animate-fadeIn">
             Create Your Account
           </h1>
@@ -219,6 +314,41 @@ const EmailPasswordPage = () => {
             signInWithGoogle={signInWithGoogle}
           />
 
+          {/* Personal Information Section */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+            <div className="space-y-1 sm:space-y-2">
+              <Label htmlFor="firstName" className="text-[#2a3441] text-sm sm:text-base font-medium flex items-center gap-2">
+                <User className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#ff8000]" />
+                First Name
+              </Label>
+              <Input
+                id="firstName"
+                type="text"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                placeholder="Enter your first name"
+                className="h-10 sm:h-12 bg-white border-2 border-gray-200 focus:border-[#ff8000] focus:ring-1 focus:ring-[#ff8000] text-sm sm:text-base text-[#2a3441] placeholder:text-gray-400 transition-all duration-300 rounded-lg sm:rounded-xl"
+                required
+              />
+            </div>
+
+            <div className="space-y-1 sm:space-y-2">
+              <Label htmlFor="lastName" className="text-[#2a3441] text-sm sm:text-base font-medium flex items-center gap-2">
+                <User className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#ff8000]" />
+                Last Name
+              </Label>
+              <Input
+                id="lastName"
+                type="text"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                placeholder="Enter your last name"
+                className="h-10 sm:h-12 bg-white border-2 border-gray-200 focus:border-[#ff8000] focus:ring-1 focus:ring-[#ff8000] text-sm sm:text-base text-[#2a3441] placeholder:text-gray-400 transition-all duration-300 rounded-lg sm:rounded-xl"
+                required
+              />
+            </div>
+          </div>
+
           <div className="space-y-1 sm:space-y-2">
             <Label htmlFor="email" className="text-[#2a3441] text-sm sm:text-base font-medium flex items-center gap-2">
               <Mail className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#ff8000]" />
@@ -233,6 +363,43 @@ const EmailPasswordPage = () => {
               className="h-10 sm:h-12 bg-white border-2 border-gray-200 focus:border-[#ff8000] focus:ring-1 focus:ring-[#ff8000] text-sm sm:text-base text-[#2a3441] placeholder:text-gray-400 transition-all duration-300 rounded-lg sm:rounded-xl"
               required
             />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+            <div className="space-y-1 sm:space-y-2">
+              <Label htmlFor="mobile" className="text-[#2a3441] text-sm sm:text-base font-medium flex items-center gap-2">
+                <Phone className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#ff8000]" />
+                Mobile Number
+              </Label>
+              <Input
+                id="mobile"
+                type="tel"
+                value={mobile}
+                onChange={(e) => setMobile(e.target.value)}
+                placeholder="Enter your mobile number"
+                className="h-10 sm:h-12 bg-white border-2 border-gray-200 focus:border-[#ff8000] focus:ring-1 focus:ring-[#ff8000] text-sm sm:text-base text-[#2a3441] placeholder:text-gray-400 transition-all duration-300 rounded-lg sm:rounded-xl"
+                required
+              />
+            </div>
+
+            <div className="space-y-1 sm:space-y-2">
+              <Label htmlFor="role" className="text-[#2a3441] text-sm sm:text-base font-medium flex items-center gap-2">
+                <Briefcase className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#ff8000]" />
+                Role
+              </Label>
+              <Select value={role} onValueChange={setRole} required>
+                <SelectTrigger className="h-10 sm:h-12 bg-white border-2 border-gray-200 focus:border-[#ff8000] focus:ring-1 focus:ring-[#ff8000] text-sm sm:text-base text-[#2a3441] rounded-lg sm:rounded-xl">
+                  <SelectValue placeholder="Select your role" />
+                </SelectTrigger>
+                <SelectContent>
+                  {roleOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="space-y-1 sm:space-y-2">
@@ -320,7 +487,7 @@ const EmailPasswordPage = () => {
 
           <Button
             type="submit"
-            disabled={isLoading || !email || !isPasswordStrong() || !doPasswordsMatch()}
+            disabled={isLoading || !firstName || !lastName || !email || !mobile || !role || !isPasswordStrong() || !doPasswordsMatch()}
             className="w-full h-10 sm:h-12 bg-gradient-to-r from-[#ff8000] to-[#ff6000] hover:from-[#e67300] hover:to-[#e55a00] text-white text-sm sm:text-base font-semibold rounded-lg sm:rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none mt-2 sm:mt-4"
           >
             {isLoading ? (

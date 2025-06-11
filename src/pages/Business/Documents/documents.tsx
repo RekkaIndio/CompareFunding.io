@@ -63,24 +63,24 @@ const validateFile = (file: File): { valid: boolean; message?: string } => {
 
 const DOCUMENT_STEPS = [
   {
-    key: "pl",
-    label: "Profit and Loss",
-    description: "A summary of your business's revenues, costs, and expenses over a period. Shows net profit or loss."
+    key: "signed-accounts",
+    label: "Signed Accounts",
+    description: "Most Recent Period"
   },
   {
-    key: "tb",
-    label: "Trial Balance",
-    description: "A report listing all ledger accounts and their balances to check that debits equal credits."
+    key: "management-accounts",
+    label: "Management Accounts",
+    description: "Most Recent Period"
   },
   {
-    key: "ap",
-    label: "Aged Payables",
-    description: "A breakdown of amounts your business owes to suppliers, organized by due date."
+    key: "aged-debtors",
+    label: "Aged Debtors",
+    description: "Most recent month end"
   },
   {
-    key: "ar",
-    label: "Aged Receivables",
-    description: "A breakdown of amounts owed to your business by customers, organized by due date."
+    key: "aged-creditors",
+    label: "Aged Creditors",
+    description: "Most recent month end"
   },
 ];
 
@@ -94,6 +94,10 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
 
   // State to track if we're loading saved documents
   const [loadingSaved, setLoadingSaved] = useState<boolean>(false);
+
+  // Add state to track processing of pending documents from signup
+  const [processingPendingDocs, setProcessingPendingDocs] = useState<boolean>(false);
+  const [pendingDocsCount, setPendingDocsCount] = useState<number>(0);
 
   // Store extracted text for each document type
   const [extracted, setExtracted] = useState<{ [key: string]: ExtractedFile | null }>({});
@@ -187,6 +191,136 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
       }
     });
   }, [aiResults]);
+
+  // New useEffect to process pending documents from signup journey
+  useEffect(() => {
+    const processPendingDocuments = async () => {
+      const currentUser = auth.currentUser;
+      if (!currentUser) return;
+
+      try {
+        const db = getFirestore();
+        const financialsCollection = collection(db, "businesses", currentUser.uid, "financials");
+        
+        // Query for documents with pending_processing status (legacy documents that weren't immediately processed)
+        const pendingQuery = query(
+          financialsCollection,
+          where("status", "==", "pending_processing"),
+          orderBy("createdAt", "desc")
+        );
+        
+        const querySnapshot = await getDocs(pendingQuery);
+        
+        if (!querySnapshot.empty) {
+          console.log(`Found ${querySnapshot.size} legacy pending documents from signup journey`);
+          setPendingDocsCount(querySnapshot.size);
+          setProcessingPendingDocs(true);
+          
+          // Process each pending document
+          for (const docSnapshot of querySnapshot.docs) {
+            const docData = docSnapshot.data();
+            const documentKey = docData.documentKey;
+            const fileUrl = docData.fileUrl;
+            const documentType = docData.documentType;
+            
+            if (!fileUrl || !documentKey) continue;
+            
+            try {
+              // Skip if this document type is already being processed or completed
+              if (aiLoading[documentKey] || completedUploads.includes(documentKey)) {
+                continue;
+              }
+              
+              console.log(`Processing legacy pending document: ${documentType} (${documentKey})`);
+              
+              // Fetch the file from Storage
+              const response = await fetch(fileUrl);
+              const blob = await response.blob();
+              const file = new File([blob], docData.documentName || 'document', { 
+                type: docData.documentFormat || 'application/pdf' 
+              });
+              
+              // Set loading state
+              setAiLoading(prev => ({ ...prev, [documentKey]: true }));
+              setAiError(prev => ({ ...prev, [documentKey]: null }));
+              
+              // Process the document with OpenAI
+              const aiResult = await analyzeFinancialDocument(file);
+              
+              // Update the document status and add processed data
+              await updateDoc(doc(db, "businesses", currentUser.uid, "financials", docSnapshot.id), {
+                status: 'processed',
+                data: aiResult.json || {},
+                summary: aiResult.summary || '',
+                processedAt: serverTimestamp(),
+                updatedAt: serverTimestamp()
+              });
+              
+              // Update local state
+              setFiles(prev => ({ ...prev, [documentKey]: file }));
+              setAiResults(prev => ({ ...prev, [documentKey]: aiResult }));
+              setSavedDocs(prev => ({
+                ...prev,
+                [documentKey]: {
+                  url: fileUrl,
+                  name: docData.documentName || `${documentType} Document`,
+                  createdAt: docData.createdAt ? docData.createdAt.toDate() : new Date(),
+                  docId: docSnapshot.id
+                }
+              }));
+              
+              // Mark as completed
+              setCompletedUploads(prev => {
+                if (!prev.includes(documentKey)) {
+                  return [...prev, documentKey];
+                }
+                return prev;
+              });
+              
+              toast({
+                title: "Document processed",
+                description: `${documentType} from signup journey has been processed successfully.`,
+                variant: "default"
+              });
+              
+            } catch (error) {
+              console.error(`Error processing pending document ${documentKey}:`, error);
+              setAiError(prev => ({ ...prev, [documentKey]: error.message || "Processing failed" }));
+              
+              // Update document status to error
+              await updateDoc(doc(db, "businesses", currentUser.uid, "financials", docSnapshot.id), {
+                status: 'error',
+                errorMessage: error.message || "Processing failed",
+                updatedAt: serverTimestamp()
+              });
+              
+              toast({
+                title: "Processing failed",
+                description: `Failed to process ${documentType} from signup journey.`,
+                variant: "destructive"
+              });
+            } finally {
+              setAiLoading(prev => ({ ...prev, [documentKey]: false }));
+            }
+          }
+          
+          setProcessingPendingDocs(false);
+          setPendingDocsCount(0);
+        }
+      } catch (error) {
+        console.error("Error checking for pending documents:", error);
+        setProcessingPendingDocs(false);
+        setPendingDocsCount(0);
+      }
+    };
+
+    // Process pending documents after initial load
+    const timer = setTimeout(() => {
+      processPendingDocuments();
+    }, 2000); // Wait 2 seconds to ensure component is fully loaded
+
+    return () => clearTimeout(timer);
+  }, [auth.currentUser]); // Only run when user changes
 
   // Function to ensure the user has a valid business ID
   const ensureBusinessProfile = async (userId: string) => {
@@ -474,7 +608,13 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
             'Aged Receivables': 'ar'
           };
           
-          const key = docTypeToKey[data.documentType];
+          // Also map by documentKey for signup journey documents
+          let key = docTypeToKey[data.documentType];
+          if (!key && data.documentKey) {
+            // For signup journey documents, use the documentKey directly since it matches our DOCUMENT_STEPS keys
+            key = data.documentKey;
+          }
+          
           if (key) {
             // Only store if we don't already have a document for this type
             // or if this document is more recent
@@ -487,17 +627,17 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
                 docId: doc.id // Store the document ID for future reference
               };
               
-              // Store the extracted data in savedResults
-              if (data.data) {
+              // Store the extracted data in savedResults only if processed
+              if (data.data && data.status !== 'pending_processing') {
                 savedResults[key] = {
                   json: data.data,
                   summary: data.summary || ''
                 };
-              }
-              
-              // Add to completed uploads
-              if (!completedDocKeys.includes(key)) {
-                completedDocKeys.push(key);
+                
+                // Add to completed uploads only if processed
+                if (!completedDocKeys.includes(key)) {
+                  completedDocKeys.push(key);
+                }
               }
             }
           }
@@ -1005,6 +1145,24 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
             </div>
           </div>
 
+        {/* Pending Documents Processing Notification */}
+        {processingPendingDocs && pendingDocsCount > 0 && (
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
+            <div className="flex items-center">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mr-3"></div>
+              <div>
+                <h3 className="text-sm font-medium text-blue-800">
+                  Processing Legacy Documents
+                </h3>
+                <p className="text-sm text-blue-600 mt-1">
+                  Found {pendingDocsCount} document{pendingDocsCount !== 1 ? 's' : ''} that need processing. 
+                  Analyzing them now...
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Logo Modal */}
         <LogoModal
           open={modal === "freeagent"}
@@ -1112,7 +1270,7 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
           </div>
 
           {/* Enhanced document upload cards with premium styling */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
             {DOCUMENT_STEPS.map((step, index) => (
               <DocumentCard key={step.key} step={step} index={index} />
             ))}

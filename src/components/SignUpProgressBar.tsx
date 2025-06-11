@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CheckCircle } from 'lucide-react';
 
 interface ProgressStep {
   label: string;
@@ -109,15 +109,23 @@ const SignUpProgressBar: React.FC<SignUpProgressBarProps> = ({
           <button
             type="button"
             onClick={onNext}
-            disabled={!canGoNext || currentStep === steps.length - 1}
+            disabled={!canGoNext}
             className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-4 md:px-6 py-2 sm:py-3 rounded-full border-2 transition-all duration-300 transform hover:scale-105 ${
-              !canGoNext || currentStep === steps.length - 1
+              !canGoNext
                 ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed opacity-50'
-                : 'border-[#ff8000] bg-[#ff8000] text-white hover:bg-[#e67300] hover:shadow-md'
+                : currentStep === steps.length - 1
+                  ? 'border-green-600 bg-gradient-to-r from-green-600 to-green-500 text-white hover:from-green-700 hover:to-green-600 hover:shadow-md'
+                  : 'border-[#ff8000] bg-[#ff8000] text-white hover:bg-[#e67300] hover:shadow-md'
             }`}
           >
-            <span className="font-medium text-sm sm:text-base">Next</span>
-            <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
+            <span className="font-medium text-sm sm:text-base">
+              {currentStep === steps.length - 1 ? "Submit Application" : "Next"}
+            </span>
+            {currentStep === steps.length - 1 ? (
+              <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 ml-1" />
+            ) : (
+              <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
+            )}
           </button>
         </div>
       )}

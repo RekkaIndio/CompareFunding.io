@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getDocuments, getDocument } from "@/firebase";
 import { useAuth } from '@/contexts/AuthContext';
+import { useNavbar } from '@/contexts/NavbarContext';
 import PageLayout from '@/components/PageLayout';
 import ApplicationCard from '@/components/ApplicationCard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
   PlusCircle, 
   AlertCircle, 
@@ -32,7 +34,7 @@ import {
   Activity,
   Upload
 } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { getFirestore, collection, query, where, getDocs } from 'firebase/firestore';
@@ -59,6 +61,8 @@ export type Application = {
   viewed_by_lenders?: string[];
   created_at?: string;
   status_updated_at?: string;
+  connected_lenders?: string[];
+  declined_lenders?: string[];
 }
 
 // Helper function to format currency
@@ -89,7 +93,23 @@ const calculateTotalInterest = (amount: number, interestRate: number, termMonths
 
 const Applications = () => {
   const { user } = useAuth();
+  const { showNavbar } = useNavbar();
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Ensure navbar is visible when component mounts
+  useEffect(() => {
+    showNavbar();
+  }, [showNavbar]);
+  
+  // Handle success message from application submission
+  useEffect(() => {
+    if (location.state?.message) {
+      toast.success(location.state.message);
+      // Clear the state to prevent showing the message again on refresh
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
   
   // Debug user authentication
   useEffect(() => {
@@ -417,6 +437,16 @@ const Applications = () => {
             </div>
           </div>
 
+          {/* Success message for newly submitted applications */}
+          {location.state?.message && (
+            <Alert className="mb-8 bg-green-50 border-green-200 border-2 animate-fadeIn">
+              <CheckCircle className="h-5 w-5 text-green-600" />
+              <AlertDescription className="text-green-800 font-medium">
+                {location.state.message}
+              </AlertDescription>
+            </Alert>
+          )}
+
           {isLoading ? (
             <div className="grid gap-6">
               {[1, 2, 3].map(i => (
@@ -528,7 +558,7 @@ const Applications = () => {
                     <Card 
                       key={application.id} 
                       className="overflow-hidden transition-all duration-300 transform hover:-translate-y-1 rounded-xl shadow-lg hover:shadow-xl bg-white/95 backdrop-blur-sm border-slate-200/50 hover:shadow-2xl cursor-pointer"
-                      onClick={() => navigate(`/applications/${application.id}`)}
+                      onClick={() => navigate(`/lender-marketplace/${application.id}`, { state: { application } })}
                     >
                       {/* Enhanced status indicator bar with premium gradient - matching OffersList */}
                       <div className={`h-3 w-full bg-gradient-to-r ${statusStyling.gradient}`}></div>
@@ -583,7 +613,7 @@ const Applications = () => {
                           
                           {/* Amount box only */}
                           <div className="grid grid-cols-1 gap-3">
-                            <div className="group bg-gradient-to-br from-slate-50 to-slate-100 p-4 rounded-xl border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5">
+                              <div className="bg-gradient-to-br from-slate-50 to-slate-100 p-4 rounded-xl border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5">
                               <div className="flex justify-between items-start mb-2">
                                 <p className="text-sm font-semibold text-slate-600 uppercase tracking-wide">Loan Amount</p>
                                 <div className="bg-gradient-to-br from-[#212936] to-[#2c3c53] rounded-full p-1.5 shadow-sm group-hover:shadow-md transition-shadow">
@@ -591,8 +621,12 @@ const Applications = () => {
                                 </div>
                               </div>
                               <p className="font-bold text-2xl text-[#212936] mb-2">{formatCurrency(application.loan_amount)}</p>
-                              <div className="w-full bg-slate-200/50 h-2 rounded-full">
+                              <div className="w-full bg-slate-200/50 h-2 rounded-full mb-3">
                                 <div className="bg-gradient-to-r from-[#212936] to-[#ff8000] h-2 rounded-full w-full"></div>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs text-slate-600">Click to view matching lenders</span>
+                                <ArrowRight className="h-4 w-4 text-[#ff8000]" />
                               </div>
                             </div>
                           </div>

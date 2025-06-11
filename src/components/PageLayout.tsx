@@ -1,10 +1,11 @@
-import { ReactNode } from 'react';
+import { ReactNode, useEffect } from 'react';
 import Navbar from './Navbar';
 import FooterUpdated from './FooterUpdated';
 import Sidebar from './Sidebar';
 import { cn } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
 import { useSidebar } from '../contexts/SidebarContext';
+import { useNavbar } from '../contexts/NavbarContext';
 
 interface PageLayoutProps {
   children: ReactNode;
@@ -20,13 +21,22 @@ const PageLayout = ({
   className, 
   fullWidth = true,
   withoutPadding = false,
-  showSidebar = false
+  showSidebar = false,
+  hideNavbar = false  // Added prop with default value
 }: PageLayoutProps) => {
   const { user } = useAuth();
   const { sidebarWidth } = useSidebar();
+  const { hideNavbar: contextHideNavbar } = useNavbar(); // Get the hideNavbar function from context
   
   // Always show sidebar for logged-in users by default, unless explicitly set to false
   const shouldShowSidebar = Boolean(user); // We'll show sidebar by default for logged-in users
+  
+  // Use effect to hide navbar when the hideNavbar prop is true
+  useEffect(() => {
+    if (hideNavbar) {
+      contextHideNavbar();
+    }
+  }, [hideNavbar, contextHideNavbar]);
   
   return (
     <div className="min-h-screen flex flex-col">

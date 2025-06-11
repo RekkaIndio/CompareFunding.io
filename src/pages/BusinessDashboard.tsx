@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { getDocument, getDocuments, createDocument, updateDocument, serverTimestamp, FirebaseQueryOperator } from '@/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTour } from '@/contexts/TourContext';
+import { useNavbar } from '@/contexts/NavbarContext';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import CircularProgressBar from '@/components/ui/CircularProgressBar';
 import PageLayout from '@/components/PageLayout'; // Default import
@@ -146,6 +147,7 @@ const formatCurrency = (amount: number | undefined) => {
 const BusinessDashboard = () => {
   const { user } = useAuth();
   const { startTour, isActive: isTourActive, currentTourStep } = useTour();
+  const { showNavbar } = useNavbar();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [businessProfile, setBusinessProfile] = useState<BusinessProfile | null>(null);
@@ -179,6 +181,11 @@ const BusinessDashboard = () => {
       delete (window as any).refreshDashboard;
     };
   }, [refreshDashboardData]);
+
+  // Ensure navbar is visible when component mounts
+  useEffect(() => {
+    showNavbar();
+  }, [showNavbar]);
 
   useEffect(() => {
     const fetchData = async () => {

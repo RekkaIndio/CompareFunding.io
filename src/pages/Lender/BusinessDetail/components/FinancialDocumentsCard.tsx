@@ -5,6 +5,7 @@ import { FinancialData } from '../types';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useEffect } from 'react';
+import FinancialsTable from '@/pages/Business/Documents/FinancialsTable';
 
 interface FinancialDocumentsCardProps {
   financialData: FinancialData | undefined;
@@ -20,33 +21,58 @@ export const FinancialDocumentsCard: React.FC<FinancialDocumentsCardProps> = ({
 
   }, [isLenderMatched]);
 
-  // Helper function to determine if we have file URLs for any financial document
+  // Helper function to determine if we have file URLs or processed data for any financial document
   const hasDocuments = () => {
     if (!financialData) return false;
     
     return Object.values(financialData).some((doc) => 
-      doc && (doc.fileUrl || doc.documentUrl || doc.url)
+      doc && (doc.fileUrl || doc.documentUrl || doc.url || (doc.data && Object.keys(doc.data).length > 0))
     );
   };
   
-  // Count available documents
+  // Count available documents (either with files or processed data)
   const countAvailableDocuments = () => {
     if (!financialData) return 0;
     
     return Object.values(financialData).filter(doc => 
-      doc && (doc.fileUrl || doc.documentUrl || doc.url)
+      doc && (doc.fileUrl || doc.documentUrl || doc.url || (doc.data && Object.keys(doc.data).length > 0))
     ).length;
   };
   
   // Helper function to get a friendly name for document types
   const getDocumentTypeName = (key: string): string => {
     switch (key) {
-      case 'profitLoss': return 'Profit & Loss Statement';
-      case 'balanceSheet': return 'Balance Sheet';
-      case 'trialBalance': return 'Trial Balance';
-      case 'agedPayables': return 'Aged Payables';
-      case 'agedReceivables': return 'Aged Receivables';
-      default: return key.replace(/([A-Z])/g, ' $1').trim();
+      case 'profitLoss':
+      case 'pl':
+      case 'profit-loss':
+        return 'Profit & Loss Statement';
+      case 'balanceSheet':
+      case 'bs':
+      case 'balance-sheet':
+        return 'Balance Sheet';
+      case 'trialBalance':
+      case 'tb':
+      case 'trial-balance':
+        return 'Trial Balance';
+      case 'agedPayables':
+      case 'ap':
+      case 'aged-payables':
+      case 'aged-creditors':
+        return 'Aged Payables';
+      case 'agedReceivables':
+      case 'ar':
+      case 'aged-receivables':
+      case 'aged-debtors':
+        return 'Aged Receivables';
+      case 'signed-accounts':
+        return 'Signed Accounts';
+      case 'management-accounts':
+        return 'Management Accounts';
+      default: 
+        return key.replace(/([A-Z])/g, ' $1').replace(/-/g, ' ').trim()
+          .split(' ')
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(' ');
     }
   };
   
@@ -101,50 +127,70 @@ export const FinancialDocumentsCard: React.FC<FinancialDocumentsCardProps> = ({
             </Alert>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-6">
             <Alert variant="default" className="bg-green-50 border-green-100 text-green-800 mb-4">
               <CheckCircle2 className="h-4 w-4" />
               <AlertDescription>
-                As a matched lender, you can now download the original financial documents for this business.
+                As a matched lender, you can now view the processed financial data and download the original documents for this business.
               </AlertDescription>
             </Alert>
             
+            {/* Display financial data in structured tables */}
             {Object.entries(financialData).map(([key, document]) => {
-              // Get the URL from wherever it might be stored
-              const documentUrl = document?.fileUrl || document?.documentUrl || document?.url;
+              if (!document) return null;
               
-              if (!documentUrl) return null;
+              const documentUrl = document?.fileUrl || document?.documentUrl || document?.url;
+              const hasData = document?.data && Object.keys(document.data).length > 0;
+              
+              // Only show documents that have either a file URL or processed data
+              if (!documentUrl && !hasData) return null;
               
               return (
-                <div 
-                  key={key} 
-                  className="flex items-center justify-between border-b border-slate-200 pb-3 last:border-0 hover:bg-slate-50 transition-colors p-2 rounded-md"
-                >
-                  <div className="flex items-center">
-                    <FileText className="h-5 w-5 text-[#ff8000] mr-3" />
-                    <div>
-                      <p className="font-medium text-slate-900">{getDocumentTypeName(key)}</p>
-                      <p className="text-xs text-slate-500">
-                        {document?.documentName || document?.fileName || 'Financial document'}
-                      </p>
+                <div key={key} className="space-y-4">
+                  {/* Document Header with Download Button */}
+                  <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+                    <div className="flex items-center">
+                      <FileText className="h-5 w-5 text-[#ff8000] mr-3" />
+                      <div>
+                        <p className="font-medium text-slate-900">{getDocumentTypeName(key)}</p>
+                        <p className="text-xs text-slate-500">
+                          {document?.documentName || document?.fileName || 'Financial document'}
+                        </p>
+                      </div>
                     </div>
+                    {documentUrl && (
+                      <a 
+                        href={documentUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="no-underline"
+                        download
+                      >
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="flex items-center gap-1 text-blue-600 border-blue-200 hover:bg-blue-50"
+                        >
+                          <DownloadCloud className="h-4 w-4" />
+                          <span>Download</span>
+                        </Button>
+                      </a>
+                    )}
                   </div>
-                  <a 
-                    href={documentUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="no-underline"
-                    download
-                  >
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
-                      className="flex items-center gap-1 text-blue-600 border-blue-200 hover:bg-blue-50"
-                    >
-                      <DownloadCloud className="h-4 w-4" />
-                      <span>Download</span>
-                    </Button>
-                  </a>
+                  
+                  {/* Display financial data table if available */}
+                  {hasData ? (
+                    <div className="bg-white rounded-lg border border-slate-200">
+                      <FinancialsTable 
+                        data={document.data}
+                        title={getDocumentTypeName(key)}
+                      />
+                    </div>
+                  ) : (
+                    <div className="bg-slate-50 rounded-lg p-4 text-center text-slate-500 text-sm">
+                      Document uploaded but data processing is still in progress
+                    </div>
+                  )}
                 </div>
               );
             })}

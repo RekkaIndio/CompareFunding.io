@@ -147,8 +147,16 @@ interface CreditScoreCardProps {
     provider?: string;
     status?: string;
     lastUpdated?: string | number | Date;
+    last_updated?: string | number | Date; // normalized format
+    updatedAt?: string | number | Date; // additional date field
+    createdAt?: string | number | Date; // additional date field
     details?: any;
     businessType?: 'established' | 'new' | 'international';
+    risk_level?: string; // normalized format
+    credit_limit?: string | number; // normalized format
+    negative_information?: boolean; // normalized format
+    credit_score?: number | string; // raw Firebase field
+    risk?: string; // raw Firebase field
   } | null;
 }
 
@@ -156,36 +164,71 @@ interface CreditScoreCardProps {
 const formatDate = (dateInput: string | number | Date | undefined) => {
   if (!dateInput) return 'N/A';
   
-  // If it's a date string, convert it to a more readable format
   try {
-    const date = new Date(dateInput);
+    let date: Date;
+    
+    // Handle Firebase Timestamp objects
+    if (dateInput && typeof dateInput === 'object' && 'seconds' in dateInput) {
+      date = new Date((dateInput as any).seconds * 1000);
+    }
+    // Handle standard Date objects, ISO strings, or timestamps
+    else {
+      date = new Date(dateInput);
+    }
+    
+    // Check if the date is valid
+    if (isNaN(date.getTime())) {
+      return 'Invalid Date';
+    }
+    
     return date.toLocaleDateString('en-GB', { 
       day: '2-digit',
       month: 'long',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+      year: 'numeric'
     });
   } catch (e) {
-    return String(dateInput);
+    console.error('Date formatting error:', e, 'Input:', dateInput);
+    return 'Invalid Date';
   }
 };
 
 export const CreditScoreCard: React.FC<CreditScoreCardProps> = ({ creditScore }) => {
+  // Debug logging to see what data we're receiving
+  console.log('[DEBUG CreditScoreCard] Received creditScore prop:', creditScore);
+  
   // Extract the score value from credit details
   let scoreValue;
   
   // Try to get score from different possible locations in the data structure
-  if (creditScore?.details?.credit_score) {
+  if (creditScore?.score !== undefined && creditScore?.score !== null) {
+    // First try the normalized data structure (top-level score)
+    scoreValue = creditScore.score;
+    console.log('[DEBUG CreditScoreCard] Using normalized score:', scoreValue);
+  } else if (creditScore?.details?.credit_score !== undefined && creditScore?.details?.credit_score !== null) {
     // If score exists in details.credit_score
     scoreValue = creditScore.details.credit_score;
-  } else if (creditScore?.details?.score) {
+    console.log('[DEBUG CreditScoreCard] Using details.credit_score:', scoreValue);
+  } else if (creditScore?.details?.score !== undefined && creditScore?.details?.score !== null) {
     // If score exists in details.score
     scoreValue = creditScore.details.score;
-  } else if (creditScore?.score) {
-    // Fallback to the top-level score property
-    scoreValue = creditScore.score;
+    console.log('[DEBUG CreditScoreCard] Using details.score:', scoreValue);
+  } else if (creditScore?.details?.data?.credit_score !== undefined && creditScore?.details?.data?.credit_score !== null) {
+    // Try Firebase subcollection format: details.data.credit_score
+    scoreValue = creditScore.details.data.credit_score;
+    console.log('[DEBUG CreditScoreCard] Using details.data.credit_score:', scoreValue);
+  } else if (creditScore?.details?.data?.score !== undefined && creditScore?.details?.data?.score !== null) {
+    // Try Firebase subcollection format: details.data.score
+    scoreValue = creditScore.details.data.score;
+    console.log('[DEBUG CreditScoreCard] Using details.data.score:', scoreValue);
+  } else if (creditScore?.credit_score !== undefined && creditScore?.credit_score !== null) {
+    // Direct credit_score field (for raw Firebase data)
+    scoreValue = creditScore.credit_score;
+    console.log('[DEBUG CreditScoreCard] Using direct credit_score:', scoreValue);
   }
+  
+  console.log('[DEBUG CreditScoreCard] Final extracted scoreValue:', scoreValue);
+  console.log('[DEBUG CreditScoreCard] creditScore.details:', creditScore?.details);
+  console.log('[DEBUG CreditScoreCard] creditScore.details.data:', creditScore?.details?.data);
   
   // Convert string scores to numbers when possible
   const numericScore = scoreValue && !isNaN(Number(scoreValue)) ? Number(scoreValue) : null;
@@ -199,10 +242,99 @@ export const CreditScoreCard: React.FC<CreditScoreCardProps> = ({ creditScore })
   const isUnknown = scoreValue === "Unknown" || scoreValue === undefined || scoreValue === null;
 
   const provider = creditScore?.provider || 'Credit Provider';
-  const lastUpdated = formatDate(creditScore?.lastUpdated);
+  
+  // Enhanced last updated date extraction - check multiple possible fields
+  let lastUpdatedValue = null;
+  if (creditScore?.lastUpdated) {
+    lastUpdatedValue = creditScore.lastUpdated;
+  } else if (creditScore?.last_updated) {
+    lastUpdatedValue = creditScore.last_updated;
+  } else if (creditScore?.updatedAt) {
+    lastUpdatedValue = creditScore.updatedAt;
+  } else if (creditScore?.details?.updatedAt) {
+    lastUpdatedValue = creditScore.details.updatedAt;
+  } else if (creditScore?.details?.last_updated) {
+    lastUpdatedValue = creditScore.details.last_updated;
+  } else if (creditScore?.details?.data?.updatedAt) {
+    lastUpdatedValue = creditScore.details.data.updatedAt;
+  } else if (creditScore?.details?.data?.last_updated) {
+    lastUpdatedValue = creditScore.details.data.last_updated;
+  } else if (creditScore?.createdAt) {
+    lastUpdatedValue = creditScore.createdAt;
+  } else if (creditScore?.details?.createdAt) {
+    lastUpdatedValue = creditScore.details.createdAt;
+  }
+  
+  const lastUpdated = formatDate(lastUpdatedValue);
+  
+  // Enhanced credit limit extraction - check multiple possible paths
+  let creditLimitValue = null;
+  if (creditScore?.credit_limit !== undefined && creditScore?.credit_limit !== null && creditScore?.credit_limit !== '') {
+    creditLimitValue = creditScore.credit_limit;
+  } else if (creditScore?.details?.credit_limit !== undefined && creditScore?.details?.credit_limit !== null && creditScore?.details?.credit_limit !== '') {
+    creditLimitValue = creditScore.details.credit_limit;
+  } else if (creditScore?.details?.data?.credit_limit !== undefined && creditScore?.details?.data?.credit_limit !== null && creditScore?.details?.data?.credit_limit !== '') {
+    creditLimitValue = creditScore.details.data.credit_limit;
+  } else if (creditScore?.details?.report?.creditScore?.currentCreditRating?.creditLimit?.value) {
+    // Extract from full credit report structure
+    creditLimitValue = creditScore.details.report.creditScore.currentCreditRating.creditLimit.value;
+  } else if (creditScore?.details?.raw_data?.report?.creditScore?.currentCreditRating?.creditLimit?.value) {
+    // Extract from raw_data structure
+    creditLimitValue = creditScore.details.raw_data.report.creditScore.currentCreditRating.creditLimit.value;
+  }
+  
+  console.log('[DEBUG CreditScoreCard] Credit limit extraction:', {
+    creditLimit_direct: creditScore?.credit_limit,
+    creditLimit_details: creditScore?.details?.credit_limit,
+    creditLimit_data: creditScore?.details?.data?.credit_limit,
+    creditLimit_report: creditScore?.details?.report?.creditScore?.currentCreditRating?.creditLimit?.value,
+    creditLimit_raw: creditScore?.details?.raw_data?.report?.creditScore?.currentCreditRating?.creditLimit?.value,
+    finalValue: creditLimitValue
+  });
+  
+  // Format credit limit for display
+  const formatCreditLimit = (limit: any) => {
+    if (!limit && limit !== 0) return 'N/A';
+    
+    // If it's already a formatted string (like "£5,000"), return as is
+    if (typeof limit === 'string' && (limit.includes('£') || limit.includes('$') || limit.includes('€'))) {
+      return limit;
+    }
+    
+    // If it's a number or numeric string, format it as currency
+    const numericLimit = typeof limit === 'string' ? parseFloat(limit.replace(/[^\d.-]/g, '')) : Number(limit);
+    if (!isNaN(numericLimit)) {
+      return new Intl.NumberFormat('en-GB', { 
+        style: 'currency', 
+        currency: 'GBP',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+      }).format(numericLimit);
+    }
+    
+    return String(limit);
+  };
+  
+  const formattedCreditLimit = formatCreditLimit(creditLimitValue);
   
   // Determine business type based on status or explicit businessType
-  const companyStatus = creditScore?.details?.company_status || creditScore?.status;
+  const companyStatus = creditScore?.details?.company_status || 
+                       creditScore?.status || 
+                       creditScore?.details?.status ||
+                       creditScore?.details?.data?.status ||
+                       creditScore?.details?.data?.company_status ||
+                       creditScore?.details?.report?.companyIdentification?.basicInformation?.companyStatus?.description ||
+                       creditScore?.details?.raw_data?.report?.companyIdentification?.basicInformation?.companyStatus?.description ||
+                       'Unknown';
+  
+  // Get risk level from normalized structure or raw Firebase data
+  const riskLevel = creditScore?.risk_level || 
+                   creditScore?.risk || // raw Firebase field
+                   creditScore?.details?.data?.risk || // Firebase subcollection data.risk
+                   creditScore?.details?.risk_level || 
+                   creditScore?.details?.risk || 
+                   creditScore?.details?.common_description ||
+                   creditScore?.details?.data?.common_description; // Firebase subcollection data.common_description
   
   const isNewlyIncorporated = creditScore?.businessType === 'new' || 
     companyStatus?.toLowerCase().includes('new') || 
@@ -283,14 +415,14 @@ export const CreditScoreCard: React.FC<CreditScoreCardProps> = ({ creditScore })
   };
 
   return (
-    <Card className="bg-[#1d2432] shadow-lg rounded-xl overflow-hidden border-0">
-      <CardHeader className="bg-[#1d2432] text-white p-5">
+    <Card className="bg-[#1d2432] shadow-lg rounded-xl overflow-hidden border-0 h-fit">
+      <CardHeader className="bg-[#1d2432] text-white p-4">
         <div className="flex justify-between items-start">
-          <CardTitle className="text-xl font-semibold text-white">Credit Score</CardTitle>
+          <CardTitle className="text-lg font-semibold text-white">Credit Score</CardTitle>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Info className="h-5 w-5 text-slate-400 hover:text-white cursor-help" />
+                <Info className="h-4 w-4 text-slate-400 hover:text-white cursor-help" />
               </TooltipTrigger>
               <TooltipContent className="max-w-sm">
                 <div className="text-xs">
@@ -327,28 +459,32 @@ export const CreditScoreCard: React.FC<CreditScoreCardProps> = ({ creditScore })
           </TooltipProvider>
         </div>
       </CardHeader>
-      <CardContent className="p-6 flex flex-col items-center pb-8">
+      <CardContent className="p-4 flex flex-col items-center">
         {creditScore ? (
           <>
-            <div className="flex flex-col items-center justify-center mb-4">
+            <div className="flex flex-col items-center justify-center mb-3">
               {isUnknown ? (
                 <CircularProgress
                   value="Unknown"
                   riskLevel="not-scored"
-                  valueSize="text-2xl"
-                  className="mb-3"
+                  valueSize="text-lg"
+                  size={120}
+                  strokeWidth={8}
+                  className="mb-2"
                   label={
-                    <span className="mt-1 text-sm text-slate-400">•</span>
+                    <span className="mt-1 text-xs text-slate-400">•</span>
                   }
                 />
               ) : isInternational && letterScore ? (
                 <CircularProgress
                   value={letterScore}
                   riskLevel={scoreData.riskLevel}
-                  valueSize="text-7xl"
-                  className="mb-3"
+                  valueSize="text-4xl"
+                  size={120}
+                  strokeWidth={8}
+                  className="mb-2"
                   label={
-                    <Badge className={cn("mt-1 font-medium border-0", getBadgeColor())}>
+                    <Badge className={cn("mt-1 font-medium border-0 text-xs", getBadgeColor())}>
                       {scoreData.text}
                     </Badge>
                   }
@@ -357,91 +493,51 @@ export const CreditScoreCard: React.FC<CreditScoreCardProps> = ({ creditScore })
                 <CircularProgress
                   value={numericScore}
                   riskLevel={scoreData.riskLevel}
-                  valueSize="text-7xl"
-                  className="mb-3"
+                  valueSize="text-4xl"
+                  size={120}
+                  strokeWidth={8}
+                  className="mb-2"
                   label={
-                    <Badge className={cn("mt-1 font-medium border-0", getBadgeColor())}>
+                    <Badge className={cn("mt-1 font-medium border-0 text-xs", getBadgeColor())}>
                       {scoreData.text}
                     </Badge>
                   }
                 />
               )}
-              <div className="text-slate-300 text-sm mt-4">
+              <div className="text-slate-300 text-xs mt-2">
                 Last updated: {lastUpdated}
               </div>
             </div>
             
-            <div className="w-full mt-6 border-t border-gray-700 pt-4">
-              <h4 className="text-base font-medium mb-3 text-slate-300">Credit Details:</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Business Status */}
-                <div className="bg-[#1a2030] p-4 rounded-md border border-slate-700/50">
-                  <h5 className="text-xs uppercase tracking-wider text-slate-400 mb-1">Business Status</h5>
-                  <p className="text-sm text-white font-medium">{companyStatus || 'Unknown'}</p>
-                </div>
-
-                {/* Credit Limit */}
-                <div className="bg-[#1a2030] p-4 rounded-md border border-slate-700/50">
-                  <h5 className="text-xs uppercase tracking-wider text-slate-400 mb-1">Credit Limit</h5>
-                  <p className="text-sm text-white font-medium">
-                    {creditScore?.details?.credit_limit ? `£${creditScore.details.credit_limit}` : 'N/A'}
-                  </p>
-                </div>
-                
+            <div className="w-full mt-4 border-t border-gray-700 pt-3">
+              <div className="grid grid-cols-1 gap-3">
                 {/* Business Category */}
-                <div className="bg-[#1a2030] p-4 rounded-md border border-slate-700/50">
-                  <h5 className="text-xs uppercase tracking-wider text-slate-400 mb-1">Business Category</h5>
+                <div className="bg-[#1a2030] p-3 rounded-md border border-slate-700/50">
+                  <h5 className="text-xs uppercase tracking-wider text-slate-400 mb-1">Business Type</h5>
                   <p className="text-sm text-white font-medium">{businessCategory}</p>
                 </div>
                 
-                {/* Risk Level */}
-                <div className="bg-[#1a2030] p-4 rounded-md border border-slate-700/50">
-                  <h5 className="text-xs uppercase tracking-wider text-slate-400 mb-1">Risk Level</h5>
-                  <Badge className={cn("mt-1 font-medium border-0", getBadgeColor())}>
-                    {scoreData.text}
-                  </Badge>
-                </div>
-                
-                {/* Last Updated */}
-                <div className="bg-[#1a2030] p-4 rounded-md border border-slate-700/50 col-span-full">
-                  <h5 className="text-xs uppercase tracking-wider text-slate-400 mb-1">Last Updated</h5>
-                  <p className="text-sm text-white font-medium">{lastUpdated}</p>
+                {/* Credit Limit */}
+                <div className="bg-[#1a2030] p-3 rounded-md border border-slate-700/50">
+                  <h5 className="text-xs uppercase tracking-wider text-slate-400 mb-1">Credit Limit</h5>
+                  <p className="text-sm text-white font-medium">
+                    {formattedCreditLimit}
+                  </p>
                 </div>
 
-                {/* Additional Info (If Available) */}
-                {creditScore?.details?.negative_information !== undefined && (
-                  <div className="bg-[#1a2030] p-4 rounded-md border border-slate-700/50 col-span-full">
-                    <h5 className="text-xs uppercase tracking-wider text-slate-400 mb-1">Negative Information</h5>
-                    <p className="text-sm text-white">
-                      {creditScore.details.negative_information ? 
-                        'Yes - This business has negative credit information' : 
-                        'No negative information reported'}
-                    </p>
-                  </div>
-                )}
-                
-                {/* Commentaries (If Available) */}
-                {creditScore?.details?.details?.commentaries && (
-                  <div className="bg-[#1a2030] p-4 rounded-md border border-slate-700/50 col-span-full">
-                    <h5 className="text-xs uppercase tracking-wider text-slate-400 mb-1">Credit Commentary</h5>
-                    <ul className="text-sm text-white list-disc pl-4 space-y-2 mt-1">
-                      {Array.isArray(creditScore.details.details.commentaries) ? 
-                        creditScore.details.details.commentaries.map((comment: any, idx: number) => (
-                          <li key={idx}>{comment.commentaryText || 'No details provided'}</li>
-                        )) : 
-                        <li>No commentary available</li>
-                      }
-                    </ul>
-                  </div>
-                )}
+                {/* Business Status */}
+                <div className="bg-[#1a2030] p-3 rounded-md border border-slate-700/50">
+                  <h5 className="text-xs uppercase tracking-wider text-slate-400 mb-1">Company Status</h5>
+                  <p className="text-sm text-white font-medium">{companyStatus}</p>
+                </div>
               </div>
             </div>
           </>
         ) : (
-          <div className="text-center py-10">
-            <AlertCircle className="mx-auto h-16 w-16 text-slate-600 mb-4" />
-            <p className="text-slate-300 font-medium text-lg">Credit Score Not Available</p>
-            <p className="text-sm text-slate-400">This business has not provided credit score information yet.</p>
+          <div className="text-center py-6">
+            <AlertCircle className="mx-auto h-12 w-12 text-slate-600 mb-3" />
+            <p className="text-slate-300 font-medium">Credit Score Not Available</p>
+            <p className="text-xs text-slate-400">No credit information provided yet.</p>
           </div>
         )}
       </CardContent>

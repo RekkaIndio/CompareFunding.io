@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { FileText, Lock, Shield, ThumbsUp, TrendingUp } from 'lucide-react';
 import { FinancialData } from '../types';
-import { FinancialsTable } from '@/pages/Business/Documents/FinancialsTable';
+import FinancialsTable from '@/pages/Business/Documents/FinancialsTable';
 
 interface FinancialDataTabsProps {
   financialData: FinancialData | undefined;
@@ -142,55 +142,49 @@ export const FinancialDataTabs: React.FC<FinancialDataTabsProps> = ({
             </AlertDescription>
           </Alert>
         )}
-        <Tabs defaultValue="profitLoss" className="w-full">
+        <Tabs defaultValue="signed-accounts" className="w-full">
           <TabsList className="flex flex-wrap mb-4 bg-[#1d2432] rounded-lg p-1">
             <TabsTrigger 
-              value="profitLoss" 
+              value="signed-accounts" 
               className="px-4 py-2 data-[state=active]:bg-[#ff8000] data-[state=active]:text-white data-[state=inactive]:text-white rounded-md"
             >
-              Profit & Loss
+              Signed Accounts
             </TabsTrigger>
             <TabsTrigger 
-              value="balanceSheet" 
+              value="management-accounts" 
               className="px-4 py-2 data-[state=active]:bg-[#ff8000] data-[state=active]:text-white data-[state=inactive]:text-white rounded-md"
             >
-              Balance Sheet
+              Management Accounts
             </TabsTrigger>
             <TabsTrigger 
-              value="trialBalance" 
+              value="aged-debtors" 
               className="px-4 py-2 data-[state=active]:bg-[#ff8000] data-[state=active]:text-white data-[state=inactive]:text-white rounded-md"
             >
-              Trial Balance
+              Aged Debtors
             </TabsTrigger>
             <TabsTrigger 
-              value="agedPayables" 
+              value="aged-creditors" 
               className="px-4 py-2 data-[state=active]:bg-[#ff8000] data-[state=active]:text-white data-[state=inactive]:text-white rounded-md"
             >
-              Aged Payables
-            </TabsTrigger>
-            <TabsTrigger 
-              value="agedReceivables" 
-              className="px-4 py-2 data-[state=active]:bg-[#ff8000] data-[state=active]:text-white data-[state=inactive]:text-white rounded-md"
-            >
-              Aged Receivables
+              Aged Creditors
             </TabsTrigger>
           </TabsList>
           
-          {/* Profit & Loss Tab */}
-          <TabsContent value="profitLoss" className="p-6 m-0">
-            {financialData && 'profitLoss' in financialData ? (
+          {/* Signed Accounts Tab */}
+          <TabsContent value="signed-accounts" className="p-6 m-0">
+            {financialData && 'signed-accounts' in financialData ? (
               <div>
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="font-semibold text-[#212936] flex items-center">
                     <TrendingUp className="h-4 w-4 mr-2 text-[#ff8000]" />
-                    Profit & Loss
+                    Signed Accounts
                   </h3>
                   <Badge variant="secondary" className="text-xs">
-                    Last updated: {new Date(financialData.profitLoss!.createdAt).toLocaleDateString()}
+                    Last updated: {new Date(financialData['signed-accounts']!.createdAt).toLocaleDateString()}
                   </Badge>
                 </div>
                 
-                {financialData.profitLoss?.summary && (
+                {financialData['signed-accounts']?.summary && (
                   <div className="mb-6">
                     <h4 className="text-sm font-semibold text-[#212936] mb-2 flex items-center">
                       <FileText className="h-4 w-4 mr-2 text-blue-500" />
@@ -198,42 +192,42 @@ export const FinancialDataTabs: React.FC<FinancialDataTabsProps> = ({
                     </h4>
                     <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
                       <p className="text-sm text-blue-800">
-                        {extractSummary(financialData.profitLoss.summary, 'pl')}
+                        {extractSummary(financialData['signed-accounts'].summary, 'signed-accounts')}
                       </p>
                     </div>
                   </div>
                 )}
                 
                 <FinancialsTable 
-                  data={financialData.profitLoss?.data}
-                  title="Profit & Loss Statement"
-                  summary={financialData.profitLoss?.summary}
+                  data={financialData['signed-accounts']?.data}
+                  title="Signed Accounts"
+                  summary={financialData['signed-accounts']?.summary}
                 />
               </div>
             ) : (
               <div className="text-center py-8">
                 <FileText className="mx-auto h-12 w-12 text-slate-300 mb-3" />
-                <h3 className="text-lg font-medium text-slate-700 mb-1">No Profit & Loss Data</h3>
-                <p className="text-sm text-slate-500">This business hasn't uploaded a Profit & Loss statement yet.</p>
+                <h3 className="text-lg font-medium text-slate-700 mb-1">No Signed Accounts Data</h3>
+                <p className="text-sm text-slate-500">This business hasn't uploaded Signed Accounts yet.</p>
               </div>
             )}
           </TabsContent>
           
-          {/* Balance Sheet Tab */}
-          <TabsContent value="balanceSheet" className="p-6 m-0">
-            {financialData && 'balanceSheet' in financialData ? (
+          {/* Management Accounts Tab */}
+          <TabsContent value="management-accounts" className="p-6 m-0">
+            {financialData && 'management-accounts' in financialData ? (
               <div>
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="font-semibold text-[#212936] flex items-center">
                     <TrendingUp className="h-4 w-4 mr-2 text-[#ff8000]" />
-                    Balance Sheet
+                    Management Accounts
                   </h3>
                   <Badge variant="secondary" className="text-xs">
-                    Last updated: {new Date(financialData.balanceSheet!.createdAt).toLocaleDateString()}
+                    Last updated: {new Date(financialData['management-accounts']!.createdAt).toLocaleDateString()}
                   </Badge>
                 </div>
                 
-                {financialData.balanceSheet?.summary && (
+                {financialData['management-accounts']?.summary && (
                   <div className="mb-6">
                     <h4 className="text-sm font-semibold text-[#212936] mb-2 flex items-center">
                       <FileText className="h-4 w-4 mr-2 text-blue-500" />
@@ -241,42 +235,42 @@ export const FinancialDataTabs: React.FC<FinancialDataTabsProps> = ({
                     </h4>
                     <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
                       <p className="text-sm text-blue-800">
-                        {extractSummary(financialData.balanceSheet.summary, 'bs')}
+                        {extractSummary(financialData['management-accounts'].summary, 'management-accounts')}
                       </p>
                     </div>
                   </div>
                 )}
                 
                 <FinancialsTable 
-                  data={financialData.balanceSheet?.data}
-                  title="Balance Sheet"
-                  summary={financialData.balanceSheet?.summary}
+                  data={financialData['management-accounts']?.data}
+                  title="Management Accounts"
+                  summary={financialData['management-accounts']?.summary}
                 />
               </div>
             ) : (
               <div className="text-center py-8">
                 <FileText className="mx-auto h-12 w-12 text-slate-300 mb-3" />
-                <h3 className="text-lg font-medium text-slate-700 mb-1">No Balance Sheet Data</h3>
-                <p className="text-sm text-slate-500">This business hasn't uploaded a Balance Sheet yet.</p>
+                <h3 className="text-lg font-medium text-slate-700 mb-1">No Management Accounts Data</h3>
+                <p className="text-sm text-slate-500">This business hasn't uploaded Management Accounts yet.</p>
               </div>
             )}
           </TabsContent>
           
-          {/* Trial Balance Tab */}
-          <TabsContent value="trialBalance" className="p-6 m-0">
-            {financialData && 'trialBalance' in financialData ? (
+          {/* Aged Debtors Tab */}
+          <TabsContent value="aged-debtors" className="p-6 m-0">
+            {financialData && 'aged-debtors' in financialData ? (
               <div>
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="font-semibold text-[#212936] flex items-center">
                     <TrendingUp className="h-4 w-4 mr-2 text-[#ff8000]" />
-                    Trial Balance
+                    Aged Debtors
                   </h3>
                   <Badge variant="secondary" className="text-xs">
-                    Last updated: {new Date(financialData.trialBalance!.createdAt).toLocaleDateString()}
+                    Last updated: {new Date(financialData['aged-debtors']!.createdAt).toLocaleDateString()}
                   </Badge>
                 </div>
                 
-                {financialData.trialBalance?.summary && (
+                {financialData['aged-debtors']?.summary && (
                   <div className="mb-6">
                     <h4 className="text-sm font-semibold text-[#212936] mb-2 flex items-center">
                       <FileText className="h-4 w-4 mr-2 text-blue-500" />
@@ -284,42 +278,42 @@ export const FinancialDataTabs: React.FC<FinancialDataTabsProps> = ({
                     </h4>
                     <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
                       <p className="text-sm text-blue-800">
-                        {extractSummary(financialData.trialBalance.summary, 'tb')}
+                        {extractSummary(financialData['aged-debtors'].summary, 'aged-debtors')}
                       </p>
                     </div>
                   </div>
                 )}
                 
                 <FinancialsTable 
-                  data={financialData.trialBalance?.data || {}}
-                  title="Trial Balance"
-                  summary={financialData.trialBalance?.summary}
+                  data={financialData['aged-debtors']?.data || {}}
+                  title="Aged Debtors"
+                  summary={financialData['aged-debtors']?.summary}
                 />
               </div>
             ) : (
               <div className="text-center py-8">
                 <FileText className="mx-auto h-12 w-12 text-slate-300 mb-3" />
-                <h3 className="text-lg font-medium text-slate-700 mb-1">No Trial Balance Data</h3>
-                <p className="text-sm text-slate-500">This business hasn't uploaded a Trial Balance yet.</p>
+                <h3 className="text-lg font-medium text-slate-700 mb-1">No Aged Debtors Data</h3>
+                <p className="text-sm text-slate-500">This business hasn't uploaded Aged Debtors data yet.</p>
               </div>
             )}
           </TabsContent>
           
-          {/* Aged Payables Tab */}
-          <TabsContent value="agedPayables" className="p-6 m-0">
-            {financialData && 'agedPayables' in financialData ? (
+          {/* Aged Creditors Tab */}
+          <TabsContent value="aged-creditors" className="p-6 m-0">
+            {financialData && 'aged-creditors' in financialData ? (
               <div>
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="font-semibold text-[#212936] flex items-center">
                     <TrendingUp className="h-4 w-4 mr-2 text-[#ff8000]" />
-                    Aged Payables
+                    Aged Creditors
                   </h3>
                   <Badge variant="secondary" className="text-xs">
-                    Last updated: {new Date(financialData.agedPayables!.createdAt).toLocaleDateString()}
+                    Last updated: {new Date(financialData['aged-creditors']!.createdAt).toLocaleDateString()}
                   </Badge>
                 </div>
                 
-                {financialData.agedPayables?.summary && (
+                {financialData['aged-creditors']?.summary && (
                   <div className="mb-6">
                     <h4 className="text-sm font-semibold text-[#212936] mb-2 flex items-center">
                       <FileText className="h-4 w-4 mr-2 text-blue-500" />
@@ -327,66 +321,23 @@ export const FinancialDataTabs: React.FC<FinancialDataTabsProps> = ({
                     </h4>
                     <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
                       <p className="text-sm text-blue-800">
-                        {extractSummary(financialData.agedPayables.summary, 'ap')}
+                        {extractSummary(financialData['aged-creditors'].summary, 'aged-creditors')}
                       </p>
                     </div>
                   </div>
                 )}
                 
                 <FinancialsTable 
-                  data={financialData.agedPayables?.data || {}}
-                  title="Aged Payables"
-                  summary={financialData.agedPayables?.summary}
+                  data={financialData['aged-creditors']?.data || {}}
+                  title="Aged Creditors"
+                  summary={financialData['aged-creditors']?.summary}
                 />
               </div>
             ) : (
               <div className="text-center py-8">
                 <FileText className="mx-auto h-12 w-12 text-slate-300 mb-3" />
-                <h3 className="text-lg font-medium text-slate-700 mb-1">No Aged Payables Data</h3>
-                <p className="text-sm text-slate-500">This business hasn't uploaded Aged Payables data yet.</p>
-              </div>
-            )}
-          </TabsContent>
-          
-          {/* Aged Receivables Tab */}
-          <TabsContent value="agedReceivables" className="p-6 m-0">
-            {financialData && 'agedReceivables' in financialData ? (
-              <div>
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="font-semibold text-[#212936] flex items-center">
-                    <TrendingUp className="h-4 w-4 mr-2 text-[#ff8000]" />
-                    Aged Receivables
-                  </h3>
-                  <Badge variant="secondary" className="text-xs">
-                    Last updated: {new Date(financialData.agedReceivables!.createdAt).toLocaleDateString()}
-                  </Badge>
-                </div>
-                
-                {financialData.agedReceivables?.summary && (
-                  <div className="mb-6">
-                    <h4 className="text-sm font-semibold text-[#212936] mb-2 flex items-center">
-                      <FileText className="h-4 w-4 mr-2 text-blue-500" />
-                      Financial Summary
-                    </h4>
-                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
-                      <p className="text-sm text-blue-800">
-                        {extractSummary(financialData.agedReceivables.summary, 'ar')}
-                      </p>
-                    </div>
-                  </div>
-                )}
-                
-                <FinancialsTable 
-                  data={financialData.agedReceivables?.data || {}}
-                  title="Aged Receivables"
-                  summary={financialData.agedReceivables?.summary}
-                />
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <FileText className="mx-auto h-12 w-12 text-slate-300 mb-3" />
-                <h3 className="text-lg font-medium text-slate-700 mb-1">No Aged Receivables Data</h3>
-                <p className="text-sm text-slate-500">This business hasn't uploaded Aged Receivables data yet.</p>
+                <h3 className="text-lg font-medium text-slate-700 mb-1">No Aged Creditors Data</h3>
+                <p className="text-sm text-slate-500">This business hasn't uploaded Aged Creditors data yet.</p>
               </div>
             )}
           </TabsContent>

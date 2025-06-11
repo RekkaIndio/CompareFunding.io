@@ -37,10 +37,10 @@ const SignUpLayout: React.FC<SignUpLayoutProps> = ({
 }) => {
   return (
     <div className={`bg-gradient-to-br from-gray-50 to-white min-h-screen ${className}`}>
-      <PageLayout>
-        <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 md:py-8">
+      <PageLayout hideNavbar={true}>
+        <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-6 md:py-8">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 lg:gap-8">
-            {/* Main Content */}
+            {/* Main Content - Balanced width */}
             <div className={showSidebar ? "lg:col-span-8 order-2 lg:order-1" : "lg:col-span-12"}>
               <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-gray-100 p-4 sm:p-6 md:p-8 transition-all duration-300 hover:shadow-xl">
                 <SignUpProgressBar
@@ -59,7 +59,7 @@ const SignUpLayout: React.FC<SignUpLayoutProps> = ({
               </div>
             </div>
 
-            {/* Sidebar - Order changed for mobile to show it on top if needed */}
+            {/* Sidebar - Balanced width */}
             {showSidebar && sidebarProps && (
               <div className="lg:col-span-4 order-1 lg:order-2 mb-4 lg:mb-0">
                 <div className="lg:sticky lg:top-8">
