@@ -50,6 +50,7 @@ const BusinessDetailPage = () => {
     error,
     canSeeBusinessDetails,
     isLenderMatched,
+    hasLenderMadeOffer,
     getDisplayName,
   } = useBusinessData(id, user);
 
@@ -167,6 +168,7 @@ const BusinessDetailPage = () => {
             displayName={getDisplayName()}
             applicationData={applicationData}
             isLenderMatched={isLenderMatched()}
+            hasLenderMadeOffer={hasLenderMadeOffer()}
           />
 
           {/* Main Content Area */}
@@ -188,18 +190,18 @@ const BusinessDetailPage = () => {
             {/* Full Width Financial Data Section */}
             <FinancialDataTabs 
               financialData={financialData}
-              isLenderMatched={isLenderMatched()}
+              isLenderMatched={canSeeBusinessDetails()}
             />
 
             {/* Bottom Section - Funding Request and Documents (side by side) */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
               <FundingRequestCard 
                 application={applicationData.application}
-                isLenderMatched={isLenderMatched()}
+                isLenderMatched={canSeeBusinessDetails()}
               />
               <FinancialDocumentsCard 
                 financialData={financialData}
-                isLenderMatched={isLenderMatched()}
+                isLenderMatched={canSeeBusinessDetails()}
               />
             </div>
           </div>

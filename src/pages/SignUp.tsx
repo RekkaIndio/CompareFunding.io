@@ -405,7 +405,7 @@ const SignUp = () => {
                   <div className="space-y-6">
                     {/* Business Card */}
                     <div className="group relative overflow-hidden rounded-2xl border-2 border-gray-200 hover:border-primary hover:shadow-xl transition-all duration-300 cursor-pointer bg-gradient-to-br from-white to-gray-50/50"
-                         onClick={() => navigate('/signup-journey/email-password')}>
+                         onClick={() => navigate('/signup-journey/funding-path-choice')}>
                       <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-blue-600/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                       <div className="relative p-6">
                         <div className="flex items-start space-x-4">

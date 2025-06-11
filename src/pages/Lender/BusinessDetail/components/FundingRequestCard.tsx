@@ -55,14 +55,14 @@ export const FundingRequestCard: React.FC<FundingRequestCardProps> = ({
   };
 
   return (
-    <Card className="bg-white/90 backdrop-blur-sm border border-slate-200/50 shadow-xl hover:shadow-2xl transition-all duration-300">
+    <Card className="bg-white/90 backdrop-blur-sm border border-slate-200/50 shadow-xl hover:shadow-2xl transition-all duration-300 flex flex-col h-full">
       <CardHeader className="bg-[#212936] text-white rounded-t-xl border-b-2 border-[#ff8000]">
         <CardTitle className="text-white">Funding Request</CardTitle>
         <CardDescription className="text-gray-200">
           Current application details
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4 pt-6">
+      <CardContent className="space-y-4 pt-6 flex-1">
         <div>
           <div className="text-sm text-muted-foreground mb-1">Amount Requested</div>
           <div className="text-2xl font-bold text-[#212936]">
@@ -73,23 +73,23 @@ export const FundingRequestCard: React.FC<FundingRequestCardProps> = ({
         <div className="space-y-2">
           <div className="flex justify-between">
             <span className="text-sm text-slate-500">Term</span>
-            <span className="font-medium">{application?.loan_term_months || 0} months</span>
+            <span className="font-medium text-slate-700">{application?.loan_term_months || 0} months</span>
           </div>
           <div className="flex justify-between">
             <span className="text-sm text-slate-500">Purpose</span>
-            <span className="font-medium capitalize">{application?.purpose || 'Not specified'}</span>
+            <span className="font-medium capitalize text-slate-700">{application?.purpose || 'Not specified'}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-sm text-slate-500">Security</span>
-            <span className="font-medium">{application?.security_offered || 'None'}</span>
+            <span className="font-medium text-slate-700">{application?.security_offered || 'None'}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-sm text-slate-500">Personal Guarantee</span>
-            <span className="font-medium">{application?.personal_guarantee ? 'Yes' : 'No'}</span>
+            <span className="font-medium text-slate-700">{application?.personal_guarantee ? 'Yes' : 'No'}</span>
           </div>
         </div>
       </CardContent>
-      <CardFooter className="flex-col items-stretch gap-2 bg-slate-50 rounded-b-xl p-4">
+      <CardFooter className="flex-col items-stretch gap-2 bg-slate-50 rounded-b-xl p-4 mt-auto">
         {getActionButton()}
         <Button variant="outline" className="w-full border-slate-200 hover:bg-slate-100 shadow-sm">
           <FileText className="mr-2 h-4 w-4" />

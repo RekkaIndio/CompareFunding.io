@@ -56,6 +56,7 @@ const Navbar = () => {
   const businessNavLinks = [
     { name: 'Dashboard', path: '/business/dashboard' },
     { name: 'Applications', path: '/applications' },
+    { name: 'Messages', path: '/messages' },
     { name: 'Offers', path: '/offers' },
     { name: 'Account', path: '/business/profile' },
   ];
@@ -64,6 +65,7 @@ const Navbar = () => {
   const lenderNavLinks = [
     { name: 'Dashboard', path: '/lender/dashboard' },
     { name: 'Applications', path: '/matched-applications' },
+    { name: 'Messages', path: '/messages' },
     { name: 'Account', path: '/lender/profile' },
   ];
   

@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNavbar } from '@/contexts/NavbarContext';
 import PageLayout from '@/components/PageLayout';
 import ApplicationCard from '@/components/ApplicationCard';
+import { InformationRequestsCard } from '@/components/InformationRequestsCard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -111,10 +112,7 @@ const Applications = () => {
     }
   }, [location.state]);
   
-  // Debug user authentication
-  useEffect(() => {
 
-  }, [user]);
 
   // Scroll to top when page loads
   useEffect(() => {
@@ -129,14 +127,12 @@ const Applications = () => {
       // First try to fetch from businesses collection
       const businessesResult = await getDocument('businesses', user?.uid);
       if (businessesResult.data) {
-
         return { ...businessesResult.data, _source: 'businesses' };
       }
       // If not found, try business_profiles collection
       const profilesResult = await getDocument('business_profiles', user?.uid);
       if (profilesResult.error) throw profilesResult.error;
       if (profilesResult.data) {
-
         return { ...profilesResult.data, _source: 'business_profiles' };
       }
 
@@ -157,7 +153,9 @@ const Applications = () => {
         [{ field: 'user_id', operator: '==', value: user.uid }]
       );
       
-      if (!apps || apps.length === 0) return [];
+      if (!apps || apps.length === 0) {
+        return [];
+      }
       
       const applicationIds = apps.map(app => app.id);
       const allOffers: any[] = [];
@@ -205,7 +203,6 @@ const Applications = () => {
         }
 
         if (!data || data.length === 0) {
-
           return [];
         }
 
@@ -260,7 +257,6 @@ const Applications = () => {
           })
           .sort((a, b) => new Date(b.application_date).getTime() - new Date(a.application_date).getTime());
         
-
         // Filter out applications that have received offers
         const applicationsWithOffers = new Set(
           (offers || []).map(offer => offer.application_id)
@@ -276,30 +272,22 @@ const Applications = () => {
         throw err;
       }
     },
-    enabled: !!user?.uid && offers !== undefined, // Wait for offers data
-    staleTime: 30000, // 30 seconds - reduce this to refresh more frequently
+    enabled: !!user?.uid,
+    staleTime: 30000,
     refetchOnWindowFocus: true,
     retry: 2
   });
-
-  // Debug applications data changes
-  useEffect(() => {
-    if (applications) {
-
-
-
-
-    }
-  }, [applications]);
 
   // Filter for pending applications (applications without offers)
   const pendingApplications = applications?.filter(app => {
     // Show applications that are in active status and don't have offers
     const normalizedStatus = app.status?.toLowerCase?.();
-    return [
+    const isPending = [
       'draft', 'submitted', 'matching', 'matched', 'in_review', 'in-review',
       'pending', 'processing', 'reviewing', 'documents_requested', 'under_review'
     ].includes(normalizedStatus);
+    
+    return isPending;
   }) || [];
 
   // Define variables used in overview cards
@@ -435,6 +423,11 @@ const Applications = () => {
                 </Button>
               </div>
             </div>
+          </div>
+
+          {/* Information Requests Section */}
+          <div className="mb-8">
+            <InformationRequestsCard />
           </div>
 
           {/* Success message for newly submitted applications */}

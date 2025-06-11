@@ -23,98 +23,55 @@ const extractSummary = (summaryContent: any, documentType: string = ''): string 
     return "No summary available";
   }
 
-  // Extra handling for backtick-quoted JSON (```json { ... } ```)
-  if (summaryContent.includes('```') && summaryContent.includes('json')) {
-    const jsonPattern = /```(?:json)?\s*({[\s\S]*?})\s*```/;
-    const jsonMatch = summaryContent.match(jsonPattern);
-    if (jsonMatch && jsonMatch[1]) {
-      try {
-        // Try to parse the JSON inside the backticks
-        const jsonContent = jsonMatch[1];
-        const parsed = JSON.parse(jsonContent);
-        if (parsed.summary) {
-          return typeof parsed.summary === 'string' ? parsed.summary : JSON.stringify(parsed.summary);
-        }
-        
-        // If there's no summary field but there's a json object, look deeper
-        if (parsed.json && parsed.json.summary) {
-          return parsed.json.summary;
-        }
-      } catch (e) {
-        console.error("Failed to parse JSON from backticks:", e);
-      }
-    }
-  }
+  // ...existing code...
+};
+
+// Helper function to format dates properly
+const formatDate = (dateInput: any): string => {
+  if (!dateInput) return 'Unknown date';
   
-  // Check if the summary content is actually JSON
-  if (summaryContent.startsWith('{') && summaryContent.endsWith('}')) {
-    try {
-      const parsedSummary = JSON.parse(summaryContent);
-      if (parsedSummary.summary && typeof parsedSummary.summary === 'string') {
-        return parsedSummary.summary;
-      }
-    } catch (e) {
-      console.error("Failed to parse summary as JSON:", e);
-    }
-  }
-  
-  // If it contains markdown JSON with a nested summary field, extract that
-  if (summaryContent.includes('```json')) {
-    try {
-      const match = summaryContent.match(/"summary"\s*:\s*"([^"]+)"/);
-      if (match && match[1]) {
-        // We found the actual summary text!
-        return match[1].replace(/\\n/g, ' ')
-                     .replace(/\\"/g, '"')
-                     .trim();
-      }
-    } catch (e) {
-      console.error("Failed to extract nested summary:", e);
-    }
-  }
-  
-  // Special handling for Trial Balance and Balance Sheet
-  if (documentType === 'tb' || documentType === 'bs') {
-    // Try to extract the summary from JSON format
-    const summaryMatch = summaryContent.match(/"summary"\s*:\s*"([^"]+)"/);
-    if (summaryMatch && summaryMatch[1]) {
-      return summaryMatch[1]
-        .replace(/\\n/g, ' ')
-        .replace(/\\"/g, '"')
-        .trim();
+  try {
+    let date: Date;
+    
+    // Handle different date formats
+    if (dateInput instanceof Date) {
+      date = dateInput;
+    } else if (typeof dateInput === 'string') {
+      date = new Date(dateInput);
+    } else if (typeof dateInput === 'number') {
+      // Handle timestamp
+      date = new Date(dateInput);
+    } else if (dateInput.seconds) {
+      // Handle Firestore timestamp
+      date = new Date(dateInput.seconds * 1000);
+    } else {
+      date = new Date(dateInput);
     }
     
-    // Look for a "summary" field in the JSON
-    try {
-      // Try to find a summary directly in the content if it's a JSON object
-      const jsonData = JSON.parse(summaryContent);
-      if (jsonData && jsonData.summary && typeof jsonData.summary === 'string') {
-        return jsonData.summary;
-      }
-    } catch (e) {
-      console.error(`Failed to parse ${documentType} summary as JSON:`, e);
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+      return 'Unknown date';
     }
+    
+    return date.toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    });
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return 'Unknown date';
   }
-  
-  // If we couldn't extract a nested summary, check for JSON strings in the content
-  if (summaryContent.includes('"summary"')) {
-    const matches = summaryContent.match(/"summary"\s*:\s*"([^"]+)"/);
-    if (matches && matches[1]) {
-      return matches[1]
-        .replace(/\\n/g, ' ')
-        .replace(/\\"/g, '"')
-        .trim();
-    }
-  }
-  
-  // If we couldn't extract a summary using any method, return a clean version of the original
-  return summaryContent;
 };
 
 export const FinancialDataTabs: React.FC<FinancialDataTabsProps> = ({
   financialData,
   isLenderMatched
 }) => {
+  // Debug logging
+  console.log('[DEBUG FinancialDataTabs] Received financialData:', financialData);
+  console.log('[DEBUG FinancialDataTabs] isLenderMatched:', isLenderMatched);
+  
   // Check if we should show full financial data (matched or offer accepted)
   const showFullFinancialData = isLenderMatched;
   return (
@@ -131,7 +88,7 @@ export const FinancialDataTabs: React.FC<FinancialDataTabsProps> = ({
         {!showFullFinancialData && (
           <Alert className="rounded-none border-x-0 border-t-0 bg-blue-50 text-blue-800 border-blue-100">
             <AlertDescription className="text-xs">
-              These are anonymous financial metrics. Express interest to see full business details and company information.
+              These are anonymous financial metrics. Create an offer to see full business details and company information.
             </AlertDescription>
           </Alert>
         )}
@@ -180,7 +137,7 @@ export const FinancialDataTabs: React.FC<FinancialDataTabsProps> = ({
                     Signed Accounts
                   </h3>
                   <Badge variant="secondary" className="text-xs">
-                    Last updated: {new Date(financialData['signed-accounts']!.createdAt).toLocaleDateString()}
+                    Last updated: {formatDate(financialData['signed-accounts']!.createdAt)}
                   </Badge>
                 </div>
                 
@@ -223,7 +180,7 @@ export const FinancialDataTabs: React.FC<FinancialDataTabsProps> = ({
                     Management Accounts
                   </h3>
                   <Badge variant="secondary" className="text-xs">
-                    Last updated: {new Date(financialData['management-accounts']!.createdAt).toLocaleDateString()}
+                    Last updated: {formatDate(financialData['management-accounts']!.createdAt)}
                   </Badge>
                 </div>
                 
@@ -266,7 +223,7 @@ export const FinancialDataTabs: React.FC<FinancialDataTabsProps> = ({
                     Aged Debtors
                   </h3>
                   <Badge variant="secondary" className="text-xs">
-                    Last updated: {new Date(financialData['aged-debtors']!.createdAt).toLocaleDateString()}
+                    Last updated: {formatDate(financialData['aged-debtors']!.createdAt)}
                   </Badge>
                 </div>
                 
@@ -309,7 +266,7 @@ export const FinancialDataTabs: React.FC<FinancialDataTabsProps> = ({
                     Aged Creditors
                   </h3>
                   <Badge variant="secondary" className="text-xs">
-                    Last updated: {new Date(financialData['aged-creditors']!.createdAt).toLocaleDateString()}
+                    Last updated: {formatDate(financialData['aged-creditors']!.createdAt)}
                   </Badge>
                 </div>
                 

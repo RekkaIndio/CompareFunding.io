@@ -22,26 +22,62 @@ export const BusinessOverview: React.FC<BusinessOverviewProps> = ({
     (o: any) => o.status === 'accepted'
   );
   const isApplicationApproved = (applicationData?.application as any)?.status === 'approved';
-  const showEnhancedDetails = isLenderMatched || hasAcceptedOffer || isApplicationApproved;
   
-  // Get company details for matched businesses
-  const registrationNumber = (applicationData?.business as any)?.registration_number || 
-                             (applicationData?.business as any)?.company_number || 
-                             'Not provided';
-                             
-  // We use formatAddress imported from @/lib/formatters
+  // Check if current user has made an offer
+  const currentUserOffer = applicationData?.application?.offers?.find(
+    (o: any) => o.lender_id === (window as any).currentUser?.uid
+  );
   
-  const companyAddress = formatAddress((applicationData?.business as any)?.address || 
-                                      (applicationData?.business as any)?.registered_address);
-                                      
-  const yearsTrading = (applicationData?.business as any)?.years_trading || 
-                       ((applicationData?.business as any)?.year_founded ? 
-                        new Date().getFullYear() - (applicationData?.business as any).year_founded : 
-                        'Unknown');
+  // Only show enhanced details if an offer has been made AND accepted, or application is approved
+  const showEnhancedDetails = hasAcceptedOffer || isApplicationApproved;
   
-  // Check for document access
-  const hasFinancialsAccess = showEnhancedDetails && applicationData?.accounting;
-  const hasDocumentsAccess = showEnhancedDetails && (applicationData as any)?.documents;
+  // Get company details for matched businesses with improved fallback logic
+  const getCompanyNumber = (): string => {
+    const business = applicationData?.business;
+    if (!business) return 'Not provided';
+    
+    // Try multiple field names for company number (registration number)
+    // Check both camelCase and snake_case variations
+    return (business as any).companyNumber || 
+           business.company_number || 
+           business.registration_number || 
+           'Not provided';
+  };
+
+  const getYearsTrading = (): string => {
+    const business = applicationData?.business;
+    if (!business) return 'Unknown';
+    
+    // If years_trading is directly available
+    if (business.years_trading !== undefined && business.years_trading !== null) {
+      return business.years_trading.toString();
+    }
+    
+    // Calculate from year_founded
+    if (business.year_founded) {
+      const years = new Date().getFullYear() - business.year_founded;
+      return years > 0 ? years.toString() : '0';
+    }
+    
+    // Calculate from incorporation_date
+    if (business.incorporation_date) {
+      const incorporationYear = new Date(business.incorporation_date).getFullYear();
+      const years = new Date().getFullYear() - incorporationYear;
+      return years > 0 ? years.toString() : '0';
+    }
+    
+    return 'Unknown';
+  };
+  
+  const companyNumber = getCompanyNumber();
+  const yearsTrading = getYearsTrading();
+  
+  // Get company address with fallback logic
+  const companyAddress = formatAddress(
+    applicationData?.business?.address || 
+    applicationData?.business?.registered_address || 
+    applicationData?.business?.trading_address
+  );
                         
   return (
     <Card className="bg-white shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden border-0">
@@ -59,10 +95,14 @@ export const BusinessOverview: React.FC<BusinessOverviewProps> = ({
           <>
             <div>
               <h3 className="font-semibold mb-2 text-[#212936] border-l-4 border-[#ff8000] pl-3 flex items-center">
-                {applicationData.business?.business_name || 'Business Details'}
+                {applicationData.business?.business_name || 
+                 (applicationData.business as any)?.companyName || 
+                 'Business Details'}
               </h3>
               <p className="text-slate-700 leading-relaxed ml-4 mt-2">
-                {applicationData.business?.description || 'No business description available.'}
+                {(applicationData.business as any)?.businessDescription || 
+                 applicationData.business?.description || 
+                 'No business description available.'}
               </p>
             </div>
 
@@ -74,19 +114,68 @@ export const BusinessOverview: React.FC<BusinessOverviewProps> = ({
                   <Shield className="h-4 w-4 mr-1 text-green-600" /> Full Business Information Available
                 </h4>
                 <p className="text-green-700 text-sm mb-3">
-                  This business has accepted your offer. You now have access to complete business details.
+                  {hasAcceptedOffer 
+                    ? "An offer has been accepted for this application. You now have access to complete business details."
+                    : isApplicationApproved 
+                    ? "This application has been approved. You now have access to complete business details."
+                    : "You have created an offer for this application. You now have access to complete business details."
+                  }
                 </p>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-3">
                   <div>
                     <span className="text-sm text-green-700 block">Company Registration</span>
-                    <span className="font-medium text-slate-800">{registrationNumber}</span>
+                    <span className="font-medium text-slate-800">{companyNumber}</span>
                   </div>
                   <div>
                     <span className="text-sm text-green-700 block">Years Trading</span>
                     <span className="font-medium text-slate-800">{yearsTrading}</span>
                   </div>
+                  {applicationData.business?.annual_revenue && (
+                    <div>
+                      <span className="text-sm text-green-700 block">Annual Revenue</span>
+                      <span className="font-medium text-slate-800">
+                        {typeof applicationData.business.annual_revenue === 'number' 
+                          ? `£${applicationData.business.annual_revenue.toLocaleString()}`
+                          : applicationData.business.annual_revenue
+                        }
+                      </span>
+                    </div>
+                  )}
                 </div>
+                
+                {(applicationData.business?.business_email || applicationData.business?.business_phone || applicationData.business?.website) && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-3">
+                    {applicationData.business?.business_email && (
+                      <div>
+                        <span className="text-sm text-green-700 block">Business Email</span>
+                        <span className="font-medium text-slate-800">{applicationData.business.business_email}</span>
+                      </div>
+                    )}
+                    {applicationData.business?.business_phone && (
+                      <div>
+                        <span className="text-sm text-green-700 block">Business Phone</span>
+                        <span className="font-medium text-slate-800">{applicationData.business.business_phone}</span>
+                      </div>
+                    )}
+                    {applicationData.business?.website && (
+                      <div>
+                        <span className="text-sm text-green-700 block">Website</span>
+                        <a 
+                          href={applicationData.business.website.startsWith('http') 
+                            ? applicationData.business.website 
+                            : `https://${applicationData.business.website}`
+                          } 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="font-medium text-blue-600 hover:text-blue-800 underline"
+                        >
+                          {applicationData.business.website}
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                )}
                 
                 <div className="text-sm text-green-700">Registered Address</div>
                 <p className="font-medium text-slate-800 mb-4">{companyAddress}</p>
@@ -111,54 +200,6 @@ export const BusinessOverview: React.FC<BusinessOverviewProps> = ({
                 </div>
               </div>
             </div>
-            
-            {showEnhancedDetails && (
-              <div className="mt-6">
-                <h4 className="font-semibold text-[#212936] mb-3">Financial Documents</h4>
-                <div className="bg-blue-50 rounded-lg border border-blue-100 p-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {['pl', 'bs', 'tb', 'ap', 'ar'].map(docKey => {
-                      const docTypes = {
-                        'pl': 'Profit and Loss',
-                        'bs': 'Balance Sheet',
-                        'tb': 'Trial Balance',
-                        'ap': 'Aged Payables',
-                        'ar': 'Aged Receivables'
-                      };
-                      
-                      const docUrl = (applicationData as any)?.documents?.[docKey]?.url;
-                      const docName = (applicationData as any)?.documents?.[docKey]?.name || `${docTypes[docKey as keyof typeof docTypes]} Document`;
-                      
-                      return (
-                        <div key={docKey} className="bg-white p-3 rounded-md border border-blue-100 flex items-center justify-between">
-                          <div>
-                            <span className="text-sm font-medium text-slate-800">{docTypes[docKey as keyof typeof docTypes]}</span>
-                            {docUrl ? (
-                              <span className="text-xs block text-blue-600 truncate max-w-[200px]">{docName}</span>
-                            ) : (
-                              <span className="text-xs block text-slate-500">No document uploaded</span>
-                            )}
-                          </div>
-                          {docUrl && (
-                            <a 
-                              href={docUrl}
-                              target="_blank"
-                              rel="noopener noreferrer" 
-                              className="bg-blue-600 hover:bg-blue-700 text-white p-1 rounded-md"
-                              download={docName}
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                              </svg>
-                            </a>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            )}
           </>
         ) : (
           // Show limited info for non-matched lenders
@@ -166,7 +207,7 @@ export const BusinessOverview: React.FC<BusinessOverviewProps> = ({
             <Shield className="h-4 w-4 text-[#ff8000]" />
             <AlertTitle className="text-[#212936] font-semibold">Limited Information Available</AlertTitle>
             <AlertDescription className="text-slate-700">
-              Create an offer to view the complete business profile including financial data and comprehensive business information.
+              You need to create an offer to unlock the complete business profile including financial data and comprehensive business information.
             </AlertDescription>
           </Alert>
         )}

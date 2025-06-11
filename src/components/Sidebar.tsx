@@ -129,6 +129,7 @@ const businessMenuItems: MenuItem[] = [
     ]
   },
   { to: "/business/documents", icon: <FileText size={22} />, label: "Documents", dataTour: "sidebar-documents" },
+  { to: "/messages", icon: <MessageSquare size={22} />, label: "Messages", dataTour: "sidebar-messages" },
   { to: "/credit-score", icon: <LineChart size={22} />, label: "Credit Score", dataTour: "sidebar-credit-score" },
   { 
     to: "/integrations", 
@@ -277,7 +278,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ className, role: propRole }) =
           isCollapsed ? "w-8" : "w-full"
         )}>
           <div className="flex-shrink-0">
-            <ProfileLogo role={role} isCollapsed={isCollapsed} />
+            <ProfileLogo role={role === 'business_owner' ? 'business' : role} isCollapsed={isCollapsed} />
           </div>
           {!isCollapsed && businessName && (
             <div className="min-w-0 flex-1">

@@ -161,9 +161,70 @@ const formatCurrency = (amount: number | string | null | undefined): string => {
 
 // Dynamic renderer for any financial data structure
 const renderDynamicFinancialData = (data: any) => {
-  if (!data || !data.lineItems) {
-    console.error("Missing lineItems in financial data:", data);
-    return <p>Financial data is not in the expected format.</p>;
+  if (!data) {
+    console.error("No data provided to renderDynamicFinancialData");
+    return <p className="text-center text-gray-500 py-8">No financial data available.</p>;
+  }
+  
+  // If lineItems is missing or empty, try to create it from available data
+  if (!data.lineItems || !Array.isArray(data.lineItems) || data.lineItems.length === 0) {
+    console.log("Missing or empty lineItems, attempting to extract from data structure:", data);
+    
+    // Try to find financial data in various formats
+    const extractedItems: any[] = [];
+    
+    // Check for direct financial values
+    Object.entries(data).forEach(([key, value]) => {
+      if (typeof value === 'number' || (typeof value === 'string' && !isNaN(parseFloat(value.replace(/[^\d.-]/g, ''))))) {
+        if (!['pages', 'fileName', 'documentType'].includes(key)) {
+          extractedItems.push({
+            item: key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()),
+            value: typeof value === 'number' ? value : parseFloat(value.replace(/[^\d.-]/g, '')),
+            category: 'other'
+          });
+        }
+      }
+    });
+    
+    // If we found some data, use it
+    if (extractedItems.length > 0) {
+      data = {
+        ...data,
+        lineItems: extractedItems,
+        columns: ['item', 'value']
+      };
+      console.log("Created lineItems from extracted data:", extractedItems);
+    } else {
+      console.error("No financial line items found in data:", data);
+      return (
+        <div className="text-center py-8">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 max-w-md mx-auto">
+            <div className="flex items-center justify-center mb-3">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.081 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-medium text-yellow-800 mb-2">No Financial Data Extracted</h3>
+            <p className="text-sm text-yellow-700 mb-3">
+              The document was processed successfully, but no financial line items were extracted.
+            </p>
+            {data.companyName && (
+              <p className="text-xs text-gray-600 mb-2">
+                <strong>Company:</strong> {data.companyName}
+              </p>
+            )}
+            {data.period && (
+              <p className="text-xs text-gray-600 mb-2">
+                <strong>Period:</strong> {data.period}
+              </p>
+            )}
+            <div className="mt-4 text-xs text-yellow-600">
+              <p>Available data keys: {Object.keys(data).join(', ')}</p>
+            </div>
+          </div>
+        </div>
+      );
+    }
   }
 
   console.log("Dynamic Financial Data received:", JSON.stringify(data, null, 2));
@@ -260,11 +321,7 @@ const renderDynamicFinancialData = (data: any) => {
   };
 
   return (
-    <div className="my-4">
-      {data.companyName && <h3 className="text-xl font-semibold text-center mb-1">{data.companyName}</h3>}
-      {data.statementTitle && <h4 className="text-lg text-gray-700 text-center mb-4">{data.statementTitle}</h4>}
-      {data.period && <p className="text-sm text-gray-600 text-center mb-4">{data.period}</p>}
-      
+    <div className="my-4">      
       <table className="w-full border-collapse">
         <thead>
           <tr className="bg-gray-800 text-white">
@@ -334,18 +391,43 @@ const renderDynamicFinancialData = (data: any) => {
                   const isValueColumn = isFinancialColumn(colKey);
                   const isItemColumn = colKey.toLowerCase() === 'item';
                   
-                  // Handle different data access patterns
+                  // Handle different data access patterns more comprehensively
                   if (colKey.toLowerCase() === 'item') {
-                    cellValue = item.item || item.description || item.account || item.name || item.lineItem || '';
+                    cellValue = item.item || item.description || item.account || item.name || item.lineItem || item.accountName || '';
                   } else if (colKey.toLowerCase().includes('note') || colKey.toLowerCase().includes('ref')) {
                     cellValue = item.note || item.notes || item.reference || item.ref || '';
-                  } else if (!cellValue) {
-                    // Try to find the value using different case variations
-                    const possibleKeys = [colKey, colKey.toLowerCase(), colKey.toUpperCase()];
+                  } else if (cellValue === undefined || cellValue === null) {
+                    // Try to find the value using different case variations and common aliases
+                    const possibleKeys = [
+                      colKey, 
+                      colKey.toLowerCase(), 
+                      colKey.toUpperCase(),
+                      colKey.replace(/([A-Z])/g, '_$1').toLowerCase(), // camelCase to snake_case
+                      colKey.replace(/_/g, ''), // remove underscores
+                    ];
+                    
                     for (const key of possibleKeys) {
                       if (item[key] !== undefined && item[key] !== null) {
                         cellValue = item[key];
                         break;
+                      }
+                    }
+                    
+                    // If still no value, check for common column name mappings
+                    const columnMappings: Record<string, string[]> = {
+                      'currentyear': ['current_year', 'currentYear', 'current', 'thisYear', 'year1'],
+                      'previousyear': ['previous_year', 'previousYear', 'previous', 'lastYear', 'year2'],
+                      'value': ['amount', 'total', 'sum', 'balance'],
+                      'note': ['notes', 'reference', 'ref', 'comment']
+                    };
+                    
+                    const normalizedColKey = colKey.toLowerCase().replace(/[_\s]/g, '');
+                    if (columnMappings[normalizedColKey]) {
+                      for (const altKey of columnMappings[normalizedColKey]) {
+                        if (item[altKey] !== undefined && item[altKey] !== null) {
+                          cellValue = item[altKey];
+                          break;
+                        }
                       }
                     }
                   }
@@ -355,21 +437,36 @@ const renderDynamicFinancialData = (data: any) => {
                     // If it's an object with amount and description, extract the amount
                     if (cellValue.hasOwnProperty('amount') && cellValue.hasOwnProperty('description')) {
                       cellValue = cellValue.amount || 0;
+                    } else if (cellValue.hasOwnProperty('value')) {
+                      cellValue = cellValue.value;
                     } else {
-                      // For other objects, stringify them or use a default value
-                      cellValue = JSON.stringify(cellValue);
+                      // For other objects, try to extract a meaningful value or stringify
+                      const numericKeys = Object.keys(cellValue).filter(k => 
+                        typeof cellValue[k] === 'number' || !isNaN(parseFloat(cellValue[k]))
+                      );
+                      if (numericKeys.length === 1) {
+                        cellValue = cellValue[numericKeys[0]];
+                      } else {
+                        cellValue = JSON.stringify(cellValue);
+                      }
                     }
+                  }
+                  
+                  // Handle undefined/null values
+                  if (cellValue === undefined || cellValue === null) {
+                    cellValue = isValueColumn ? '-' : '';
                   }
                   
                   // Format financial values
                   if (typeof cellValue === 'number' && isValueColumn) {
                     cellValue = formatCurrency(cellValue);
-                  } else if (cellValue === undefined || cellValue === null || cellValue === '') {
-                    cellValue = isValueColumn ? '-' : '';
-                  } else if (typeof cellValue === 'string' && isValueColumn && !isNaN(Number(cellValue.replace(/[^\d.-]/g, '')))) {
-                    // Handle string numbers
-                    const numValue = Number(cellValue.replace(/[^\d.-]/g, ''));
-                    cellValue = formatCurrency(numValue);
+                  } else if (typeof cellValue === 'string' && isValueColumn && cellValue !== '-' && cellValue !== '') {
+                    // Try to parse and format string numbers
+                    const cleanValue = cellValue.replace(/[£$€,\s]/g, '');
+                    if (!isNaN(parseFloat(cleanValue))) {
+                      const numValue = parseFloat(cleanValue);
+                      cellValue = formatCurrency(numValue);
+                    }
                   }
 
                   return (
@@ -456,10 +553,7 @@ const renderFinancialSection = (data: Record<string, any>) => {
   });
 
   return (
-    <div className="my-4">
-      {data.companyName && <h3 className="text-xl font-semibold text-center mb-1">{data.companyName}</h3>}
-      {data.statementTitle && <h4 className="text-lg text-gray-700 text-center mb-4">{data.statementTitle}</h4>}
-      
+    <div className="my-4">      
       <table className="w-full border-collapse">
         <thead>
           <tr className="bg-gray-800 text-white">
@@ -999,19 +1093,6 @@ export const FinancialsTable: React.FC<FinancialsTableProps> = ({ data, title: m
   if (isStructuredFinancialData) {
     return (
       <div className="bg-white my-8">
-        {/* Header section with title */}
-        <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800 mb-1">
-              {dataToRender.profitAndLoss && dataToRender.balanceSheet ? 
-                "Financial Statements" : 
-                "Profit and Loss Financial Data"}
-            </h1>
-            {fileName && <p className="text-sm text-gray-500">File: {fileName} {pages && `(${pages} pages)`}</p>}
-            {summary && <p className="text-sm text-gray-600 mt-1">{summary}</p>}
-          </div>
-        </div>
-
         {/* Render structured financial data directly */}
         <div className="space-y-8">
           {dataToRender.profitAndLoss && (
@@ -1063,6 +1144,41 @@ export const FinancialsTable: React.FC<FinancialsTableProps> = ({ data, title: m
           {/* Handle direct financial data (not nested under profitAndLoss/balanceSheet) */}
           {!dataToRender.profitAndLoss && !dataToRender.balanceSheet && dataToRender.lineItems && Array.isArray(dataToRender.lineItems) && (
             renderDynamicFinancialData(dataToRender)
+          )}
+          
+          {/* Show diagnostic info if no financial data sections are available */}
+          {!dataToRender.profitAndLoss && !dataToRender.balanceSheet && !dataToRender.trialBalance && 
+           !dataToRender.agedPayables && !dataToRender.agedReceivables && 
+           (!dataToRender.lineItems || (Array.isArray(dataToRender.lineItems) && dataToRender.lineItems.length === 0)) && (
+            <div className="text-center py-8">
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-6 max-w-lg mx-auto">
+                <div className="flex items-center justify-center mb-3">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-medium text-amber-800 mb-2">Document Processed Successfully</h3>
+                <p className="text-sm text-amber-700 mb-3">
+                  The document was processed but no structured financial data could be extracted.
+                </p>
+                <div className="bg-white rounded-md p-3 text-xs text-left space-y-1">
+                  <p><strong>Document Type:</strong> {dataToRender.documentType || 'Unknown'}</p>
+                  {dataToRender.companyName && <p><strong>Company:</strong> {dataToRender.companyName}</p>}
+                  {dataToRender.period && <p><strong>Period:</strong> {dataToRender.period}</p>}
+                  {fileName && <p><strong>File:</strong> {fileName} {pages && `(${pages} pages)`}</p>}
+                  <p><strong>Currency:</strong> {dataToRender.currency || 'Not specified'}</p>
+                </div>
+                <div className="mt-4 text-xs text-amber-600">
+                  <p className="mb-2">This may happen with scanned documents, non-standard formats, or documents without tabular financial data.</p>
+                  <p className="font-medium">Try:</p>
+                  <ul className="list-disc list-inside mt-1 space-y-1">
+                    <li>Uploading a text-based PDF or Excel file</li>
+                    <li>Ensuring the document contains clear financial tables</li>
+                    <li>Using a different document format if available</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </div>

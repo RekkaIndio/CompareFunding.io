@@ -32,10 +32,10 @@ export const OfferConfirmationModal: React.FC<OfferConfirmationModalProps> = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <PoundSterling className="h-5 w-5 text-orange-600" />
-            Confirm Offer Submission
-          </DialogTitle>
+            <DialogTitle className="flex items-center gap-2 text-[#ff8000]">
+              <PoundSterling className="h-5 w-5 text-[#ff8000]" />
+              Confirm Offer Submission
+            </DialogTitle>
           <DialogDescription>
             Please review the billing information before submitting your offer.
           </DialogDescription>
@@ -63,30 +63,17 @@ export const OfferConfirmationModal: React.FC<OfferConfirmationModalProps> = ({
               <span className="text-orange-600">£250</span>
             </div>
           </div>
-          
-          <div className="flex items-start gap-2 text-sm text-gray-600">
-            <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
-            <div>
-              This fee covers our platform costs and ensures serious offers are submitted to businesses.
-            </div>
-          </div>
-          
-          <div className="flex items-start gap-2 text-sm text-gray-600">
-            <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
-            <div>
-              You will receive an invoice within 24 hours of submitting this offer.
-            </div>
-          </div>
         </div>
         
         <DialogFooter className="gap-2">
-          <Button 
+            <Button 
             variant="outline" 
             onClick={onClose}
             disabled={isLoading}
-          >
+            className="text-white"
+            >
             Cancel
-          </Button>
+            </Button>
           <Button 
             onClick={onConfirm}
             disabled={isLoading}

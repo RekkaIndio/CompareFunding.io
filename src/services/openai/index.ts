@@ -1,11 +1,8 @@
 // Simple exports for all document analysis functions
 import { analyzeFinancialDocument } from './profitAndLoss';
-import { analyzeBalanceSheet } from './balanceSheet';
-import { analyzeTrialBalance } from './trialBalance';
-import { analyzeAgedPayables } from './agedPayables';
-import { analyzeAgedReceivables } from './agedReceivables';
 
-export { analyzeFinancialDocument, analyzeBalanceSheet, analyzeTrialBalance, analyzeAgedPayables, analyzeAgedReceivables };
+
+export { analyzeFinancialDocument };
 
 // Legacy compatibility interface
 export interface OpenAIExtractResult {
@@ -33,17 +30,7 @@ export async function analyzeDocumentWithVision({
     return await analyzeFinancialDocument(file);
   }
   
-  if (lowerDocType === 'trial balance') {
-    return await analyzeTrialBalance(file);
-  }
   
-  if (lowerDocType === 'aged payables') {
-    return await analyzeAgedPayables(file);
-  }
-  
-  if (lowerDocType === 'aged receivables') {
-    return await analyzeAgedReceivables(file);
-  }
   
   throw new Error(`Unsupported document type: ${docType}`);
 }
