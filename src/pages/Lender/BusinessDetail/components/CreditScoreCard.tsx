@@ -324,6 +324,56 @@ export const CreditScoreCard: React.FC<CreditScoreCardProps> = ({ creditScore, h
   
   const formattedCreditLimit = formatCreditLimit(creditLimitValue);
   
+  // Extract incorporation date from multiple possible paths
+  let incorporationDateValue = null;
+  if (creditScore?.details?.incorporation_date) {
+    incorporationDateValue = creditScore.details.incorporation_date;
+  } else if (creditScore?.details?.registration_date) {
+    incorporationDateValue = creditScore.details.registration_date;
+  } else if (creditScore?.details?.data?.incorporation_date) {
+    incorporationDateValue = creditScore.details.data.incorporation_date;
+  } else if (creditScore?.details?.data?.registration_date) {
+    incorporationDateValue = creditScore.details.data.registration_date;
+  } else if (creditScore?.details?.report?.companyIdentification?.basicInformation?.companyRegistrationDate) {
+    incorporationDateValue = creditScore.details.report.companyIdentification.basicInformation.companyRegistrationDate;
+  } else if (creditScore?.details?.raw_data?.report?.companyIdentification?.basicInformation?.companyRegistrationDate) {
+    incorporationDateValue = creditScore.details.raw_data.report.companyIdentification.basicInformation.companyRegistrationDate;
+  }
+  
+  const incorporationDate = formatDate(incorporationDateValue);
+  
+  // Extract company type from multiple possible paths
+  let companyTypeValue = null;
+  if (creditScore?.details?.company_type) {
+    companyTypeValue = creditScore.details.company_type;
+  } else if (creditScore?.details?.legal_form) {
+    companyTypeValue = creditScore.details.legal_form;
+  } else if (creditScore?.details?.data?.company_type) {
+    companyTypeValue = creditScore.details.data.company_type;
+  } else if (creditScore?.details?.data?.legal_form) {
+    companyTypeValue = creditScore.details.data.legal_form;
+  } else if (creditScore?.details?.report?.companyIdentification?.basicInformation?.legalForm?.description) {
+    companyTypeValue = creditScore.details.report.companyIdentification.basicInformation.legalForm.description;
+  } else if (creditScore?.details?.raw_data?.report?.companyIdentification?.basicInformation?.legalForm?.description) {
+    companyTypeValue = creditScore.details.raw_data.report.companyIdentification.basicInformation.legalForm.description;
+  }
+  
+  const companyType = companyTypeValue || 'Unknown';
+  
+  // Extract last rating change date from multiple possible paths
+  let lastRatingChangeValue = null;
+  if (creditScore?.details?.latest_rating_change) {
+    lastRatingChangeValue = creditScore.details.latest_rating_change;
+  } else if (creditScore?.details?.data?.latest_rating_change) {
+    lastRatingChangeValue = creditScore.details.data.latest_rating_change;
+  } else if (creditScore?.details?.report?.creditScore?.latestRatingChangeDate) {
+    lastRatingChangeValue = creditScore.details.report.creditScore.latestRatingChangeDate;
+  } else if (creditScore?.details?.raw_data?.report?.creditScore?.latestRatingChangeDate) {
+    lastRatingChangeValue = creditScore.details.raw_data.report.creditScore.latestRatingChangeDate;
+  }
+  
+  const lastRatingChange = formatDate(lastRatingChangeValue);
+  
   // Determine business type based on status or explicit businessType
   const companyStatus = creditScore?.details?.company_status || 
                        creditScore?.status || 
@@ -578,12 +628,6 @@ export const CreditScoreCard: React.FC<CreditScoreCardProps> = ({ creditScore, h
             
             <div className="w-full mt-4 border-t border-gray-700 pt-3 mt-auto">
               <div className="grid grid-cols-1 gap-3">
-                {/* Business Category */}
-                <div className="bg-[#1a2030] p-3 rounded-md border border-slate-700/50">
-                  <h5 className="text-xs uppercase tracking-wider text-slate-400 mb-1">Business Type</h5>
-                  <p className="text-sm text-white font-medium">{businessCategory}</p>
-                </div>
-                
                 {/* Credit Limit */}
                 <div className="bg-[#1a2030] p-3 rounded-md border border-slate-700/50">
                   <h5 className="text-xs uppercase tracking-wider text-slate-400 mb-1">Credit Limit</h5>
@@ -596,6 +640,24 @@ export const CreditScoreCard: React.FC<CreditScoreCardProps> = ({ creditScore, h
                 <div className="bg-[#1a2030] p-3 rounded-md border border-slate-700/50">
                   <h5 className="text-xs uppercase tracking-wider text-slate-400 mb-1">Company Status</h5>
                   <p className="text-sm text-white font-medium">{companyStatus}</p>
+                </div>
+
+                {/* Incorporation Date */}
+                <div className="bg-[#1a2030] p-3 rounded-md border border-slate-700/50">
+                  <h5 className="text-xs uppercase tracking-wider text-slate-400 mb-1">Incorporation Date</h5>
+                  <p className="text-sm text-white font-medium">{incorporationDate}</p>
+                </div>
+
+                {/* Company Type */}
+                <div className="bg-[#1a2030] p-3 rounded-md border border-slate-700/50">
+                  <h5 className="text-xs uppercase tracking-wider text-slate-400 mb-1">Company Type</h5>
+                  <p className="text-sm text-white font-medium">{companyType}</p>
+                </div>
+
+                {/* Last Rating Change */}
+                <div className="bg-[#1a2030] p-3 rounded-md border border-slate-700/50">
+                  <h5 className="text-xs uppercase tracking-wider text-slate-400 mb-1">Last Rating Change</h5>
+                  <p className="text-sm text-white font-medium">{lastRatingChange}</p>
                 </div>
               </div>
             </div>
