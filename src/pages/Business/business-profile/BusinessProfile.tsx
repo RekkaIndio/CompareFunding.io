@@ -87,45 +87,107 @@ type BusinessProfileFormValues = z.infer<typeof businessProfileSchema>;
 
 // Helper function to get a default logo for service
 const getDefaultLogoForService = (domain: string): string | null => {
-  if (domain.includes('firebaseapp.com')) {
+  if (domain.includes('firebaseapp.com') || domain.includes('firebase.google.com')) {
     return 'https://www.gstatic.com/devrel-devsite/prod/v2210deb8920cd4a55bd580441aa58e7853afc04b39a9d9ac4198e1cd7fbe04ef/firebase/images/touchicon-180.png';
   }
-  if (domain.includes('netlify.app')) {
+  if (domain.includes('netlify.app') || domain.includes('netlify.com')) {
     return 'https://www.netlify.com/favicon.ico';
   }
-  if (domain.includes('vercel.app')) {
+  if (domain.includes('vercel.app') || domain.includes('vercel.com')) {
     return 'https://assets.vercel.com/image/upload/front/favicon/vercel/180x180.png';
   }
-  if (domain.includes('github.io')) {
+  if (domain.includes('github.io') || domain.includes('github.com')) {
     return 'https://github.githubassets.com/favicons/favicon.svg';
+  }
+  if (domain.includes('herokuapp.com')) {
+    return 'https://www.herokucdn.com/favicons/favicon.ico';
+  }
+  if (domain.includes('wordpress.com')) {
+    return 'https://s0.wp.com/i/favicon.ico';
+  }
+  if (domain.includes('wix.com')) {
+    return 'https://static.wixstatic.com/media/favicon.ico';
+  }
+  if (domain.includes('squarespace.com')) {
+    return 'https://static1.squarespace.com/static/ta/5134cbefe4b0c6fb04df8065/10515/assets/favicon.ico';
   }
   return null;
 };
 
 // Helper function to generate a letter-based logo
-const generateLetterLogo = (name: string): string => {
+const generateLetterLogo = (name: string, simplified = false): string => {
   if (!name) return '';
-
-  const initials = name.trim().substring(0, 2).toUpperCase();
+  
+  // Get initials from business name (first letter of each word, max 2 characters)
+  const words = name.trim().split(/\s+/);
+  let initials = '';
+  
+  if (words.length === 1) {
+    // Single word: take first 1-2 characters
+    initials = name.trim().substring(0, simplified ? 1 : 2).toUpperCase();
+  } else {
+    // Multiple words: take first letter of first two words
+    initials = words.slice(0, 2).map(word => word.charAt(0)).join('').toUpperCase();
+  }
+  
+  // Professional color palette
   const colors = [
-    '#3498db', '#2ecc71', '#e74c3c', '#f39c12', '#9b59b6',
-    '#1abc9c', '#d35400', '#34495e', '#16a085', '#c0392b'
+    '#1f2937', // slate-800
+    '#0f766e', // teal-700  
+    '#0369a1', // sky-700
+    '#7c3aed', // violet-600
+    '#dc2626', // red-600
+    '#ea580c', // orange-600
+    '#059669', // emerald-600
+    '#4338ca', // indigo-600
+    '#9333ea', // purple-600
+    '#be185d'  // pink-600
   ];
-
+  
+  // Use a deterministic color based on the name
   const colorIndex = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % colors.length;
   const bgColor = colors[colorIndex];
-
-  const svgTemplate = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
-      <rect width="128" height="128" fill="${bgColor}"/>
-      <text x="50%" y="50%" font-size="64" font-family="Arial, sans-serif" 
-            fill="white" text-anchor="middle" dominant-baseline="central">
-        ${initials}
-      </text>
-    </svg>
-  `;
-
+  
+  // Create a simpler SVG if simplified is true
+  if (simplified) {
+    const simpleSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+      <rect width="64" height="64" fill="${bgColor}" rx="8"/>
+      <text x="50%" y="50%" font-size="28" font-family="system-ui, -apple-system, sans-serif" font-weight="600" fill="white" text-anchor="middle" dominant-baseline="central">${initials}</text>
+    </svg>`;
+    return `data:image/svg+xml;base64,${btoa(simpleSvg)}`;
+  }
+  
+  // Create a professional SVG logo
+  const svgTemplate = `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+    <defs>
+      <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color:${bgColor};stop-opacity:1" />
+        <stop offset="100%" style="stop-color:${adjustColorBrightness(bgColor, -20)};stop-opacity:1" />
+      </linearGradient>
+    </defs>
+    <rect width="128" height="128" fill="url(#grad1)" rx="16"/>
+    <text x="50%" y="50%" font-size="48" font-family="system-ui, -apple-system, sans-serif" font-weight="600" 
+          fill="white" text-anchor="middle" dominant-baseline="central">${initials}</text>
+  </svg>`;
+  
   return `data:image/svg+xml;base64,${btoa(svgTemplate)}`;
+};
+
+// Helper function to adjust color brightness
+const adjustColorBrightness = (hex: string, percent: number): string => {
+  // Remove the hash if present
+  hex = hex.replace('#', '');
+  
+  // Parse the hex color
+  const num = parseInt(hex, 16);
+  const amt = Math.round(2.55 * percent);
+  const R = (num >> 16) + amt;
+  const G = (num >> 8 & 0x00FF) + amt;
+  const B = (num & 0x0000FF) + amt;
+  
+  return `#${(0x1000000 + (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 +
+    (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 +
+    (B < 255 ? B < 1 ? 0 : B : 255)).toString(16).slice(1)}`;
 };
 
 const BusinessProfile = () => {
@@ -377,105 +439,124 @@ const BusinessProfile = () => {
   };
 
   // Add logo fetching function
-  const fetchWebsiteLogo = (websiteUrl: string) => {
+  const fetchWebsiteLogo = async (websiteUrl: string) => {
     if (!websiteUrl) return;
-
+    
     try {
+      // Extract domain from URL
       let domain = websiteUrl;
-
+      // Make sure we have a proper URL with protocol
       if (!domain.startsWith('http://') && !domain.startsWith('https://')) {
         domain = 'https://' + domain;
       }
-
+      
       try {
         const url = new URL(domain);
         domain = url.hostname;
       } catch (e) {
-        console.error('Invalid URL format:', domain);
-        toast.error('Please enter a valid website URL');
+        console.warn('Invalid URL format:', websiteUrl);
+        // Try to extract domain manually for simple cases
+        domain = websiteUrl.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
+      }
+      
+      if (!domain) {
+        console.warn('Could not extract domain from URL:', websiteUrl);
         return;
       }
 
-      if (!domain) return;
-
-      const isHostingService =
-        domain.includes('firebaseapp.com') ||
-        domain.includes('netlify.app') ||
+      // Check if it's a Firebase hosting URL or similar service that might not have favicon
+      const isHostingService = 
+        domain.includes('firebaseapp.com') || 
+        domain.includes('netlify.app') || 
         domain.includes('vercel.app') ||
         domain.includes('github.io');
-
+        
       if (isHostingService) {
-        const logoUrl = getDefaultLogoForService(domain);
-        if (logoUrl) {
-          form.setValue('logo_url', logoUrl);
-          toast.success('Default logo set for hosting service');
-          saveLogo(logoUrl);
+        // Use a default logo for known hosting services
+        const logo = getDefaultLogoForService(domain);
+        if (logo) {
+          form.setValue('logo_url', logo);
+          saveLogo(logo);
           return;
         }
       }
 
-      // Try direct favicon
-      const directFaviconUrl = `https://${domain}/favicon.ico`;
+      // Try multiple favicon sources in order of preference
+      const faviconSources = [
+        `https://${domain}/favicon.ico`,
+        `https://${domain}/favicon.png`,
+        `https://${domain}/apple-touch-icon.png`,
+        `https://www.google.com/s2/favicons?domain=${domain}&sz=64`,
+        `https://icons.duckduckgo.com/ip3/${domain}.ico`,
+        `https://api.faviconkit.com/${domain}/64`
+      ];
 
-      const directImg = new Image();
-      directImg.onload = () => {
-        form.setValue('logo_url', directFaviconUrl);
-        toast.success('Logo fetched successfully');
-        saveLogo(directFaviconUrl);
-      };
-
-      directImg.onerror = () => {
-        // Try Google's service
-        const googleLogoUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
-
-        const googleImg = new Image();
-        googleImg.onload = () => {
-          checkIfDefaultFavicon(googleLogoUrl, (isDefault) => {
-            if (isDefault) {
-              tryDuckDuckGoFavicon();
-            } else {
-              form.setValue('logo_url', googleLogoUrl);
-              toast.success('Logo fetched successfully');
-              saveLogo(googleLogoUrl);
-            }
-          });
-        };
-
-        googleImg.onerror = tryDuckDuckGoFavicon;
-        googleImg.src = googleLogoUrl;
-      };
-
-      function tryDuckDuckGoFavicon() {
-        const ddgLogoUrl = `https://icons.duckduckgo.com/ip3/${domain}.ico`;
-
-        const ddgImg = new Image();
-        ddgImg.onload = () => {
-          form.setValue('logo_url', ddgLogoUrl);
-          toast.success('Logo fetched successfully');
-          saveLogo(ddgLogoUrl);
-        };
-
-        ddgImg.onerror = () => {
-          const letterLogo = generateLetterLogo(form.getValues('business_name') || domain);
-          form.setValue('logo_url', letterLogo);
-          toast.info('Generated a placeholder logo for your business');
-          saveLogo(letterLogo);
-        };
-
-        ddgImg.src = ddgLogoUrl;
+      // Test each favicon source
+      for (const faviconUrl of faviconSources) {
+        try {
+          const isValid = await testImageUrl(faviconUrl);
+          if (isValid) {
+            form.setValue('logo_url', faviconUrl);
+            console.log(`Successfully fetched logo from: ${faviconUrl}`);
+            saveLogo(faviconUrl);
+            return;
+          }
+        } catch (e) {
+          // Continue to next source
+          continue;
+        }
       }
 
-      directImg.src = directFaviconUrl;
-    } catch (error) {
-      console.error('Error fetching logo:', error);
-      toast.error('Failed to fetch logo');
-
+      // If all favicon sources fail, generate a letter-based logo
+      console.warn(`No valid favicon found for ${domain}, generating letter logo`);
       if (form.getValues('business_name')) {
         const letterLogo = generateLetterLogo(form.getValues('business_name'));
         form.setValue('logo_url', letterLogo);
         saveLogo(letterLogo);
+      } else {
+        toast.error('Could not fetch logo for this website');
+      }
+      
+    } catch (error) {
+      console.error('Error fetching logo:', error);
+      // Fallback to generated logo
+      if (form.getValues('business_name')) {
+        const letterLogo = generateLetterLogo(form.getValues('business_name'));
+        form.setValue('logo_url', letterLogo);
+        saveLogo(letterLogo);
+        toast.info('Using generated logo as fallback');
+      } else {
+        toast.error('Failed to fetch logo');
       }
     }
+  };
+
+  // Helper function to test if an image URL is valid
+  const testImageUrl = (url: string): Promise<boolean> => {
+    return new Promise((resolve) => {
+      const img = new window.Image();
+      img.onload = () => {
+        // Additional check to ensure it's not a generic/default favicon
+        if (img.width > 0 && img.height > 0) {
+          resolve(true);
+        } else {
+          resolve(false);
+        }
+      };
+      img.onerror = () => resolve(false);
+      
+      // Set a timeout to avoid hanging
+      const timeout = setTimeout(() => {
+        resolve(false);
+      }, 5000);
+      
+      img.onload = () => {
+        clearTimeout(timeout);
+        resolve(img.width > 0 && img.height > 0);
+      };
+      
+      img.src = url;
+    });
   };
 
   // Function to save logo URL and extract colors
@@ -521,30 +602,13 @@ const BusinessProfile = () => {
     }
 
     window.logoFetchTimer = window.setTimeout(() => {
-      if (newWebsite) {
+      if (newWebsite && newWebsite.length > 3) {
         fetchWebsiteLogo(newWebsite);
       }
-    }, 1000);
+    }, 1500); // Increased delay to 1.5 seconds
   };
 
-  // Helper function to check if favicon is default
-  const checkIfDefaultFavicon = (imageUrl: string, callback: (isDefault: boolean) => void) => {
-    callback(false); // Simplified check for demo
-  };
-
-  // Add logo fetching and saving logic
-  useEffect(() => {
-    // This functionality is now handled in the first useEffect
-    const fetchAndSaveLogo = () => {
-      const website = form.getValues('website');
-      if (website) {
-        fetchWebsiteLogo(website);
-      }
-    };
-
-    // No need to call fetchBusinessProfile here as it's handled elsewhere
-  }, [user, form]);
-
+  // Function to fetch and save logo from website URL
   const fetchAndSaveLogo = async (website: string) => {
     if (!website) return;
 
@@ -560,7 +624,7 @@ const BusinessProfile = () => {
   // Call fetchAndSaveLogo when the website field changes
   useEffect(() => {
     const website = form.getValues('website');
-    if (website) {
+    if (website && website.length > 3) {
       fetchAndSaveLogo(website);
     }
   }, [form.watch('website')]);
@@ -786,22 +850,65 @@ const BusinessProfile = () => {
                             src={form.watch('logo_url')}
                             alt="Company Logo"
                             className="max-h-full max-w-full object-contain"
-                            onError={(e) => console.log('Logo failed to load:', e)}
+                            onError={(e) => {
+                              console.warn('Logo failed to load:', form.watch('logo_url'));
+                              // Generate fallback logo if the current one fails to load
+                              const businessName = form.getValues('business_name');
+                              if (businessName) {
+                                const fallbackLogo = generateLetterLogo(businessName, true);
+                                form.setValue('logo_url', fallbackLogo);
+                              }
+                            }}
                           />
                         ) : (
-                          <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                          <div className="text-center">
+                            <ImageIcon className="h-8 w-8 text-muted-foreground mb-1" />
+                            {form.getValues('business_name') && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const generatedLogo = generateLetterLogo(form.getValues('business_name'));
+                                  form.setValue('logo_url', generatedLogo);
+                                  saveLogo(generatedLogo);
+                                }}
+                                className="text-xs text-[#ff8800] hover:text-[#ff9900] font-medium"
+                              >
+                                Generate
+                              </button>
+                            )}
+                          </div>
                         )}
                       </div>
-                      <div>
+                      <div className="flex-1">
                         <p className="text-sm text-muted-foreground mb-1">
                           {form.watch('logo_url') ? 'Company logo detected' : 'No logo detected'}
                         </p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-xs text-muted-foreground mb-2">
                           {form.watch('logo_url')
                             ? 'Logo will be saved with your profile'
-                            : 'Enter your company website URL to automatically fetch your logo, or click "Fetch Logo"'
+                            : 'Enter your company website URL to automatically fetch your logo'
                           }
                         </p>
+                        {form.watch('website') && form.watch('website').length > 3 && (
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => fetchWebsiteLogo(form.getValues('website'))}
+                              className="text-xs bg-[#ff8800] hover:bg-[#ff9900] text-white px-3 py-1 rounded transition-colors"
+                            >
+                              Fetch Logo
+                            </button>
+                            {form.watch('logo_url') && (
+                              <button
+                                type="button"
+                                onClick={() => form.setValue('logo_url', '')}
+                                className="text-xs text-red-600 hover:text-red-700 px-3 py-1 rounded border border-red-200 hover:bg-red-50 transition-colors"
+                              >
+                                Remove
+                              </button>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

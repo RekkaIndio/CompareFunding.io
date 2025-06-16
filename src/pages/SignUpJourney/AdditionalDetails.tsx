@@ -1,18 +1,22 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useNavbar } from '@/contexts/NavbarContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import SignUpLayout from '@/components/SignUpLayout';
+import { getFirestore, doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { toast } from 'sonner';
 import { ArrowRight, FileText, Globe, PoundSterling, Clock, Info } from 'lucide-react';
 
 const AdditionalDetails = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { showNavbar, hideNavbar } = useNavbar();
+  const { user } = useAuth();
   const [userInfo, setUserInfo] = useState(location.state || {});
   
   // Additional details form data
@@ -82,9 +86,47 @@ const AdditionalDetails = () => {
     navigate('/signup-journey/business-details', { state: { ...userInfo, ...formData } });
   };
 
-  const handleNext = () => {
-    if (isFormValid()) {
+  const handleNext = async () => {
+    if (!isFormValid()) {
+      toast.error('Please complete all required fields before continuing.');
+      return;
+    }
+
+    try {
+      // Save additional details data to user profile
+      if (user?.uid) {
+        const db = getFirestore();
+        const additionalDetailsData = {
+          ...formData,
+          updatedAt: serverTimestamp()
+        };
+
+        // Save to users collection
+        await setDoc(doc(db, 'users', user.uid), {
+          ...userInfo,
+          additionalDetails: additionalDetailsData,
+          // Also save individual fields for easier access
+          fundingPurpose: formData.fundingPurpose,
+          fundingAmount: formData.fundingAmount,
+          fundingTimeframe: formData.fundingTimeframe,
+          additionalInfo: formData.additionalInfo
+        }, { merge: true });
+
+        // Also save to businesses collection for consistency
+        await setDoc(doc(db, 'businesses', user.uid), {
+          additionalDetails: additionalDetailsData,
+          fundingPurpose: formData.fundingPurpose,
+          fundingAmount: formData.fundingAmount,
+          fundingTimeframe: formData.fundingTimeframe,
+          additionalInfo: formData.additionalInfo
+        }, { merge: true });
+      }
+
+      // Navigate to next step with updated data
       navigate('/signup-journey/current-funding', { state: { ...userInfo, ...formData } });
+    } catch (error) {
+      console.error('Error saving additional details data:', error);
+      toast.error('There was an error saving your information. Please try again.');
     }
   };
 
@@ -216,6 +258,29 @@ const AdditionalDetails = () => {
     if (!isFormValid()) {
       alert('Please fill in all required fields');
       return;
+    }
+
+    // Save user profile with additional details
+    if (user) {
+      const db = getFirestore();
+      try {
+        await setDoc(doc(db, 'users', user.uid), {
+          additionalDetails: {
+            ...formData,
+            updatedAt: serverTimestamp()
+          },
+          // Ensure other user data is not overwritten
+          ...(userInfo.email && { email: userInfo.email }),
+          ...(userInfo.businessName && { businessName: userInfo.businessName }),
+          ...(userInfo.selectedProduct && { selectedProduct: userInfo.selectedProduct }),
+          ...(userInfo.industry && { industry: userInfo.industry }),
+        }, { merge: true });
+
+        toast.success('Additional details saved successfully!');
+      } catch (error) {
+        console.error('Error saving additional details:', error);
+        toast.error('Failed to save additional details. Please try again.');
+      }
     }
 
     // Continue to review page

@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { HorizontalProductFilters, FilterValues } from '@/components/HorizontalProductFilters';
 import { LenderComparisonTable } from '@/components/LenderComparisonTable';
+import LenderConnectionModal from '@/components/LenderConnectionModal';
 import { getFiltersForProduct, getProductDisplayName } from '@/lib/productFilters';
 import { toast } from 'sonner';
 import { 
@@ -31,7 +32,9 @@ import {
   Percent,
   Filter,
   TrendingUp,
-  RefreshCw
+  RefreshCw,
+  Star,
+  Users
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
 
@@ -159,6 +162,8 @@ const LenderMarketplace = () => {
   const [connectedLenders, setConnectedLenders] = useState<Set<string>>(new Set());
   const [declinedLenders, setDeclinedLenders] = useState<Set<string>>(new Set());
   const [isConnecting, setIsConnecting] = useState<Set<string>>(new Set());
+  const [connectionModalOpen, setConnectionModalOpen] = useState(false);
+  const [selectedLender, setSelectedLender] = useState<LenderProfile | null>(null);
   
   // Fetch application data from URL parameter if not available in navigation state
   const { data: fetchedApplication, isLoading: isLoadingApplication } = useQuery({
@@ -178,6 +183,27 @@ const LenderMarketplace = () => {
     enabled: !!applicationId, // Always fetch if we have an applicationId
   });
   
+  // Fetch existing offers for this application
+  const { data: existingOffers } = useQuery({
+    queryKey: ['applicationOffers', applicationId],
+    queryFn: async () => {
+      if (!applicationId) return [];
+      
+      const { data, error } = await getDocuments(
+        'offers',
+        [{ field: 'application_id', operator: '==', value: applicationId }]
+      );
+      
+      if (error) {
+        console.error('Error fetching offers:', error);
+        return [];
+      }
+      
+      return data || [];
+    },
+    enabled: !!applicationId,
+  });
+
   // Get application data - prioritize fresh fetched data over navigation state
   const application = fetchedApplication || location.state?.application;
   
@@ -200,9 +226,28 @@ const LenderMarketplace = () => {
     return 'available';
   };
 
-  // Handle connecting with a lender
+  // Handle connecting with a lender - open modal first
   const handleConnectLender = async (lender: LenderProfile) => {
     if (!user || !application) return;
+    
+    if (connectedLenders.size >= 5) {
+      toast.error('You can only connect with a maximum of 5 lenders per application.');
+      return;
+    }
+
+    if (connectedLenders.has(lender.id)) {
+      toast.error('You are already connected with this lender.');
+      return;
+    }
+
+    // Open confirmation modal
+    setSelectedLender(lender);
+    setConnectionModalOpen(true);
+  };
+
+  // Handle actual connection after modal confirmation
+  const handleConfirmConnection = async () => {
+    if (!selectedLender || !user || !application) return;
     
     // Check and fix legacy application without application_number
     if (!application.application_number) {
@@ -223,22 +268,12 @@ const LenderMarketplace = () => {
         // Continue with fallback logic below
       }
     }
-    
-    if (connectedLenders.size >= 5) {
-      toast.error('You can only connect with a maximum of 5 lenders per application.');
-      return;
-    }
 
-    if (connectedLenders.has(lender.id)) {
-      toast.error('You are already connected with this lender.');
-      return;
-    }
-
-    setIsConnecting(prev => new Set(prev).add(lender.id));
+    setIsConnecting(prev => new Set(prev).add(selectedLender.id));
 
     try {
       // Update application with connected lender
-      const updatedConnectedLenders = [...Array.from(connectedLenders), lender.id];
+      const updatedConnectedLenders = [...Array.from(connectedLenders), selectedLender.id];
       
       // Only update the specific fields we need to change
       await updateDocument('applications', application.id, {
@@ -249,7 +284,7 @@ const LenderMarketplace = () => {
       // Create a connection record for the lender dashboard
       const connectionData = {
         application_id: application.id,
-        lender_id: lender.id,
+        lender_id: selectedLender.id,
         business_id: user.uid,
         application_data: {
           application_number: application.application_number || `APP-LEGACY-${application.id.slice(0, 8)}`, // Fallback for legacy applications
@@ -277,16 +312,20 @@ const LenderMarketplace = () => {
       }
 
       // Update local state
-      setConnectedLenders(prev => new Set(prev).add(lender.id));
+      setConnectedLenders(prev => new Set(prev).add(selectedLender.id));
       
-      toast.success(`Successfully connected with ${lender.lender_name || lender.company_name}!`);
+      // Close modal
+      setConnectionModalOpen(false);
+      setSelectedLender(null);
+      
+      toast.success(`Successfully connected with ${selectedLender.lender_name || selectedLender.company_name}! They are now reviewing your application.`);
     } catch (error) {
       console.error('Error connecting with lender:', error);
       toast.error('Failed to connect with lender. Please try again.');
     } finally {
       setIsConnecting(prev => {
         const newSet = new Set(prev);
-        newSet.delete(lender.id);
+        newSet.delete(selectedLender.id);
         return newSet;
       });
     }
@@ -846,7 +885,7 @@ const LenderMarketplace = () => {
               </div>
 
           {/* Application Summary */}
-              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
+              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20 mb-4">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div className="flex items-center gap-2">
                     <PoundSterling className="h-4 w-4 text-[#ff8000]" />
@@ -866,6 +905,58 @@ const LenderMarketplace = () => {
                   </div>
                 </div>
               </div>
+
+              {/* Offers and Connections Status */}
+              {(existingOffers && existingOffers.length > 0) || connectedLenders.size > 0 ? (
+                <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
+                  <div className="flex items-center gap-4 mb-3">
+                    <h3 className="text-white font-semibold">Current Status</h3>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {existingOffers && existingOffers.length > 0 && (
+                      <div className="flex items-center gap-2">
+                        <Star className="h-4 w-4 text-emerald-400" />
+                        <span className="text-sm">
+                          <strong>{existingOffers.filter(offer => ['pending', 'negotiating'].includes(offer.status?.toLowerCase())).length}</strong> active offers
+                        </span>
+                      </div>
+                    )}
+                    {connectedLenders.size > 0 && (
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4 text-blue-400" />
+                        <span className="text-sm">
+                          <strong>{connectedLenders.size}</strong> lender{connectedLenders.size !== 1 ? 's' : ''} connected
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2">
+                      <Target className="h-4 w-4 text-[#ff8000]" />
+                      <span className="text-sm">
+                        <strong>{5 - connectedLenders.size}</strong> more connections available
+                      </span>
+                    </div>
+                  </div>
+                  {existingOffers && existingOffers.some(offer => offer.status?.toLowerCase() === 'declined') && (
+                    <div className="mt-3 p-3 bg-amber-500/20 rounded-lg border border-amber-400/30">
+                      <div className="flex items-center gap-2">
+                        <AlertCircle className="h-4 w-4 text-amber-300" />
+                        <span className="text-sm text-amber-200">
+                          Some offers were declined - you can still connect with other lenders below
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
+                  <div className="flex items-center gap-2">
+                    <Target className="h-4 w-4 text-[#ff8000]" />
+                    <span className="text-sm text-white/90">
+                      Connect with up to <strong>5 lenders</strong> to receive competitive offers for your application
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -971,6 +1062,19 @@ const LenderMarketplace = () => {
             </Alert>
           )}
         </div>
+
+        {/* Lender Connection Modal */}
+        <LenderConnectionModal
+          isOpen={connectionModalOpen}
+          onClose={() => {
+            setConnectionModalOpen(false);
+            setSelectedLender(null);
+          }}
+          onConfirm={handleConfirmConnection}
+          lender={selectedLender}
+          isConnecting={selectedLender ? isConnecting.has(selectedLender.id) : false}
+          connectedLendersCount={connectedLenders.size}
+        />
       </div>
     </PageLayout>
   );

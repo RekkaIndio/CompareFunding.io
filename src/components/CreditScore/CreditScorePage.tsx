@@ -3,6 +3,8 @@ import { useLocation } from 'react-router-dom';
 import PageLayout from '@/components/PageLayout';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import CircularProgressBar from "@/components/ui/CircularProgressBar";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { CheckCircle2, Info, AlertCircle, CheckCircle, RefreshCw, Building2, BarChart3, AlertTriangle, Shield } from "lucide-react";
@@ -17,7 +19,7 @@ import CompanyList from './CompanyList';
 import CompanyHeader from './CompanyHeader';
 import OverviewTab from './OverviewTab';
 import NegativeInformationTab from './NegativeInformationTab';
-import RiskFactorsTab from './RiskFactorsTab';
+import { RiskFactorsTab } from './RiskFactorsTab';
 import { searchCompanyByNameDirect, getCreditReportDirect } from './api';
 import { getRiskBadgeColor, isNewlyIncorporated } from './utils';
 
@@ -535,106 +537,148 @@ const CreditScorePage: React.FC = () => {
 
   return (
     <PageLayout showSidebar={true}>
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-gray-100" data-tour="credit-score-detail">
-        <div className="container px-6 py-8 mx-auto">
-      
-          {/* Main Header Section - matching OffersList style */}
-          <div className="bg-[#212936] text-white rounded-xl p-6 sm:p-8 mb-8 shadow-xl border-b-2 border-[#ff8000] flex flex-col md:flex-row justify-between items-start md:items-center">
-            <div>
-              <h1 className="text-3xl sm:text-4xl font-bold mb-2 tracking-tight text-white">
-                Business Credit Analysis
-              </h1>
-              <p className="text-gray-200 text-base sm:text-lg">
-                Comprehensive credit reports and financial insights for informed business decisions
-              </p>
-            </div>
-            {user && reportSaved && (
-              <div className="flex items-center space-x-4 mt-4 md:mt-0">
-                <div className="flex items-center text-emerald-400 bg-emerald-500/20 px-4 py-2 rounded-lg border border-emerald-500/30">
-                  <CheckCircle className="h-5 w-5 mr-2" />
-                  <span className="font-medium">Report Saved</span>
-                </div>
-                <button
-                  onClick={reloadSavedReport}
-                  disabled={isLoading || isManualReload}
-                  className="bg-gradient-to-r from-[#ff8800] to-[#ffaa00] hover:from-[#ff9900] hover:to-[#ffbb00] 
-                           text-white px-6 py-3 rounded-lg transition-all duration-200 flex items-center 
-                           shadow-md hover:shadow-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isManualReload ? (
-                    <>
-                      <div className="mr-3 w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      Refreshing...
-                    </>
-                  ) : (
-                    <>
-                      <RefreshCw className="w-5 h-5 mr-2" />
-                      Refresh Report
-                    </>
-                  )}
-                </button>
-              </div>
-            )}
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/50" data-tour="credit-score-detail">
+        {/* Modern Header Section */}
+        <div className="relative bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white overflow-hidden">
+          {/* Background Pattern */}
+          <div className="absolute inset-0">
+            <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-[#ff8800]/20 to-transparent rounded-full -translate-y-48 translate-x-48 blur-3xl"></div>
+            <div className="absolute bottom-0 left-0 w-64 h-64 bg-gradient-to-tr from-blue-500/20 to-transparent rounded-full translate-y-32 -translate-x-32 blur-3xl"></div>
           </div>
+          
+          <div className="relative z-10 max-w-screen-2xl mx-auto px-4 md:px-6 lg:px-8 py-12">
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-8">
+              <div className="flex-1">
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="p-4 bg-gradient-to-br from-[#ff8800]/20 to-[#ff8800]/10 rounded-2xl border border-[#ff8800]/20 backdrop-blur-sm">
+                    <BarChart3 className="h-8 w-8 text-[#ff8800]" />
+                  </div>
+                  <div>
+                    <h1 className="text-3xl lg:text-5xl font-bold mb-2 tracking-tight">
+                      Business Credit Analysis
+                    </h1>
+                    <p className="text-slate-300 text-lg lg:text-xl">
+                      Comprehensive credit reports and financial insights for informed decisions
+                    </p>
+                  </div>
+                </div>
+                
+                {/* Quick Stats Pills */}
+                {selectedCompany && creditReport && (
+                  <div className="flex flex-wrap gap-3 mt-8">
+                    <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 border border-white/20 shadow-lg">
+                      <Building2 className="h-4 w-4 text-blue-300" />
+                      <span className="text-sm font-medium text-white">
+                        {selectedCompany.name}
+                      </span>
+                    </div>
+                    {creditReport.report?.creditScore?.currentCreditRating && (
+                      <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 border border-white/20 shadow-lg">
+                        <Shield className="h-4 w-4 text-emerald-300" />
+                        <span className="text-sm font-medium text-white">
+                          Score: {creditReport.report.creditScore.currentCreditRating.providerValue?.value || 'N/A'}
+                        </span>
+                      </div>
+                    )}
+                    {reportSaved && (
+                      <div className="flex items-center gap-2 bg-emerald-500/20 backdrop-blur-sm rounded-full px-4 py-2 border border-emerald-400/30 shadow-lg">
+                        <CheckCircle className="h-4 w-4 text-emerald-300" />
+                        <span className="text-sm font-medium text-white">
+                          Report Saved
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              
+              {user && reportSaved && (
+                <div className="flex gap-3">
+                  <Button
+                    onClick={reloadSavedReport}
+                    disabled={isLoading || isManualReload}
+                    size="lg"
+                    className="bg-gradient-to-r from-[#ff8800] to-[#ffaa00] hover:from-[#ff9900] hover:to-[#ffbb00] shadow-xl hover:shadow-2xl text-white border-0 px-8 py-3 font-semibold group transition-all duration-300 transform hover:-translate-y-0.5"
+                  >
+                    {isManualReload ? (
+                      <>
+                        <div className="mr-3 w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Refreshing...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="w-5 h-5 mr-2 group-hover:rotate-180 transition-transform duration-300" />
+                        Refresh Report
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="max-w-screen-2xl mx-auto px-4 md:px-6 lg:px-8 py-8 -mt-4 relative z-20">
 
           {/* Empty State - when no company data is available */}
           {!isLoading && !selectedCompany && !creditReport && (
-            <div className="bg-gradient-to-br from-slate-800 to-slate-900 border-slate-700 rounded-xl shadow-xl border p-12">
-              <div className="text-center">
-                <div className="bg-slate-700/50 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-6 border border-slate-600">
-                  <Building2 className="h-10 w-10 text-slate-400" />
+            <Card className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-200/50 overflow-hidden transform hover:-translate-y-1 transition-all duration-300">
+              <CardContent className="p-12">
+                <div className="text-center">
+                  <div className="bg-gradient-to-br from-slate-100 to-slate-200 rounded-full w-24 h-24 flex items-center justify-center mx-auto mb-6 border border-slate-300 shadow-inner">
+                    <Building2 className="h-12 w-12 text-slate-500" />
+                  </div>
+                  <h3 className="text-2xl font-semibold text-slate-900 mb-3">No Credit Report Available</h3>
+                  <p className="text-slate-600 max-w-md mx-auto text-lg leading-relaxed">
+                    Complete your business details form to automatically generate and view your company's credit report.
+                  </p>
                 </div>
-                <h3 className="text-xl font-semibold text-white mb-2">No Credit Report Available</h3>
-                <p className="text-slate-300 max-w-md mx-auto">
-                  Complete your business details form to automatically generate and view your company's credit report.
-                </p>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           )}
 
-          {/* Loading State */}
+          {/* Enhanced Loading State */}
           {isLoading && (
-            <div className="bg-gradient-to-br from-slate-800 to-slate-900 border-slate-700 rounded-xl shadow-xl border p-16">
-              <div className="flex flex-col items-center justify-center">
-                <div className="relative mb-6">
-                  <div className="h-16 w-16 border-4 border-slate-600 rounded-full animate-spin"></div>
-                  <div className="absolute top-0 left-0 h-16 w-16 border-4 border-[#ff8000] rounded-full animate-spin border-t-transparent"></div>
+            <Card className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-200/50 overflow-hidden">
+              <CardContent className="p-16">
+                <div className="flex flex-col items-center justify-center">
+                  <div className="relative mb-8">
+                    <div className="h-20 w-20 border-4 border-slate-200 rounded-full"></div>
+                    <div className="absolute top-0 left-0 h-20 w-20 border-4 border-[#ff8800] rounded-full animate-spin border-t-transparent"></div>
+                    <div className="absolute top-2 left-2 h-16 w-16 border-4 border-blue-400 rounded-full animate-spin border-b-transparent animate-reverse" style={{animationDirection: 'reverse', animationDuration: '1.5s'}}></div>
+                  </div>
+                  <h3 className="text-2xl font-semibold text-slate-900 mb-3">
+                    {selectedCompany ? 'Generating Credit Report' : 'Loading Credit Data'}
+                  </h3>
+                  <p className="text-slate-600 text-center max-w-md text-lg leading-relaxed">
+                    {selectedCompany 
+                      ? 'Please wait while we fetch the latest credit information and risk analysis...'
+                      : isManualReload 
+                        ? 'Refreshing your saved credit report...'
+                        : 'Processing your request...'
+                    }
+                  </p>
                 </div>
-                <h3 className="text-xl font-semibold text-white mb-2">
-                  {selectedCompany ? 'Generating Credit Report' : 'Loading Credit Data'}
-                </h3>
-                <p className="text-slate-300 text-center max-w-md">
-                  {selectedCompany 
-                    ? 'Please wait while we fetch the latest credit information and risk analysis...'
-                    : isManualReload 
-                      ? 'Refreshing your saved credit report...'
-                      : 'Processing your request...'
-                  }
-                </p>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           )}
 
-          {/* Credit Report Section */}
+          {/* Enhanced Credit Report Section */}
           {!isLoading && selectedCompany && creditReport && (
             <div className="space-y-8">
               {/* Status Alerts */}
               {reportSaved && isManualReload && (
-                <div className="bg-blue-500/20 border border-blue-500/30 rounded-xl p-6">
-                  <div className="flex items-start">
-                    <Info className="h-6 w-6 text-blue-400 mt-0.5 mr-4 flex-shrink-0" />
-                    <div>
-                      <h4 className="text-blue-300 font-semibold mb-2">Loaded from Profile</h4>
-                      <p className="text-blue-200">You are viewing the credit report saved to your business profile.</p>
-                    </div>
-                  </div>
-                </div>
+                <Alert className="bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200 rounded-xl shadow-lg">
+                  <Info className="h-5 w-5 text-blue-600" />
+                  <AlertTitle className="text-blue-800 font-semibold">Loaded from Profile</AlertTitle>
+                  <AlertDescription className="text-blue-700">
+                    You are viewing the credit report saved to your business profile.
+                  </AlertDescription>
+                </Alert>
               )}
               
-              {/* FOr ac */}
-              
               {/* Main Credit Report Card */}
-              <div className="bg-gradient-to-br from-slate-800 to-slate-900 border-slate-700 rounded-xl shadow-xl border overflow-hidden">
+              <Card className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-200/50 overflow-hidden transform hover:-translate-y-1 transition-all duration-300">
                 <CompanyHeader
                   creditReport={creditReport}
                   selectedCompany={selectedCompany}
@@ -643,34 +687,31 @@ const CreditScorePage: React.FC = () => {
                 
                 {/* Enhanced Tabs */}
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                  <div className="bg-slate-700/50 border-b border-slate-600 px-6">
-                    <TabsList className="bg-transparent h-auto space-x-2 py-4">
+                  <div className="bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200 px-6">
+                    <TabsList className="bg-transparent h-auto space-x-2 py-6">
                       <TabsTrigger 
                         value="overview" 
-                        className="data-[state=active]:bg-[#ff8000] data-[state=active]:text-white 
-                                 data-[state=inactive]:text-slate-300 data-[state=inactive]:hover:text-white
-                                 data-[state=inactive]:hover:bg-slate-600 data-[state=inactive]:bg-transparent
-                                 px-6 py-3 rounded-lg font-medium transition-all duration-200 border-0 shadow-sm"
+                        className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#ff8800] data-[state=active]:to-[#ffaa00] data-[state=active]:text-white data-[state=active]:shadow-lg
+                                 data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:text-slate-900 data-[state=inactive]:hover:bg-white
+                                 data-[state=inactive]:bg-transparent px-6 py-3 rounded-xl font-semibold transition-all duration-300 border-0 transform hover:-translate-y-0.5"
                       >
                         <BarChart3 className="h-4 w-4 mr-2" />
                         Overview
                       </TabsTrigger>
                       <TabsTrigger 
                         value="negative" 
-                        className="data-[state=active]:bg-[#ff8000] data-[state=active]:text-white 
-                                 data-[state=inactive]:text-slate-300 data-[state=inactive]:hover:text-white
-                                 data-[state=inactive]:hover:bg-slate-600 data-[state=inactive]:bg-transparent
-                                 px-6 py-3 rounded-lg font-medium transition-all duration-200 border-0 shadow-sm"
+                        className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#ff8800] data-[state=active]:to-[#ffaa00] data-[state=active]:text-white data-[state=active]:shadow-lg
+                                 data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:text-slate-900 data-[state=inactive]:hover:bg-white
+                                 data-[state=inactive]:bg-transparent px-6 py-3 rounded-xl font-semibold transition-all duration-300 border-0 transform hover:-translate-y-0.5"
                       >
                         <AlertTriangle className="h-4 w-4 mr-2" />
                         Risk Analysis
                       </TabsTrigger>
                       <TabsTrigger 
                         value="risk" 
-                        className="data-[state=active]:bg-[#ff8000] data-[state=active]:text-white 
-                                 data-[state=inactive]:text-slate-300 data-[state=inactive]:hover:text-white
-                                 data-[state=inactive]:hover:bg-slate-600 data-[state=inactive]:bg-transparent
-                                 px-6 py-3 rounded-lg font-medium transition-all duration-200 border-0 shadow-sm"
+                        className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#ff8800] data-[state=active]:to-[#ffaa00] data-[state=active]:text-white data-[state=active]:shadow-lg
+                                 data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:text-slate-900 data-[state=inactive]:hover:bg-white
+                                 data-[state=inactive]:bg-transparent px-6 py-3 rounded-xl font-semibold transition-all duration-300 border-0 transform hover:-translate-y-0.5"
                       >
                         <Shield className="h-4 w-4 mr-2" />
                         Risk Factors
@@ -678,49 +719,42 @@ const CreditScorePage: React.FC = () => {
                     </TabsList>
                   </div>
                   
-                  {/* Tab Content */}
-                  <div className="bg-gradient-to-br from-slate-800 to-slate-900">
-                    <TabsContent value="overview" className="p-0 m-0">
+                  {/* Tab Content with smooth transitions */}
+                  <div className="bg-white">
+                    <TabsContent value="overview" className="p-0 m-0 tab-content">
                       <OverviewTab creditReport={creditReport} />
                     </TabsContent>
                     
-                    <TabsContent value="negative" className="p-0 m-0">
+                    <TabsContent value="negative" className="p-0 m-0 tab-content">
                       <NegativeInformationTab creditReport={creditReport} />
                     </TabsContent>
                     
-                    <TabsContent value="risk" className="p-0 m-0">
+                    <TabsContent value="risk" className="p-0 m-0 tab-content">
                       <RiskFactorsTab creditReport={creditReport} />
                     </TabsContent>
                   </div>
                 </Tabs>
-              </div>
+              </Card>
             </div>
           )}
         </div>
       </div>
       
       <style>{`
-        /* Enhanced tab transitions */
-        .tab-content-enter {
-          opacity: 0;
-          transform: translateY(12px);
+        /* Enhanced animations and transitions */
+        .tab-content {
+          animation: fadeInUp 0.3s ease-out forwards;
         }
         
-        .tab-content-enter-active {
-          opacity: 1;
-          transform: translateY(0);
-          transition: opacity 400ms ease-out, transform 400ms ease-out;
-        }
-        
-        .tab-content-exit {
-          opacity: 1;
-          transform: translateY(0);
-        }
-        
-        .tab-content-exit-active {
-          opacity: 0;
-          transform: translateY(-12px);
-          transition: opacity 400ms ease-out, transform 400ms ease-out;
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(12px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
         }
 
         /* Smooth gradient animations */
@@ -732,60 +766,41 @@ const CreditScorePage: React.FC = () => {
 
         .animate-gradient {
           background-size: 200% 200%;
-          animation: gradientShift 3s ease infinite;
+          animation: gradientShift 4s ease infinite;
         }
 
-        /* Enhanced loading animation */
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-
-        /* Card hover effects */
+        /* Enhanced card hover effects */
         .card-hover {
-          transition: all 0.3s ease;
+          transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
         }
         
         .card-hover:hover {
+          transform: translateY(-4px) scale(1.02);
+          box-shadow: 0 25px 50px -5px rgba(0, 0, 0, 0.15), 0 20px 20px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Custom loading animation */
+        @keyframes spin-reverse {
+          from {
+            transform: rotate(360deg);
+          }
+          to {
+            transform: rotate(0deg);
+          }
+        }
+        
+        .animate-reverse {
+          animation: spin-reverse 1.5s linear infinite;
+        }
+
+        /* Smooth button transitions */
+        .btn-enhanced {
+          transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+        
+        .btn-enhanced:hover {
           transform: translateY(-2px);
-          box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-        }
-
-        /* Professional button styling */
-        .btn-professional {
-          background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-          transition: all 0.3s ease;
-          position: relative;
-          overflow: hidden;
-        }
-        
-        .btn-professional::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: -100%;
-          width: 100%;
-          height: 100%;
-          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-          transition: left 0.5s ease;
-        }
-        
-        .btn-professional:hover::before {
-          left: 100%;
-        }
-        
-        .btn-professional:hover {
-          background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
-          transform: translateY(-1px);
-          box-shadow: 0 10px 20px rgba(59, 130, 246, 0.3);
-        }
-
-        /* Improved text gradients */
-        .text-gradient {
-          background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
+          box-shadow: 0 20px 25px -5px rgba(255, 136, 0, 0.4), 0 10px 10px -5px rgba(255, 136, 0, 0.2);
         }
       `}</style>
     </PageLayout>

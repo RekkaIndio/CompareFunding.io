@@ -132,7 +132,7 @@ const HeroSection = () => {
 
                     {/* Option 3: Expert Consultation */}
                     <Link 
-                      to="/contact"
+                      to="/support-flow"
                       className="group block bg-gradient-to-br from-slate-50 to-slate-100/80 hover:from-slate-100 hover:to-slate-200/80 border border-slate-200/60 rounded-xl p-5 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 backdrop-blur-sm"
                     >
                       <div className="flex items-center justify-between">

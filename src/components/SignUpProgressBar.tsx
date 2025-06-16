@@ -9,7 +9,6 @@ interface ProgressStep {
 interface SignUpProgressBarProps {
   steps: ProgressStep[];
   currentStep: number;
-  onStepClick?: (stepIndex: number) => void;
   showNavigation?: boolean;
   onPrevious?: () => void;
   onNext?: () => void;
@@ -20,7 +19,6 @@ interface SignUpProgressBarProps {
 const SignUpProgressBar: React.FC<SignUpProgressBarProps> = ({
   steps,
   currentStep,
-  onStepClick,
   showNavigation = true,
   onPrevious,
   onNext,
@@ -69,14 +67,13 @@ const SignUpProgressBar: React.FC<SignUpProgressBarProps> = ({
         {steps.map((step, idx) => (
           <span 
             key={step.label} 
-            className={`transition-all duration-300 cursor-pointer hover:text-[#ff8000] ${
+            className={`transition-all duration-300 ${
               idx === currentStep 
                 ? 'font-bold text-[#ff8000] transform scale-105' 
                 : idx < currentStep 
                   ? 'text-green-600 font-semibold' 
                   : 'text-gray-500'
             }`}
-            onClick={() => onStepClick && onStepClick(idx)}
           >
             {renderLabel(step.label, idx)}
           </span>

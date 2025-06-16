@@ -18,6 +18,7 @@ interface ApplicationsListProps {
   canSeeBusinessDetails: (app: any) => boolean; 
   getCreditScoreRisk: (score: number | string) => string;
   isLenderMatched: (app: any) => boolean;
+  hasLenderMadeOffer: (app: any) => boolean;
 }
 
 const ApplicationsList: React.FC<ApplicationsListProps> = ({
@@ -34,7 +35,8 @@ const ApplicationsList: React.FC<ApplicationsListProps> = ({
   isApplicationDeclined,
   canSeeBusinessDetails,
   getCreditScoreRisk,
-  isLenderMatched
+  isLenderMatched,
+  hasLenderMadeOffer
 }) => {
   if (isLoading) {
     return (
@@ -61,6 +63,7 @@ const ApplicationsList: React.FC<ApplicationsListProps> = ({
             handleStartConversation={handleStartConversation}
             isLenderMatched={isLenderMatched}
             getCreditScoreRisk={getCreditScoreRisk}
+            hasLenderMadeOffer={hasLenderMadeOffer}
           />
         ))}
       </div>

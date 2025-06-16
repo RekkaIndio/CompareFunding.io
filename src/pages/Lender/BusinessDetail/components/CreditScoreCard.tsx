@@ -94,14 +94,23 @@ const CircularProgress: React.FC<CircularProgressProps> = ({
         height={size}
         viewBox={`0 0 ${size} ${size}`}
       >
-        {/* Background circle */}
+        {/* Define gradients for each risk level */}
+        <defs>
+          <radialGradient id={`gradient-${riskLevel}`} cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="white" stopOpacity="1" />
+            <stop offset="70%" stopColor="white" stopOpacity="0.95" />
+            <stop offset="100%" stopColor={riskColors[riskLevel]} stopOpacity="0.1" />
+          </radialGradient>
+        </defs>
+        
+        {/* Background circle with gradient fill */}
         <circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
           strokeWidth={strokeWidth}
           stroke="#e5e7eb"
-          fill="white"
+          fill={`url(#gradient-${riskLevel})`}
         />
         
         {/* Foreground circle (progress) - only show for numeric values */}
@@ -158,6 +167,25 @@ interface CreditScoreCardProps {
     credit_score?: number | string; // raw Firebase field
     risk?: string; // raw Firebase field
   } | null;
+  hmrcStatus?: {
+    isUpToDate?: string;
+    vatDetails?: {
+      amount?: string;
+      timeToPay?: string;
+      details?: string;
+    };
+    corpTaxDetails?: {
+      amount?: string;
+      timeToPay?: string;
+      details?: string;
+    };
+    payeDetails?: {
+      amount?: string;
+      timeToPay?: string;
+      details?: string;
+    };
+    updatedAt?: any;
+  } | null;
 }
 
 // Helper to format date
@@ -187,15 +215,11 @@ const formatDate = (dateInput: string | number | Date | undefined) => {
       year: 'numeric'
     });
   } catch (e) {
-    console.error('Date formatting error:', e, 'Input:', dateInput);
     return 'Invalid Date';
   }
 };
 
-export const CreditScoreCard: React.FC<CreditScoreCardProps> = ({ creditScore }) => {
-  // Debug logging to see what data we're receiving
-  console.log('[DEBUG CreditScoreCard] Received creditScore prop:', creditScore);
-  
+export const CreditScoreCard: React.FC<CreditScoreCardProps> = ({ creditScore, hmrcStatus }) => {
   // Extract the score value from credit details
   let scoreValue;
   
@@ -203,33 +227,25 @@ export const CreditScoreCard: React.FC<CreditScoreCardProps> = ({ creditScore })
   if (creditScore?.score !== undefined && creditScore?.score !== null) {
     // First try the normalized data structure (top-level score)
     scoreValue = creditScore.score;
-    console.log('[DEBUG CreditScoreCard] Using normalized score:', scoreValue);
   } else if (creditScore?.details?.credit_score !== undefined && creditScore?.details?.credit_score !== null) {
     // If score exists in details.credit_score
     scoreValue = creditScore.details.credit_score;
-    console.log('[DEBUG CreditScoreCard] Using details.credit_score:', scoreValue);
   } else if (creditScore?.details?.score !== undefined && creditScore?.details?.score !== null) {
     // If score exists in details.score
     scoreValue = creditScore.details.score;
-    console.log('[DEBUG CreditScoreCard] Using details.score:', scoreValue);
   } else if (creditScore?.details?.data?.credit_score !== undefined && creditScore?.details?.data?.credit_score !== null) {
     // Try Firebase subcollection format: details.data.credit_score
     scoreValue = creditScore.details.data.credit_score;
-    console.log('[DEBUG CreditScoreCard] Using details.data.credit_score:', scoreValue);
   } else if (creditScore?.details?.data?.score !== undefined && creditScore?.details?.data?.score !== null) {
     // Try Firebase subcollection format: details.data.score
     scoreValue = creditScore.details.data.score;
-    console.log('[DEBUG CreditScoreCard] Using details.data.score:', scoreValue);
   } else if (creditScore?.credit_score !== undefined && creditScore?.credit_score !== null) {
     // Direct credit_score field (for raw Firebase data)
     scoreValue = creditScore.credit_score;
-    console.log('[DEBUG CreditScoreCard] Using direct credit_score:', scoreValue);
   }
   
-  console.log('[DEBUG CreditScoreCard] Final extracted scoreValue:', scoreValue);
-  console.log('[DEBUG CreditScoreCard] creditScore.details:', creditScore?.details);
-  console.log('[DEBUG CreditScoreCard] creditScore.details.data:', creditScore?.details?.data);
-  
+ 
+ 
   // Convert string scores to numbers when possible
   const numericScore = scoreValue && !isNaN(Number(scoreValue)) ? Number(scoreValue) : null;
   
@@ -282,15 +298,6 @@ export const CreditScoreCard: React.FC<CreditScoreCardProps> = ({ creditScore })
     // Extract from raw_data structure
     creditLimitValue = creditScore.details.raw_data.report.creditScore.currentCreditRating.creditLimit.value;
   }
-  
-  console.log('[DEBUG CreditScoreCard] Credit limit extraction:', {
-    creditLimit_direct: creditScore?.credit_limit,
-    creditLimit_details: creditScore?.details?.credit_limit,
-    creditLimit_data: creditScore?.details?.data?.credit_limit,
-    creditLimit_report: creditScore?.details?.report?.creditScore?.currentCreditRating?.creditLimit?.value,
-    creditLimit_raw: creditScore?.details?.raw_data?.report?.creditScore?.currentCreditRating?.creditLimit?.value,
-    finalValue: creditLimitValue
-  });
   
   // Format credit limit for display
   const formatCreditLimit = (limit: any) => {
@@ -462,7 +469,7 @@ export const CreditScoreCard: React.FC<CreditScoreCardProps> = ({ creditScore })
       <CardContent className="p-4 flex flex-col items-center flex-1 justify-center">
         {creditScore ? (
           <>
-            <div className="flex flex-col items-center justify-center mb-3">
+            <div className="flex flex-col items-center justify-center mb-4">
               {isUnknown ? (
                 <CircularProgress
                   value="Unknown"
@@ -508,6 +515,66 @@ export const CreditScoreCard: React.FC<CreditScoreCardProps> = ({ creditScore })
                 Last updated: {lastUpdated}
               </div>
             </div>
+
+            {/* HMRC Status Tags - Compact, Vertical, Centered */}
+            {hmrcStatus && (
+              <div className="flex flex-col items-center justify-center space-y-2 mb-4">
+                {hmrcStatus.isUpToDate === 'yes' ? (
+                  <>
+                    <Badge className="bg-green-100 text-green-800 hover:bg-green-100 text-sm px-3 py-1.5 border-0 w-[190px] justify-center">
+                      <ShieldCheck className="w-3 h-3 mr-1.5" />
+                      VAT Up to Date
+                    </Badge>
+                    <Badge className="bg-green-100 text-green-800 hover:bg-green-100 text-sm px-3 py-1.5 border-0 w-[190px] justify-center">
+                      <ShieldCheck className="w-3 h-3 mr-1.5" />
+                      Corp Tax Up to Date
+                    </Badge>
+                    <Badge className="bg-green-100 text-green-800 hover:bg-green-100 text-sm px-3 py-1.5 border-0 w-[190px] justify-center">
+                      <ShieldCheck className="w-3 h-3 mr-1.5" />
+                      PAYE Up to Date
+                    </Badge>
+                  </>
+                ) : (
+                  <>
+                    {hmrcStatus.vatDetails && (hmrcStatus.vatDetails.amount || hmrcStatus.vatDetails.timeToPay) ? (
+                      <Badge className="bg-red-100 text-red-800 hover:bg-red-100 text-sm px-3 py-1.5 border-0 w-[190px] justify-center">
+                        <AlertCircle className="w-3 h-3 mr-1.5" />
+                        VAT Outstanding
+                      </Badge>
+                    ) : (
+                      <Badge className="bg-green-100 text-green-800 hover:bg-green-100 text-sm px-3 py-1.5 border-0 w-[190px] justify-center">
+                        <ShieldCheck className="w-3 h-3 mr-1.5" />
+                        VAT Up to Date
+                      </Badge>
+                    )}
+                    
+                    {hmrcStatus.corpTaxDetails && (hmrcStatus.corpTaxDetails.amount || hmrcStatus.corpTaxDetails.timeToPay) ? (
+                      <Badge className="bg-red-100 text-red-800 hover:bg-red-100 text-sm px-3 py-1.5 border-0 w-[190px] justify-center">
+                        <AlertCircle className="w-3 h-3 mr-1.5" />
+                        Corp Tax Outstanding
+                      </Badge>
+                    ) : (
+                      <Badge className="bg-green-100 text-green-800 hover:bg-green-100 text-sm px-3 py-1.5 border-0 w-[190px] justify-center">
+                        <ShieldCheck className="w-3 h-3 mr-1.5" />
+                        Corp Tax Up to Date
+                      </Badge>
+                    )}
+                    
+                    {hmrcStatus.payeDetails && (hmrcStatus.payeDetails.amount || hmrcStatus.payeDetails.timeToPay) ? (
+                      <Badge className="bg-red-100 text-red-800 hover:bg-red-100 text-sm px-3 py-1.5 border-0 w-[190px] justify-center">
+                        <AlertCircle className="w-3 h-3 mr-1.5" />
+                        PAYE Outstanding
+                      </Badge>
+                    ) : (
+                      <Badge className="bg-green-100 text-green-800 hover:bg-green-100 text-sm px-3 py-1.5 border-0 w-[190px] justify-center">
+                        <ShieldCheck className="w-3 h-3 mr-1.5" />
+                        PAYE Up to Date
+                      </Badge>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
             
             <div className="w-full mt-4 border-t border-gray-700 pt-3 mt-auto">
               <div className="grid grid-cols-1 gap-3">

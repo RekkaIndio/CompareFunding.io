@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useNavbar } from '@/contexts/NavbarContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import SignUpLayout from '@/components/SignUpLayout';
+import { getFirestore, doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { toast } from 'sonner';
 import { 
   FileText, 
   AlertTriangle, 
@@ -18,7 +20,8 @@ import {
   Receipt,
   PoundSterling,
   Calendar,
-  Clock
+  Clock,
+  Shield
 } from 'lucide-react';
 
 interface TaxDetails {
@@ -31,6 +34,7 @@ const HMRCStatus = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { showNavbar, hideNavbar } = useNavbar();
+  const { user } = useAuth();
   const [userInfo, setUserInfo] = useState(location.state || {});
   
   // HMRC form data
@@ -119,8 +123,37 @@ const HMRCStatus = () => {
     });
   };
 
-  const handleNext = () => {
-    if (isFormValid()) {
+  const handleNext = async () => {
+    if (!isFormValid()) {
+      toast.error('Please complete all required fields before continuing.');
+      return;
+    }
+
+    try {
+      // Save HMRC status data to user profile
+      if (user?.uid) {
+        const db = getFirestore();
+        const hmrcData = {
+          isUpToDate,
+          vatDetails: isUpToDate === 'no' ? vatDetails : { amount: '', timeToPay: '', details: '' },
+          corpTaxDetails: isUpToDate === 'no' ? corpTaxDetails : { amount: '', timeToPay: '', details: '' },
+          payeDetails: isUpToDate === 'no' ? payeDetails : { amount: '', timeToPay: '', details: '' },
+          updatedAt: serverTimestamp()
+        };
+
+        // Save to users collection
+        await setDoc(doc(db, 'users', user.uid), {
+          ...userInfo,
+          hmrcStatus: hmrcData
+        }, { merge: true });
+
+        // Also save to businesses collection for consistency
+        await setDoc(doc(db, 'businesses', user.uid), {
+          hmrcStatus: hmrcData
+        }, { merge: true });
+      }
+
+      // Navigate to next step with updated data
       navigate('/signup-journey/document-upload', { 
         state: { 
           ...userInfo, 
@@ -130,6 +163,9 @@ const HMRCStatus = () => {
           payeDetails: isUpToDate === 'no' ? payeDetails : { amount: '', timeToPay: '', details: '' }
         } 
       });
+    } catch (error) {
+      console.error('Error saving HMRC status data:', error);
+      toast.error('There was an error saving your information. Please try again.');
     }
   };
 
@@ -251,21 +287,24 @@ const HMRCStatus = () => {
     details: TaxDetails;
     onUpdate: (field: keyof TaxDetails, value: string) => void;
   }) => (
-    <Card className="border border-gray-200">
-      <CardHeader className="pb-4">
-        <CardTitle className="text-base flex items-center gap-2">
-          <Icon className="h-5 w-5 text-red-600" />
-          {title}
-        </CardTitle>
-        <CardDescription>
-          Provide details about any outstanding {title.toLowerCase()} liabilities
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="p-6 sm:p-8 bg-white border-2 border-gray-200 rounded-xl sm:rounded-2xl hover:border-gray-300 transition-all duration-300 shadow-sm hover:shadow-md">
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-10 h-10 bg-gradient-to-br from-[#ff8000] to-[#ff6000] rounded-full flex items-center justify-center">
+          <Icon className="h-5 w-5 text-white" />
+        </div>
+        <div>
+          <h4 className="text-lg font-bold text-[#2a3441]">{title}</h4>
+          <p className="text-sm text-gray-600">
+            Provide details about any outstanding {title.toLowerCase()} liabilities
+          </p>
+        </div>
+      </div>
+      
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
           <div className="space-y-2">
-            <Label htmlFor={`${type}-amount`} className="flex items-center gap-2">
-              <PoundSterling className="h-4 w-4" />
+            <Label htmlFor={`${type}-amount`} className="text-sm sm:text-base font-medium text-[#2a3441] flex items-center gap-2">
+              <PoundSterling className="h-4 w-4 text-gray-500" />
               Amount Outstanding
             </Label>
             <Input
@@ -273,17 +312,17 @@ const HMRCStatus = () => {
               value={details.amount}
               onChange={(e) => onUpdate('amount', e.target.value)}
               placeholder="e.g., £5,000"
-              className="bg-white"
+              className="h-10 sm:h-12 bg-white border-2 border-gray-200 focus:border-[#ff8000] focus:ring-2 focus:ring-[#ff8000]/20 text-[#2a3441] rounded-lg sm:rounded-xl transition-all"
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor={`${type}-timeframe`} className="flex items-center gap-2">
-              <Clock className="h-4 w-4" />
+            <Label htmlFor={`${type}-timeframe`} className="text-sm sm:text-base font-medium text-[#2a3441] flex items-center gap-2">
+              <Clock className="h-4 w-4 text-gray-500" />
               Time to Pay
             </Label>
             <Select value={details.timeToPay} onValueChange={(value) => onUpdate('timeToPay', value)}>
-              <SelectTrigger className="bg-white">
+              <SelectTrigger className="h-10 sm:h-12 bg-white border-2 border-gray-200 focus:border-[#ff8000] focus:ring-2 focus:ring-[#ff8000]/20 text-[#2a3441] rounded-lg sm:rounded-xl">
                 <SelectValue placeholder="Select timeframe" />
               </SelectTrigger>
               <SelectContent>
@@ -298,19 +337,45 @@ const HMRCStatus = () => {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor={`${type}-details`}>Additional Details</Label>
+          <Label htmlFor={`${type}-details`} className="text-sm sm:text-base font-medium text-[#2a3441]">
+            Additional Details
+          </Label>
           <Textarea
             id={`${type}-details`}
             value={details.details}
             onChange={(e) => onUpdate('details', e.target.value)}
-            placeholder="Any additional information about payment arrangements, disputes, or circumstances"
-            className="bg-white min-h-[80px]"
-            rows={3}
+            placeholder="Provide any additional context, payment arrangements, or disputes..."
+            className="min-h-[100px] bg-white border-2 border-gray-200 focus:border-[#ff8000] focus:ring-2 focus:ring-[#ff8000]/20 text-[#2a3441] rounded-lg sm:rounded-xl resize-none transition-all"
           />
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
+
+  // Save user profile data
+  const saveUserProfile = async () => {
+    if (!user) return;
+
+    const db = getFirestore();
+    const userRef = doc(db, 'users', user.uid);
+
+    try {
+      await setDoc(userRef, {
+        hmrcStatus: {
+          isUpToDate,
+          vatDetails: isUpToDate === 'no' ? vatDetails : { amount: '', timeToPay: '', details: '' },
+          corpTaxDetails: isUpToDate === 'no' ? corpTaxDetails : { amount: '', timeToPay: '', details: '' },
+          payeDetails: isUpToDate === 'no' ? payeDetails : { amount: '', timeToPay: '', details: '' }
+        },
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+
+      toast.success('Your HMRC status has been saved successfully.');
+    } catch (error) {
+      console.error('Error saving user profile:', error);
+      toast.error('Failed to save HMRC status. Please try again.');
+    }
+  };
 
   return (
     <SignUpLayout
@@ -323,7 +388,7 @@ const HMRCStatus = () => {
       canGoNext={isFormValid()}
       sidebarProps={sidebarProps}
     >
-      <div className="space-y-6">
+      <div className="space-y-8">
         <div className="text-center mb-6 sm:mb-8">
           <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-[#2a3441] mb-2 sm:mb-3 animate-fadeIn">
             HMRC Tax Status
@@ -333,125 +398,149 @@ const HMRCStatus = () => {
           </p>
         </div>
 
-        <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
-          <CardContent className="p-6 sm:p-8">
-            <div className="space-y-6">
-              {/* Main Question */}
-              <div className="text-center p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <FileText className="h-12 w-12 text-blue-600 mx-auto mb-3" />
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Are you up to date with HMRC?
-                </h3>
-                <p className="text-sm text-gray-600">
-                  This includes VAT, Corporation Tax, PAYE, and any other tax obligations
-                </p>
-              </div>
-
-              {/* Radio Selection */}
-              <div className="flex justify-center">
-                <RadioGroup
-                  value={isUpToDate}
-                  onValueChange={handleStatusChange}
-                  className="flex space-x-8"
-                >
-                  <div className="flex items-center space-x-2 p-4 border-2 border-gray-200 rounded-lg hover:border-green-300 transition-colors cursor-pointer">
-                    <RadioGroupItem value="yes" id="yes" />
-                    <Label 
-                      htmlFor="yes" 
-                      className="text-lg font-medium cursor-pointer text-gray-700 hover:text-green-600 flex items-center gap-2"
-                    >
-                      <CheckCircle className="h-5 w-5 text-green-600" />
-                      Yes
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2 p-4 border-2 border-gray-200 rounded-lg hover:border-red-300 transition-colors cursor-pointer">
-                    <RadioGroupItem value="no" id="no" />
-                    <Label 
-                      htmlFor="no" 
-                      className="text-lg font-medium cursor-pointer text-gray-700 hover:text-red-600 flex items-center gap-2"
-                    >
-                      <AlertTriangle className="h-5 w-5 text-red-600" />
-                      No
-                    </Label>
-                  </div>
-                </RadioGroup>
-              </div>
-
-              {/* Up to Date Message */}
-              {isUpToDate === 'yes' && (
-                <div className="text-center p-6 bg-green-50 border border-green-200 rounded-lg animate-fadeIn">
-                  <div className="h-12 w-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <CheckCircle className="h-6 w-6 text-green-600" />
-                  </div>
-                  <h3 className="text-lg font-medium text-green-800 mb-2">Excellent!</h3>
-                  <p className="text-green-700">
-                    Being up to date with HMRC strengthens your funding application and shows good financial management.
-                  </p>
-                </div>
-              )}
-
-              {/* Outstanding Liabilities Section */}
-              {isUpToDate === 'no' && (
-                <div className="space-y-6 animate-fadeIn">
-                  <div className="border-t pt-6">
-                    <div className="mb-6">
-                      <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2 mb-4">
-                        <AlertTriangle className="h-5 w-5 text-red-500" />
-                        Provide Details
-                      </h3>
-                      
-                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                        <h4 className="font-medium text-amber-800 mb-2">Required Information:</h4>
-                        <p className="text-sm text-amber-700 mb-3">
-                          Please provide details for any outstanding tax liabilities. Fill in sections that apply to your situation.
-                        </p>
-                        <ul className="text-sm text-amber-700 space-y-1">
-                          <li>• Outstanding amount</li>
-                          <li>• Expected payment timeframe</li>
-                          <li>• Any payment arrangements or disputes</li>
-                        </ul>
-                      </div>
-                    </div>
-
-                    {/* Tax Details Forms */}
-                    <div className="space-y-6">
-                      <TaxDetailsCard
-                        type="vat"
-                        title="VAT"
-                        icon={PoundSterling}
-                        details={vatDetails}
-                        onUpdate={(field, value) => updateTaxDetails('vat', field, value)}
-                      />
-
-                      <TaxDetailsCard
-                        type="corpTax"
-                        title="Corporation Tax"
-                        icon={Building}
-                        details={corpTaxDetails}
-                        onUpdate={(field, value) => updateTaxDetails('corpTax', field, value)}
-                      />
-
-                      <TaxDetailsCard
-                        type="paye"
-                        title="PAYE"
-                        icon={Calculator}
-                        details={payeDetails}
-                        onUpdate={(field, value) => updateTaxDetails('paye', field, value)}
-                      />
-                    </div>
-
-                    <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                      <p className="text-sm text-blue-700">
-                        <strong>Note:</strong> Having outstanding HMRC liabilities doesn't automatically disqualify you from funding. 
-                        Many lenders can work with businesses that have payment plans in place or are actively resolving tax issues.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
+        <div className="space-y-6 sm:space-y-8">
+          {/* Main Question Card */}
+          <div className="text-center p-6 sm:p-8 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl sm:rounded-2xl border-2 border-blue-100 animate-fadeIn delay-200">
+            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <FileText className="h-8 w-8 text-white" />
             </div>
-          </CardContent>
-        </Card>
+            <h3 className="text-lg sm:text-xl font-bold text-[#2a3441] mb-3">
+              Are you up to date with HMRC?
+            </h3>
+            <p className="text-sm sm:text-base text-gray-600 max-w-md mx-auto">
+              This includes VAT, Corporation Tax, PAYE, and any other tax obligations
+            </p>
+          </div>
+
+          {/* Radio Selection */}
+          <div className="animate-fadeIn delay-300">
+            <RadioGroup
+              value={isUpToDate}
+              onValueChange={handleStatusChange}
+              className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6"
+            >
+              <div className="relative">
+                <RadioGroupItem value="yes" id="yes" className="peer sr-only" />
+                <Label 
+                  htmlFor="yes" 
+                  className="flex items-center justify-center p-6 sm:p-8 border-2 border-gray-200 rounded-xl sm:rounded-2xl cursor-pointer transition-all duration-300 hover:border-green-300 hover:bg-green-50 peer-checked:border-green-500 peer-checked:bg-green-50 peer-checked:shadow-lg group"
+                >
+                  <div className="text-center">
+                    <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:bg-green-200 transition-colors">
+                      <CheckCircle className="h-6 w-6 text-green-600" />
+                    </div>
+                    <div className="text-lg font-semibold text-[#2a3441] mb-1">Yes</div>
+                    <div className="text-sm text-gray-600">Up to date with all tax obligations</div>
+                  </div>
+                </Label>
+              </div>
+              
+              <div className="relative">
+                <RadioGroupItem value="no" id="no" className="peer sr-only" />
+                <Label 
+                  htmlFor="no" 
+                  className="flex items-center justify-center p-6 sm:p-8 border-2 border-gray-200 rounded-xl sm:rounded-2xl cursor-pointer transition-all duration-300 hover:border-amber-300 hover:bg-amber-50 peer-checked:border-amber-500 peer-checked:bg-amber-50 peer-checked:shadow-lg group"
+                >
+                  <div className="text-center">
+                    <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:bg-amber-200 transition-colors">
+                      <AlertTriangle className="h-6 w-6 text-amber-600" />
+                    </div>
+                    <div className="text-lg font-semibold text-[#2a3441] mb-1">No</div>
+                    <div className="text-sm text-gray-600">Outstanding tax liabilities</div>
+                  </div>
+                </Label>
+              </div>
+            </RadioGroup>
+          </div>
+
+          {/* Up to Date Message */}
+          {isUpToDate === 'yes' && (
+            <div className="text-center p-6 sm:p-8 bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl sm:rounded-2xl animate-fadeIn">
+              <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CheckCircle className="h-8 w-8 text-white" />
+              </div>
+              <h3 className="text-lg sm:text-xl font-bold text-green-800 mb-3">Excellent!</h3>
+              <p className="text-green-700 text-sm sm:text-base max-w-md mx-auto">
+                Being up to date with HMRC strengthens your funding application and shows good financial management.
+              </p>
+            </div>
+          )}
+
+          {/* Outstanding Liabilities Section */}
+          {isUpToDate === 'no' && (
+            <div className="space-y-6 sm:space-y-8 animate-fadeIn">
+              <div className="p-6 sm:p-8 bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-200 rounded-xl sm:rounded-2xl">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <AlertTriangle className="h-6 w-6 text-amber-600" />
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-bold text-[#2a3441] mb-2">Required Information</h4>
+                    <p className="text-sm sm:text-base text-amber-700 mb-4">
+                      Please provide details for any outstanding tax liabilities. Fill in sections that apply to your situation.
+                    </p>
+                    <ul className="text-sm text-amber-700 space-y-2">
+                      <li className="flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 bg-amber-600 rounded-full"></div>
+                        Outstanding amount
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 bg-amber-600 rounded-full"></div>
+                        Expected payment timeframe
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 bg-amber-600 rounded-full"></div>
+                        Any payment arrangements or disputes
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              {/* Tax Details Forms */}
+              <div className="space-y-6">
+                <TaxDetailsCard
+                  type="vat"
+                  title="VAT"
+                  icon={PoundSterling}
+                  details={vatDetails}
+                  onUpdate={(field, value) => updateTaxDetails('vat', field, value)}
+                />
+
+                <TaxDetailsCard
+                  type="corpTax"
+                  title="Corporation Tax"
+                  icon={Building}
+                  details={corpTaxDetails}
+                  onUpdate={(field, value) => updateTaxDetails('corpTax', field, value)}
+                />
+
+                <TaxDetailsCard
+                  type="paye"
+                  title="PAYE"
+                  icon={Calculator}
+                  details={payeDetails}
+                  onUpdate={(field, value) => updateTaxDetails('paye', field, value)}
+                />
+              </div>
+
+              <div className="p-6 sm:p-8 bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl sm:rounded-2xl">
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <Shield className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-[#2a3441] mb-2">Important Note</h4>
+                    <p className="text-sm sm:text-base text-blue-700">
+                      Having outstanding HMRC liabilities doesn't automatically disqualify you from funding. 
+                      Many lenders can work with businesses that have payment plans in place or are actively resolving tax issues.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </SignUpLayout>
   );

@@ -290,8 +290,9 @@ const LenderProfile = () => {
   }, [profile]);
 
   // Function to fetch website logo
-  const fetchWebsiteLogo = (websiteUrl: string) => {
+  const fetchWebsiteLogo = async (websiteUrl: string) => {
     if (!websiteUrl) return;
+    
     try {
       // Extract domain from URL
       let domain = websiteUrl;
@@ -299,47 +300,110 @@ const LenderProfile = () => {
       if (!domain.startsWith('http://') && !domain.startsWith('https://')) {
         domain = 'https://' + domain;
       }
+      
       try {
         const url = new URL(domain);
         domain = url.hostname;
       } catch (e) {
-        // If invalid URL, fallback to original string
+        console.warn('Invalid URL format:', websiteUrl);
+        // Try to extract domain manually for simple cases
+        domain = websiteUrl.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
       }
-      if (!domain) return;
+      
+      if (!domain) {
+        console.warn('Could not extract domain from URL:', websiteUrl);
+        return;
+      }
+
       // Check if it's a Firebase hosting URL or similar service that might not have favicon
       const isHostingService = 
         domain.includes('firebaseapp.com') || 
         domain.includes('netlify.app') || 
         domain.includes('vercel.app') ||
         domain.includes('github.io');
+        
       if (isHostingService) {
         // Use a default logo for known hosting services
         const logo = getDefaultLogoForService(domain);
-        if (logo) setFormData(prev => ({ ...prev, logo_url: logo }));
-        return;
+        if (logo) {
+          setFormData(prev => ({ ...prev, logo_url: logo }));
+          return;
+        }
       }
 
-      // First try favicon.ico directly (most reliable for many sites)
-      const directFaviconUrl = `https://${domain}/favicon.ico`;
+      // Try multiple favicon sources in order of preference
+      const faviconSources = [
+        `https://${domain}/favicon.ico`,
+        `https://${domain}/favicon.png`,
+        `https://${domain}/apple-touch-icon.png`,
+        `https://www.google.com/s2/favicons?domain=${domain}&sz=64`,
+        `https://icons.duckduckgo.com/ip3/${domain}.ico`,
+        `https://api.faviconkit.com/${domain}/64`
+      ];
 
-      const directImg = new window.Image();
-      directImg.onload = () => {
-        setFormData(prev => ({ ...prev, logo_url: directFaviconUrl }));
-      };
-      directImg.onerror = () => {
-        // Fallback: use DuckDuckGo favicon service
-        const ddgFavicon = `https://icons.duckduckgo.com/ip3/${domain}.ico`;
-        setFormData(prev => ({ ...prev, logo_url: ddgFavicon }));
-      };
-      directImg.src = directFaviconUrl;
+      // Test each favicon source
+      for (const faviconUrl of faviconSources) {
+        try {
+          const isValid = await testImageUrl(faviconUrl);
+          if (isValid) {
+            setFormData(prev => ({ ...prev, logo_url: faviconUrl }));
+            console.log(`Successfully fetched logo from: ${faviconUrl}`);
+            return;
+          }
+        } catch (e) {
+          // Continue to next source
+          continue;
+        }
+      }
+
+      // If all favicon sources fail, generate a letter-based logo
+      console.warn(`No valid favicon found for ${domain}, generating letter logo`);
+      if (formData.company_name) {
+        const letterLogo = generateLetterLogo(formData.company_name);
+        setFormData(prev => ({ ...prev, logo_url: letterLogo }));
+      } else {
+        toast.error('Could not fetch logo for this website');
+      }
+      
     } catch (error) {
       console.error('Error fetching logo:', error);
-      toast.error('Failed to fetch logo');
       // Fallback to generated logo
       if (formData.company_name) {
-        setFormData(prev => ({ ...prev, logo_url: generateLetterLogo(formData.company_name) }));
+        const letterLogo = generateLetterLogo(formData.company_name);
+        setFormData(prev => ({ ...prev, logo_url: letterLogo }));
+        toast.info('Using generated logo as fallback');
+      } else {
+        toast.error('Failed to fetch logo');
       }
     }
+  };
+
+  // Helper function to test if an image URL is valid
+  const testImageUrl = (url: string): Promise<boolean> => {
+    return new Promise((resolve) => {
+      const img = new window.Image();
+      img.onload = () => {
+        // Additional check to ensure it's not a generic/default favicon
+        if (img.width > 0 && img.height > 0) {
+          resolve(true);
+        } else {
+          resolve(false);
+        }
+      };
+      img.onerror = () => resolve(false);
+      
+      // Set a timeout to avoid hanging
+      const timeout = setTimeout(() => {
+        resolve(false);
+      }, 5000);
+      
+      img.onload = () => {
+        clearTimeout(timeout);
+        resolve(img.width > 0 && img.height > 0);
+      };
+      
+      img.src = url;
+    });
   };
   
   // Function to save the logo URL and extract colors
@@ -382,17 +446,29 @@ const LenderProfile = () => {
   
   // Helper function to get a default logo for known hosting services
   const getDefaultLogoForService = (domain: string): string | null => {
-    if (domain.includes('firebaseapp.com')) {
+    if (domain.includes('firebaseapp.com') || domain.includes('firebase.google.com')) {
       return 'https://www.gstatic.com/devrel-devsite/prod/v2210deb8920cd4a55bd580441aa58e7853afc04b39a9d9ac4198e1cd7fbe04ef/firebase/images/touchicon-180.png';
     }
-    if (domain.includes('netlify.app')) {
+    if (domain.includes('netlify.app') || domain.includes('netlify.com')) {
       return 'https://www.netlify.com/favicon.ico';
     }
-    if (domain.includes('vercel.app')) {
+    if (domain.includes('vercel.app') || domain.includes('vercel.com')) {
       return 'https://assets.vercel.com/image/upload/front/favicon/vercel/180x180.png';
     }
-    if (domain.includes('github.io')) {
+    if (domain.includes('github.io') || domain.includes('github.com')) {
       return 'https://github.githubassets.com/favicons/favicon.svg';
+    }
+    if (domain.includes('herokuapp.com')) {
+      return 'https://www.herokucdn.com/favicons/favicon.ico';
+    }
+    if (domain.includes('wordpress.com')) {
+      return 'https://s0.wp.com/i/favicon.ico';
+    }
+    if (domain.includes('wix.com')) {
+      return 'https://static.wixstatic.com/media/favicon.ico';
+    }
+    if (domain.includes('squarespace.com')) {
+      return 'https://static1.squarespace.com/static/ta/5134cbefe4b0c6fb04df8065/10515/assets/favicon.ico';
     }
     return null;
   };
@@ -401,11 +477,30 @@ const LenderProfile = () => {
   const generateLetterLogo = (name: string, simplified = false): string => {
     if (!name) return '';
     
-    // Get first letter or first two letters
-    const initials = name.trim().substring(0, simplified ? 1 : 2).toUpperCase();
+    // Get initials from company name (first letter of each word, max 2 characters)
+    const words = name.trim().split(/\s+/);
+    let initials = '';
+    
+    if (words.length === 1) {
+      // Single word: take first 1-2 characters
+      initials = name.trim().substring(0, simplified ? 1 : 2).toUpperCase();
+    } else {
+      // Multiple words: take first letter of first two words
+      initials = words.slice(0, 2).map(word => word.charAt(0)).join('').toUpperCase();
+    }
+    
+    // Professional color palette
     const colors = [
-      '#3498db', '#2ecc71', '#e74c3c', '#f39c12', '#9b59b6',
-      '#1abc9c', '#d35400', '#34495e', '#16a085', '#c0392b'
+      '#1f2937', // slate-800
+      '#0f766e', // teal-700  
+      '#0369a1', // sky-700
+      '#7c3aed', // violet-600
+      '#dc2626', // red-600
+      '#ea580c', // orange-600
+      '#059669', // emerald-600
+      '#4338ca', // indigo-600
+      '#9333ea', // purple-600
+      '#be185d'  // pink-600
     ];
     
     // Use a deterministic color based on the name
@@ -414,22 +509,44 @@ const LenderProfile = () => {
     
     // Create a simpler SVG if simplified is true
     if (simplified) {
-      const simpleSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><rect width="64" height="64" fill="${bgColor}"/><text x="50%" y="50%" font-size="32" font-family="Arial" fill="white" text-anchor="middle" dominant-baseline="central">${initials}</text></svg>`;
+      const simpleSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+        <rect width="64" height="64" fill="${bgColor}" rx="8"/>
+        <text x="50%" y="50%" font-size="28" font-family="system-ui, -apple-system, sans-serif" font-weight="600" fill="white" text-anchor="middle" dominant-baseline="central">${initials}</text>
+      </svg>`;
       return `data:image/svg+xml;base64,${btoa(simpleSvg)}`;
     }
     
-    // Create an SVG data URL for the logo
-    const svgTemplate = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
-        <rect width="128" height="128" fill="${bgColor}"/>
-        <text x="50%" y="50%" font-size="64" font-family="Arial, sans-serif" 
-              fill="white" text-anchor="middle" dominant-baseline="central">
-          ${initials}
-        </text>
-      </svg>
-    `;
+    // Create a professional SVG logo
+    const svgTemplate = `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+      <defs>
+        <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:${bgColor};stop-opacity:1" />
+          <stop offset="100%" style="stop-color:${adjustColorBrightness(bgColor, -20)};stop-opacity:1" />
+        </linearGradient>
+      </defs>
+      <rect width="128" height="128" fill="url(#grad1)" rx="16"/>
+      <text x="50%" y="50%" font-size="48" font-family="system-ui, -apple-system, sans-serif" font-weight="600" 
+            fill="white" text-anchor="middle" dominant-baseline="central">${initials}</text>
+    </svg>`;
     
     return `data:image/svg+xml;base64,${btoa(svgTemplate)}`;
+  };
+
+  // Helper function to adjust color brightness
+  const adjustColorBrightness = (hex: string, percent: number): string => {
+    // Remove the hash if present
+    hex = hex.replace('#', '');
+    
+    // Parse the hex color
+    const num = parseInt(hex, 16);
+    const amt = Math.round(2.55 * percent);
+    const R = (num >> 16) + amt;
+    const G = (num >> 8 & 0x00FF) + amt;
+    const B = (num & 0x0000FF) + amt;
+    
+    return `#${(0x1000000 + (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 +
+      (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 +
+      (B < 255 ? B < 1 ? 0 : B : 255)).toString(16).slice(1)}`;
   };
 
   // Handle website input change with debounce
@@ -444,16 +561,21 @@ const LenderProfile = () => {
     
     // Set a new timer to fetch the logo after typing stops
     window.logoFetchTimer = window.setTimeout(() => {
-      if (newWebsite) {
+      if (newWebsite && newWebsite.length > 3) {
         fetchWebsiteLogo(newWebsite);
       }
-    }, 1000);
+    }, 1500); // Increased delay to 1.5 seconds
   };
 
   // Add a manual fetch button as a fallback
-  const handleManualLogoFetch = () => {
+  const handleManualLogoFetch = async () => {
     if (formData.website) {
-      fetchWebsiteLogo(formData.website);
+      try {
+        await fetchWebsiteLogo(formData.website);
+      } catch (error) {
+        console.error('Manual logo fetch failed:', error);
+        toast.error('Failed to fetch logo manually');
+      }
     } else {
       toast.error('Please enter a website URL first');
     }
@@ -909,12 +1031,12 @@ const LenderProfile = () => {
                       <button 
                         type="button"
                         onClick={handleManualLogoFetch}
-                        className="bg-gradient-to-r from-[#ff8800] to-[#ffaa00] hover:from-[#ff9900] hover:to-[#ffbb00] text-white font-semibold px-4 rounded-r-lg transition-all duration-200 shadow-md hover:shadow-lg"
+                        disabled={!formData.website}
+                        className="bg-gradient-to-r from-[#ff8800] to-[#ffaa00] hover:from-[#ff9900] hover:to-[#ffbb00] disabled:from-slate-400 disabled:to-slate-500 disabled:cursor-not-allowed text-white font-semibold px-4 rounded-r-lg transition-all duration-200 shadow-md hover:shadow-lg"
                       >
                         Fetch Logo
                       </button>
                     </div>
-                    <p className="text-xs text-slate-500 mt-2">Enter your website URL to automatically fetch your company logo</p>
                   </div>
                   
                   <div className="flex-none">
@@ -927,11 +1049,42 @@ const LenderProfile = () => {
                           src={formData.logo_url} 
                           alt="Company Logo" 
                           className="max-h-full max-w-full object-contain"
+                          onError={(e) => {
+                            console.warn('Logo failed to load:', formData.logo_url);
+                            // Generate fallback logo if the current one fails to load
+                            if (formData.company_name) {
+                              const fallbackLogo = generateLetterLogo(formData.company_name, true);
+                              setFormData(prev => ({ ...prev, logo_url: fallbackLogo }));
+                            }
+                          }}
                         />
                       ) : (
-                        <div className="text-sm text-slate-400">No Logo</div>
+                        <div className="text-center">
+                          <div className="text-sm text-slate-400 mb-1">No Logo</div>
+                          {formData.company_name && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const generatedLogo = generateLetterLogo(formData.company_name);
+                                setFormData(prev => ({ ...prev, logo_url: generatedLogo }));
+                              }}
+                              className="text-xs text-[#ff8800] hover:text-[#ff9900] font-medium"
+                            >
+                              Generate
+                            </button>
+                          )}
+                        </div>
                       )}
                     </div>
+                    {formData.logo_url && (
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, logo_url: '' }))}
+                        className="text-xs text-red-600 hover:text-red-700 mt-1 block"
+                      >
+                        Remove Logo
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

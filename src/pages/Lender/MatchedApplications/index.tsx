@@ -52,6 +52,24 @@ const MatchedApplicationsPage = () => {
     },
     enabled: !!user?.uid,
   });
+
+  // Fetch offers made by lender
+  const { data: lenderOffers } = useQuery({
+    queryKey: ['lenderOffers', user?.uid],
+    queryFn: async () => {
+      const { data, error } = await getDocuments('offers', [
+        { field: 'lender_id', operator: '==', value: user?.uid }
+      ]);
+      
+      if (error) {
+        console.error('Error loading offers:', error);
+        return [];
+      }
+      
+      return data || [];
+    },
+    enabled: !!user?.uid,
+  });
   
   // Fetch all relevant applications for the lender using the getLenderApplications function
   const { data: lenderApplications, isLoading } = useQuery({
@@ -228,6 +246,12 @@ const MatchedApplicationsPage = () => {
     return isInMatchedLenders || isAcceptedInterest;
   };
 
+  // Helper function to check if current lender has made an offer on this application
+  const hasLenderMadeOffer = (app) => {
+    if (!user?.uid || !lenderOffers) return false;
+    return lenderOffers.some(offer => offer.application_id === app.id);
+  };
+
   // Get the credit score risk level
   const getCreditScoreRisk = (score) => {
     if (!score) return 'Not Scored';
@@ -265,34 +289,40 @@ const MatchedApplicationsPage = () => {
     
     const matchesSearch = searchQuery === '' || 
       (!isDeclined && canSeeBusinessDetails(app) && app.business_name?.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (!isDeclined && canSeeBusinessDetails(app) && app.business?.business_name?.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (!isDeclined && app.purpose?.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (!isDeclined && app.business?.industry_sector?.toLowerCase().includes(searchQuery.toLowerCase())) ||
       app.loan_amount?.toString().includes(searchQuery) ||
-      app.id?.toLowerCase().includes(searchQuery.toLowerCase());
+      app.id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      app.application_number?.toString().toLowerCase().includes(searchQuery.toLowerCase());
 
     // Show all applications when "all" filter is selected
     if (statusFilter === 'all') return matchesSearch;
       
-    // New - fresh applications that haven't been matched yet
+    // New - fresh applications that haven't been matched yet and are not declined
     if (statusFilter === 'submitted') {
       return matchesSearch && 
+        !isDeclined &&
         app.status === 'submitted' && 
         !app.matched_lenders?.includes(user?.uid) &&
         !app.interested_lenders?.some(l => l.lender_id === user?.uid) &&
         !app.offers?.some(o => o.lender_id === user?.uid);
     }
     
-    // Active - applications where we're either matched or have expressed interest
+    // Active - applications where we're either matched or have expressed interest (excluding declined)
     if (statusFilter === 'matched') {
+      if (isDeclined) return false; // Explicitly exclude declined applications
       const isMatched = app.matched_lenders?.includes(user?.uid);
       const hasExpressedInterest = app.interested_lenders?.some(
-        l => l.lender_id === user?.uid && l.status !== 'rejected'
+        l => l.lender_id === user?.uid && l.status !== 'rejected' && l.status !== 'declined'
       );
       const hasNoOffer = !app.offers?.some(o => o.lender_id === user?.uid);
       return matchesSearch && (isMatched || hasExpressedInterest) && hasNoOffer;
     }
     
-    // With Offers - applications where we've created an offer, have an accepted offer, or status is 'offered' or 'has_offers'
+    // With Offers - applications where we've created an offer, have an accepted offer, or status is 'offered' or 'has_offers' (excluding declined)
     if (statusFilter === 'approved') {
+      if (isDeclined) return false; // Explicitly exclude declined applications
       // Check for any offers made by this lender
       const hasOffer = app.offers?.some(o => o.lender_id === user?.uid);
       // Check for any accepted offers where this lender is involved
@@ -466,6 +496,7 @@ const MatchedApplicationsPage = () => {
                 canSeeBusinessDetails={canSeeBusinessDetails}
                 getCreditScoreRisk={getCreditScoreRisk}
                 isLenderMatched={isLenderMatched}
+                hasLenderMadeOffer={hasLenderMadeOffer}
               />
             </CardContent>
           </Card>

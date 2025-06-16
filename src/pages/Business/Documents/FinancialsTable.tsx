@@ -162,13 +162,11 @@ const formatCurrency = (amount: number | string | null | undefined): string => {
 // Dynamic renderer for any financial data structure
 const renderDynamicFinancialData = (data: any) => {
   if (!data) {
-    console.error("No data provided to renderDynamicFinancialData");
     return <p className="text-center text-gray-500 py-8">No financial data available.</p>;
   }
   
   // If lineItems is missing or empty, try to create it from available data
   if (!data.lineItems || !Array.isArray(data.lineItems) || data.lineItems.length === 0) {
-    console.log("Missing or empty lineItems, attempting to extract from data structure:", data);
     
     // Try to find financial data in various formats
     const extractedItems: any[] = [];
@@ -193,9 +191,7 @@ const renderDynamicFinancialData = (data: any) => {
         lineItems: extractedItems,
         columns: ['item', 'value']
       };
-      console.log("Created lineItems from extracted data:", extractedItems);
     } else {
-      console.error("No financial line items found in data:", data);
       return (
         <div className="text-center py-8">
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 max-w-md mx-auto">
@@ -227,7 +223,6 @@ const renderDynamicFinancialData = (data: any) => {
     }
   }
 
-  console.log("Dynamic Financial Data received:", JSON.stringify(data, null, 2));
 
   // Get columns dynamically from the data
   let columnsToDisplay: string[] = [];
@@ -257,9 +252,7 @@ const renderDynamicFinancialData = (data: any) => {
     }
   }
 
-  console.log("Dynamic columns to display:", columnsToDisplay);
-  console.log("First line item keys:", data.lineItems.length > 0 ? Object.keys(data.lineItems[0]) : 'No items');
-  console.log("Sample line item:", data.lineItems.length > 0 ? data.lineItems[0] : 'No items');
+
   
   // Create dynamic column header mapping
   const getColumnHeader = (colKey: string): string => {
@@ -961,7 +954,6 @@ const renderRows = (obj: Record<string, any>, parentKey = "", level = 0) => {
     try {
       obj = JSON.parse(obj);
     } catch (e) {
-      console.error("Failed to parse string as JSON:", e);
       return [
         <tr key="error">
           <td colSpan={2} className="py-4 px-6 text-center text-red-500">
@@ -976,7 +968,6 @@ const renderRows = (obj: Record<string, any>, parentKey = "", level = 0) => {
   }
   
   if (!obj || typeof obj !== 'object') {
-    console.error("Expected object, got:", typeof obj);
     return [
       <tr key="error">
         <td colSpan={2} className="py-4 px-6 text-center text-red-500">
@@ -1047,9 +1038,7 @@ const renderRows = (obj: Record<string, any>, parentKey = "", level = 0) => {
 };
 
 export const FinancialsTable: React.FC<FinancialsTableProps> = ({ data, title: mainTitle, summary }) => {
-  console.log("FinancialsTable received data:", data);
-  console.log("FinancialsTable received title:", mainTitle);
-  console.log("FinancialsTable received summary:", summary);
+
   
   if (!data) {
     return <p className="text-center text-gray-500 italic py-8">No financial data available to display.</p>;
@@ -1061,12 +1050,10 @@ export const FinancialsTable: React.FC<FinancialsTableProps> = ({ data, title: m
     try {
       parsedData = JSON.parse(data);
     } catch (e) {
-      console.error("Error parsing main data prop:", e);
       return <p className="text-center text-red-500 py-8">Error: Could not parse financial data.</p>;
     }
   }
 
-  console.log("Parsed data:", parsedData);
 
   // Extract filename and page count if available at the top level
   const fileName = parsedData.fileName;
@@ -1075,19 +1062,12 @@ export const FinancialsTable: React.FC<FinancialsTableProps> = ({ data, title: m
   // Determine the actual data to render (could be nested under 'json')
   const dataToRender = parsedData.json || parsedData;
   
-  console.log("Data to render:", dataToRender);
-  console.log("Type of dataToRender:", typeof dataToRender);
+ 
   
   // Check if this is structured financial data that should be rendered directly
   const isStructuredFinancialData = dataToRender.profitAndLoss || dataToRender.balanceSheet || dataToRender.trialBalance || 
     dataToRender.agedPayables || dataToRender.agedReceivables || (dataToRender.lineItems && Array.isArray(dataToRender.lineItems));
 
-  console.log("Is structured financial data:", isStructuredFinancialData);
-  console.log("Has profitAndLoss:", !!dataToRender.profitAndLoss);
-  console.log("Has balanceSheet:", !!dataToRender.balanceSheet);
-  console.log("Has lineItems:", !!dataToRender.lineItems);
-  console.log("LineItems is array:", Array.isArray(dataToRender.lineItems));
-  console.log("Has statementTitle:", !!dataToRender.statementTitle);
 
   // For structured financial data, render directly without collapsible sections
   if (isStructuredFinancialData) {

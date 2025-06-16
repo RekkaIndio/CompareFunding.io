@@ -8,6 +8,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import SignUpLayout from '@/components/SignUpLayout';
 import { createDocument, getDocument } from '@/firebase';
+import { getFirestore, doc, setDoc } from 'firebase/firestore';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { generateApplicationNumber } from '@/lib/applicationUtils';
@@ -22,7 +23,9 @@ import {
   BarChart4,
   PieChart,
   Loader2,
-  ArrowLeft
+  ArrowLeft,
+  Receipt,
+  Calculator
 } from 'lucide-react';
 
 const ApplicationReview = () => {
@@ -254,7 +257,7 @@ const ApplicationReview = () => {
         if (typeof value === 'object' && value !== null) {
           const cleanedObj: any = {};
           Object.keys(value).forEach(key => {
-            if (key !== 'file') { // Skip 'file' properties entirely
+            if (key !== 'file' && key !== 'raw_data') { // Skip 'file' and 'raw_data' properties entirely
               cleanedObj[key] = cleanAndValidate(value[key], value[key] instanceof Object ? {} : '');
             }
           });
@@ -297,11 +300,18 @@ const ApplicationReview = () => {
         // Additional information
         additional_info: cleanAndValidate(userInfo.additionalInfo, ''),
         
-        // HMRC status
+        // HMRC status - properly map the collected data structure
         hmrc_status: {
-          hasTaxArrears: cleanAndValidate(userInfo.hasTaxArrears, false),
-          taxArrearsAmount: cleanAndValidate(userInfo.taxArrearsAmount, '0'),
-          hasTimeToPay: cleanAndValidate(userInfo.hasTimeToPay, false)
+          isUpToDate: cleanAndValidate(userInfo.isUpToDate, ''),
+          vatDetails: cleanAndValidate(userInfo.vatDetails, { amount: '', timeToPay: '', details: '' }),
+          corpTaxDetails: cleanAndValidate(userInfo.corpTaxDetails, { amount: '', timeToPay: '', details: '' }),
+          payeDetails: cleanAndValidate(userInfo.payeDetails, { amount: '', timeToPay: '', details: '' })
+        },
+
+        // Current funding details
+        current_funding: {
+          hasCurrentFunding: cleanAndValidate(userInfo.hasCurrentFunding, ''),
+          fundingDetails: cleanAndValidate(userInfo.fundingDetails, [])
         },
         
         // Lender preferences
@@ -348,6 +358,59 @@ const ApplicationReview = () => {
         console.error("Error from createDocument:", error);
         throw new Error(`Failed to create application: ${error.message}`);
       }
+
+      // Also save the complete application data to the user's profile for future reference
+      const db = getFirestore();
+      await setDoc(doc(db, 'users', user.uid), {
+        // Only save clean, serializable data (no userInfo spread which contains File objects)
+        email: user.email,
+        displayName: user.displayName,
+        // Application submission data
+        latestApplication: {
+          applicationId: newApplication.id,
+          applicationNumber: safeApplicationData.application_number,
+          submittedAt: new Date().toISOString(),
+          status: 'submitted'
+        },
+        // Complete business profile from the safe application data
+        businessProfile: {
+          businessName: safeApplicationData.business_name,
+          companyNumber: safeApplicationData.company_number,
+          industry: safeApplicationData.industry,
+          companySize: safeApplicationData.company_size,
+          annualRevenue: safeApplicationData.annual_revenue,
+          website: safeApplicationData.website,
+          yearsTrading: safeApplicationData.years_trading,
+          contactName: safeApplicationData.contact_name,
+          contactPhone: safeApplicationData.contact_phone,
+          contactRole: safeApplicationData.contact_role
+        },
+        profileComplete: true,
+        profileCompletedAt: new Date().toISOString()
+      }, { merge: true });
+
+      // Also update the businesses collection with complete data
+      await setDoc(doc(db, 'businesses', user.uid), {
+        // Business application data
+        latestApplication: {
+          applicationId: newApplication.id,
+          applicationNumber: safeApplicationData.application_number,
+          submittedAt: new Date().toISOString(),
+          status: 'submitted'
+        },
+        // Clean business profile data
+        businessProfile: {
+          businessName: safeApplicationData.business_name,
+          companyNumber: safeApplicationData.company_number,
+          industry: safeApplicationData.industry,
+          companySize: safeApplicationData.company_size,
+          annualRevenue: safeApplicationData.annual_revenue,
+          website: safeApplicationData.website,
+          yearsTrading: safeApplicationData.years_trading
+        },
+        profileComplete: true,
+        profileCompletedAt: new Date().toISOString()
+      }, { merge: true });
       
       // Close the modal
       setShowSubmitModal(false);
@@ -561,6 +624,107 @@ const ApplicationReview = () => {
                  'Not provided'}
               </p>
             </div>
+          </CardContent>
+        </Card>
+            
+        {/* HMRC Status */}
+        <Card className="border-2 border-gray-200 bg-white animate-fadeIn delay-550">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2 text-[#2a3441]">
+              <Receipt className="h-5 w-5 text-blue-600" />
+              HMRC Status
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <p className="text-sm text-gray-600 mb-2">Are you up to date with HMRC payments?</p>
+              <p className="font-medium text-[#2a3441]">
+                {userInfo.isUpToDate === 'yes' ? 'Yes - All payments are up to date' : 
+                 userInfo.isUpToDate === 'no' ? 'No - There are outstanding payments' : 
+                 'Not specified'}
+              </p>
+            </div>
+            
+            {userInfo.isUpToDate === 'no' && (
+              <div className="space-y-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                <p className="text-sm font-medium text-amber-800 mb-3">Outstanding Tax Details:</p>
+                
+                {/* VAT Details */}
+                {userInfo.vatDetails && (userInfo.vatDetails.amount || userInfo.vatDetails.timeToPay || userInfo.vatDetails.details) && (
+                  <div className="space-y-2">
+                    <h5 className="font-medium text-[#2a3441] flex items-center gap-2">
+                      <PoundSterling className="h-4 w-4" />
+                      VAT
+                    </h5>
+                    {userInfo.vatDetails.amount && (
+                      <p className="text-sm text-gray-700">
+                        <span className="font-medium">Amount:</span> £{userInfo.vatDetails.amount}
+                      </p>
+                    )}
+                    {userInfo.vatDetails.timeToPay && (
+                      <p className="text-sm text-gray-700">
+                        <span className="font-medium">Time to Pay Arrangement:</span> {userInfo.vatDetails.timeToPay}
+                      </p>
+                    )}
+                    {userInfo.vatDetails.details && (
+                      <p className="text-sm text-gray-700">
+                        <span className="font-medium">Details:</span> {userInfo.vatDetails.details}
+                      </p>
+                    )}
+                  </div>
+                )}
+                
+                {/* Corporation Tax Details */}
+                {userInfo.corpTaxDetails && (userInfo.corpTaxDetails.amount || userInfo.corpTaxDetails.timeToPay || userInfo.corpTaxDetails.details) && (
+                  <div className="space-y-2">
+                    <h5 className="font-medium text-[#2a3441] flex items-center gap-2">
+                      <Building2 className="h-4 w-4" />
+                      Corporation Tax
+                    </h5>
+                    {userInfo.corpTaxDetails.amount && (
+                      <p className="text-sm text-gray-700">
+                        <span className="font-medium">Amount:</span> £{userInfo.corpTaxDetails.amount}
+                      </p>
+                    )}
+                    {userInfo.corpTaxDetails.timeToPay && (
+                      <p className="text-sm text-gray-700">
+                        <span className="font-medium">Time to Pay Arrangement:</span> {userInfo.corpTaxDetails.timeToPay}
+                      </p>
+                    )}
+                    {userInfo.corpTaxDetails.details && (
+                      <p className="text-sm text-gray-700">
+                        <span className="font-medium">Details:</span> {userInfo.corpTaxDetails.details}
+                      </p>
+                    )}
+                  </div>
+                )}
+                
+                {/* PAYE Details */}
+                {userInfo.payeDetails && (userInfo.payeDetails.amount || userInfo.payeDetails.timeToPay || userInfo.payeDetails.details) && (
+                  <div className="space-y-2">
+                    <h5 className="font-medium text-[#2a3441] flex items-center gap-2">
+                      <Calculator className="h-4 w-4" />
+                      PAYE
+                    </h5>
+                    {userInfo.payeDetails.amount && (
+                      <p className="text-sm text-gray-700">
+                        <span className="font-medium">Amount:</span> £{userInfo.payeDetails.amount}
+                      </p>
+                    )}
+                    {userInfo.payeDetails.timeToPay && (
+                      <p className="text-sm text-gray-700">
+                        <span className="font-medium">Time to Pay Arrangement:</span> {userInfo.payeDetails.timeToPay}
+                      </p>
+                    )}
+                    {userInfo.payeDetails.details && (
+                      <p className="text-sm text-gray-700">
+                        <span className="font-medium">Details:</span> {userInfo.payeDetails.details}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
             

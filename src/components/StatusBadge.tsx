@@ -15,7 +15,9 @@ type StatusType =
   | 'declined'
   | 'negotiating'
   | 'expired'
-  | 'withdrawn';
+  | 'withdrawn'
+  | 'new'
+  | 'accepted';
 
 interface StatusBadgeProps {
   status: StatusType | string; // Accept string to handle any status value
@@ -78,6 +80,14 @@ const StatusBadge = ({ status, className }: StatusBadgeProps) => {
     'withdrawn': {
       label: 'Withdrawn',
       className: 'bg-gray-100 text-gray-700'
+    },
+    'new': {
+      label: 'New',
+      className: 'bg-orange-100 text-orange-700'
+    },
+    'accepted': {
+      label: 'Accepted',
+      className: 'bg-green-100 text-green-700'
     }
   };
 

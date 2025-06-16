@@ -31,6 +31,7 @@ import BusinessDashboard from "./pages/BusinessDashboard";
 import BusinessDocuments from "./pages/Business/Documents/documents";
 // import { AccountingConnect } from "./pages/AccountingConnect";
 import NewApplication from "./pages/Applications/NewApplication";
+import NewApplicationReview from "./pages/Applications/NewApplication/NewApplicationReview";
 import ApplicationReview from "./pages/SignUpJourney/ApplicationReview";
 import ExistingApplicationReview from "./pages/ApplicationReview";
 import OffersList from "./pages/OffersList";
@@ -40,12 +41,14 @@ import LenderProfile from "./pages/Lender/LenderProfile";
 import LenderDashboard from "./pages/Lender/LenderDashboard";
 import LenderBilling from "./pages/Lender/LenderBilling";
 import LenderReporting from "./pages/Lender/LenderReporting";
+import LenderUsers from "./pages/Lender/LenderUsers";
 import LearnPage from "./pages/Learn";
 import HelpPage from "./pages/Help";
 import MatchedApplicationsRedirect from "./pages/MatchedApplications";
 import LenderMatchedApplications from "./pages/Lender/MatchedApplications";
 import Messages from "./pages/Messages";
 import MessagesPage from "./pages/MessagesPage";
+import MailgunTest from "./pages/MailgunTest";
 import ApplicationDetail from "./pages/Applications/ApplicationDetail";
 import CreateOffer from "./pages/CreateOffer";
 import Settings from "./pages/Settings";
@@ -87,6 +90,8 @@ import FundingNeeds from "./pages/FundingNeeds";
 import BusinessInsurancePage from "./pages/help/BusinessInsurance";
 import ForeignExchangePage from "./pages/help/ForeignExchange";
 import RaisingEquityPage from "./pages/help/RaisingEquity";
+import SupportFlow from "./pages/SupportFlow";
+import VerifyEmail from "./pages/VerifyEmail";
 
 const queryClient = new QueryClient();
 
@@ -125,6 +130,9 @@ const App = () => {
                       <Route path="/funding-needs" element={<FundingNeeds />} />
                       <Route path="/login" element={<Login />} />
                       <Route path="/signup" element={<SignUp />} />
+                      <Route path="/mailgun-test" element={<MailgunTest />} />
+                      <Route path="/auth/verify-email" element={<VerifyEmail />} />
+                      <Route path="/support-flow" element={<SupportFlow />} />
                       
                       {/* Original routes - keep temporarily until everything is working */}
                       <Route path="/funding-matches" element={<FundingMatches />} />
@@ -137,7 +145,7 @@ const App = () => {
                       <Route path="/signup-journey/business-details" element={<SignUpBusinessDetailsForm />} />
                       <Route path="/signup-journey/additional-details" element={<AdditionalDetails />} />
                       <Route path="/signup-journey/current-funding" element={<CurrentFunding />} />
-                      <Route path="/signup-journey/hmrc" element={<HMRCStatus />} />
+                      <Route path="/signup-journey/hmrc-status" element={<HMRCStatus />} />
                       <Route path="/signup-journey/document-upload" element={<DocumentUpload />} />
                       <Route path="/signup-journey/lender-preferences" element={<LenderPreferences />} />
                       <Route path="/signup-journey/review" element={<Navigate to="/signup-journey/application-review" replace />} />
@@ -157,7 +165,8 @@ const App = () => {
                          <Route path="/business/learn" element={<LearnPage />} />
                         {/* <Route path="/business/accounting/connect" element={<AccountingConnect />} /> */}
                         <Route path="/applications/new" element={<NewApplication />} />
-                        <Route path="/applications/:id/review" element={<ExistingApplicationReview />} />
+                        <Route path="/applications/:id/review" element={<NewApplicationReview />} />
+                        <Route path="/applications/:id/details" element={<ExistingApplicationReview />} />
                         <Route path="/offers" element={<OffersList />} />
                         <Route path="/offers/:id" element={<OfferDetails />} />
                         <Route path="/lender-marketplace/:applicationId?" element={<LenderMarketplace />} />
@@ -198,6 +207,7 @@ const App = () => {
                         <Route path="/lender/dashboard" element={<LenderDashboard />} />
                         <Route path="/lender/billing" element={<LenderBilling />} />
                         <Route path="/lender/reporting" element={<LenderReporting />} />
+                        <Route path="/lender/users" element={<LenderUsers />} />
                         <Route path="/lender/applications" element={<MatchedApplicationsRedirect />} />
                         <Route path="/matched-applications" element={<MatchedApplicationsRedirect />} />
                         <Route path="/lender/matched-applications" element={<LenderMatchedApplications />} />
@@ -212,6 +222,7 @@ const App = () => {
                         <Route path="/messages-old" element={<Messages />} />
                         <Route path="/settings" element={<Settings />} />
                         <Route path="/notifications" element={<Notifications />} />
+                        <Route path="/support-flow" element={<SupportFlow />} />
                       </Route>
                       
                       {/* Catch-all route */}

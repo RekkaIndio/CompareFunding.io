@@ -257,16 +257,8 @@ const Applications = () => {
           })
           .sort((a, b) => new Date(b.application_date).getTime() - new Date(a.application_date).getTime());
         
-        // Filter out applications that have received offers
-        const applicationsWithOffers = new Set(
-          (offers || []).map(offer => offer.application_id)
-        );
-        
-        const applicationsWithoutOffers = processedData.filter(app => 
-          !applicationsWithOffers.has(app.id)
-        );
-
-        return applicationsWithoutOffers as Application[];
+        // Return all applications - don't filter out any based on offers
+        return processedData as Application[];
       } catch (err) {
         console.error('Error in queryFn:', err);
         throw err;
@@ -278,24 +270,28 @@ const Applications = () => {
     retry: 2
   });
 
-  // Filter for pending applications (applications without offers)
-  const pendingApplications = applications?.filter(app => {
-    // Show applications that are in active status and don't have offers
-    const normalizedStatus = app.status?.toLowerCase?.();
-    const isPending = [
-      'draft', 'submitted', 'matching', 'matched', 'in_review', 'in-review',
-      'pending', 'processing', 'reviewing', 'documents_requested', 'under_review'
-    ].includes(normalizedStatus);
-    
-    return isPending;
-  }) || [];
+  // Show all applications, not just pending ones
+  const allApplications = applications || [];
 
-  // Define variables used in overview cards
-  const activeApplications = pendingApplications?.filter(app => 
-    ['submitted', 'matching', 'matched', 'in_review', 'in-review', 'under_review'].includes(app.status?.toLowerCase?.())
-  ) || [];
-  
-  const completedApplications = []; // Empty since this page only shows pending applications
+  // Categorize applications for better organization
+  const draftApplications = allApplications.filter(app => app.status?.toLowerCase?.() === 'draft');
+  const activeApplications = allApplications.filter(app => {
+    const status = app.status?.toLowerCase?.();
+    return ['submitted', 'matching', 'matched', 'in_review', 'in-review', 'under_review', 'pending', 'processing', 'reviewing', 'documents_requested'].includes(status);
+  });
+  const applicationsWithOffers = allApplications.filter(app => {
+    const status = app.status?.toLowerCase?.();
+    return ['approved', 'funded', 'offer_received', 'accepted'].includes(status) || 
+           (offers && offers.some(offer => offer.application_id === app.id));
+  });
+  const completedApplications = allApplications.filter(app => {
+    const status = app.status?.toLowerCase?.();
+    return ['completed', 'funded', 'closed'].includes(status);
+  });
+  const declinedApplications = allApplications.filter(app => {
+    const status = app.status?.toLowerCase?.();
+    return ['declined', 'rejected', 'cancelled', 'expired'].includes(status);
+  });
 
   // Helper function to get status styling for applications
   const getApplicationStatusStyling = (status: string) => {
@@ -341,6 +337,76 @@ const Applications = () => {
         textClass: 'text-indigo-700',
         label: 'Finding Matches',
         icon: <Target className="h-4 w-4" />
+      },
+      'matched': { 
+        gradient: 'from-green-500 to-green-600', 
+        bgClass: 'bg-green-50', 
+        textClass: 'text-green-700',
+        label: 'Matched',
+        icon: <Target className="h-4 w-4" />
+      },
+      'approved': { 
+        gradient: 'from-emerald-500 to-emerald-600', 
+        bgClass: 'bg-emerald-50', 
+        textClass: 'text-emerald-700',
+        label: 'Approved',
+        icon: <CheckCircle className="h-4 w-4" />
+      },
+      'funded': { 
+        gradient: 'from-emerald-600 to-emerald-700', 
+        bgClass: 'bg-emerald-50', 
+        textClass: 'text-emerald-800',
+        label: 'Funded',
+        icon: <PoundSterling className="h-4 w-4" />
+      },
+      'offer_received': { 
+        gradient: 'from-cyan-500 to-cyan-600', 
+        bgClass: 'bg-cyan-50', 
+        textClass: 'text-cyan-700',
+        label: 'Offer Received',
+        icon: <Star className="h-4 w-4" />
+      },
+      'accepted': { 
+        gradient: 'from-teal-500 to-teal-600', 
+        bgClass: 'bg-teal-50', 
+        textClass: 'text-teal-700',
+        label: 'Accepted',
+        icon: <CheckCircle className="h-4 w-4" />
+      },
+      'completed': { 
+        gradient: 'from-violet-500 to-violet-600', 
+        bgClass: 'bg-violet-50', 
+        textClass: 'text-violet-700',
+        label: 'Completed',
+        icon: <CheckCircle className="h-4 w-4" />
+      },
+      'declined': { 
+        gradient: 'from-red-500 to-red-600', 
+        bgClass: 'bg-red-50', 
+        textClass: 'text-red-700',
+        label: 'Declined',
+        icon: <XCircle className="h-4 w-4" />
+      },
+      'rejected': { 
+        gradient: 'from-red-500 to-red-600', 
+        bgClass: 'bg-red-50', 
+        textClass: 'text-red-700',
+        label: 'Rejected',
+        icon: <XCircle className="h-4 w-4" />
+      },
+      'cancelled': { 
+        gradient: 'from-gray-500 to-gray-600', 
+        bgClass: 'bg-gray-50', 
+        textClass: 'text-gray-700',
+        label: 'Cancelled',
+        icon: <XCircle className="h-4 w-4" />
+      },
+      'expired': { 
+        gradient: 'from-orange-500 to-orange-600', 
+        bgClass: 'bg-orange-50', 
+        textClass: 'text-orange-700',
+        label: 'Expired',
+        icon: <Clock className="h-4 w-4" />
       }
     };
     
@@ -382,7 +448,7 @@ const Applications = () => {
                   <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-lg px-3 py-2 border border-white/20">
                     <TrendingUp className="h-4 w-4 text-green-400" />
                     <span className="text-sm font-medium">
-                      {applications?.filter(app => app.status === 'matched').length || 0} Matched
+                      {applicationsWithOffers?.length || 0} With Offers
                     </span>
                   </div>
                   <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-lg px-3 py-2 border border-white/20">
@@ -390,12 +456,13 @@ const Applications = () => {
                     <span className="text-sm font-medium">
                       {activeApplications?.length || 0} In Progress
                     </span>
-                  </div>                    <div className="bg-white/10 backdrop-blur-sm rounded-lg px-3 py-2 border border-white/20">
-                      <PoundSterling className="h-4 w-4 text-blue-400" />
-                      <span className="text-sm font-medium">
-                        £{applications?.reduce((sum, app) => sum + (app.loan_amount || 0), 0).toLocaleString() || '0'} Applied
-                      </span>
-                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-lg px-3 py-2 border border-white/20">
+                    <PoundSterling className="h-4 w-4 text-blue-400" />
+                    <span className="text-sm font-medium">
+                      £{applications?.reduce((sum, app) => sum + (app.loan_amount || 0), 0).toLocaleString() || '0'} Total Applied
+                    </span>
+                  </div>
                 </div>
               </div>
               
@@ -495,48 +562,51 @@ const Applications = () => {
                 </p>
               </div>
             </div>
-          ) : pendingApplications?.length === 0 ? (
-            <Card className="bg-white/90 backdrop-blur-sm border border-slate-200/50 shadow-lg rounded-xl">
-              <CardHeader className="bg-gradient-to-r from-[#212936] to-[#2a3441] text-white rounded-t-xl">
-                <CardTitle className="text-white">No Pending Applications</CardTitle>
-                <CardDescription className="text-gray-200">
-                  All your applications have received offers or are completed
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-6 text-center">
-                <div className="mb-4 p-6 bg-slate-50 rounded-lg border border-slate-100">
-                  <CheckCircle className="w-16 h-16 mx-auto text-green-400 mb-3" />
-                  <p className="text-slate-600 mb-4">Great news! All your applications are progressing well.</p>
-                  <p className="text-sm text-slate-500 mb-4">Check your dashboard to view applications with offers, or create a new application.</p>
-                </div>
-                <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                  <Button asChild className="bg-[#212936] hover:bg-[#212936]/90 border-b-2 border-[#ff8000] shadow-md">
-                    <Link to="/business-dashboard">
-                      <ArrowRight className="mr-2 h-4 w-4" />
-                      View Dashboard
-                    </Link>
-                  </Button>
-                  <Button asChild variant="outline">
-                    <Link to="/applications/new">
-                      <PlusCircle className="mr-2 h-4 w-4" />
-                      New Application
-                    </Link>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
           ) : (
             <div className="space-y-8">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Pending Applications</h2>
-                  <p className="text-gray-600">Applications awaiting lender responses</p>
+                  <h2 className="text-2xl font-bold text-gray-900">All Applications</h2>
+                  <p className="text-gray-600">Your complete application history</p>
                 </div>
               </div>
               
               <div className="grid gap-8">
-                {pendingApplications.map((application) => {
+                {allApplications.map((application) => {
                   const statusStyling = getApplicationStatusStyling(application.status);
+                  
+                  // Check if this application has offers
+                  const hasOffers = offers && offers.some(offer => offer.application_id === application.id);
+                  const applicationOffers = offers?.filter(offer => offer.application_id === application.id) || [];
+                  
+                  // Categorize offers by status
+                  const activeOffers = applicationOffers.filter(offer => 
+                    ['pending', 'negotiating'].includes(offer.status?.toLowerCase())
+                  );
+                  const acceptedOffers = applicationOffers.filter(offer => 
+                    offer.status?.toLowerCase() === 'accepted'
+                  );
+                  // Note: declined offers are automatically removed, so no need to count them
+                  const expiredOffers = applicationOffers.filter(offer => 
+                    offer.status?.toLowerCase() === 'expired' || 
+                    (offer.expiry_date && new Date(offer.expiry_date) < new Date())
+                  );
+                  
+                  // Determine if user can still connect with more lenders
+                  // Business can accept up to 5 offers, and applications should remain open
+                  // until all deals are explicitly closed
+                  const totalAcceptedOffers = acceptedOffers.length;
+                  const canAcceptMoreOffers = totalAcceptedOffers < 5;
+                  const allDealsCompleted = acceptedOffers.length > 0 && 
+                    acceptedOffers.every(offer => offer.deal_status === 'closed' || offer.deal_status === 'completed');
+                  const applicationTerminalStatus = ['completed', 'funded', 'closed', 'expired'].includes(application.status);
+                  
+                  // Can connect more lenders if:
+                  // 1. Haven't reached 5 acceptances yet, OR
+                  // 2. All accepted deals haven't been closed/completed, AND
+                  // 3. Application isn't in a terminal status
+                  const canConnectMoreLenders = (canAcceptMoreOffers || !allDealsCompleted) && 
+                    !applicationTerminalStatus;
                   
                   // Calculate financial projections with estimated rates
                   const displayAmount = application.loan_amount;
@@ -550,8 +620,7 @@ const Applications = () => {
                   return (
                     <Card 
                       key={application.id} 
-                      className="overflow-hidden transition-all duration-300 transform hover:-translate-y-1 rounded-xl shadow-lg hover:shadow-xl bg-white/95 backdrop-blur-sm border-slate-200/50 hover:shadow-2xl cursor-pointer"
-                      onClick={() => navigate(`/lender-marketplace/${application.id}`, { state: { application } })}
+                      className="overflow-hidden transition-all duration-300 transform hover:-translate-y-1 rounded-xl shadow-lg hover:shadow-xl bg-white/95 backdrop-blur-sm border-slate-200/50 hover:shadow-2xl"
                     >
                       {/* Enhanced status indicator bar with premium gradient - matching OffersList */}
                       <div className={`h-3 w-full bg-gradient-to-r ${statusStyling.gradient}`}></div>
@@ -561,7 +630,22 @@ const Applications = () => {
                         <div className="relative z-10">
                           <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-3">
-                              {/* Empty space for balance */}
+                              {hasOffers && (
+                                <div className="flex items-center gap-2">
+                                  {activeOffers.length > 0 && (
+                                    <div className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-gradient-to-r from-emerald-400 to-emerald-500 text-white border border-emerald-300 shadow-lg">
+                                      <Star className="h-4 w-4 mr-1.5 fill-current" />
+                                      {activeOffers.length} Active Offer{activeOffers.length !== 1 ? 's' : ''}
+                                    </div>
+                                  )}
+                                  {acceptedOffers.length > 0 && (
+                                    <div className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-gradient-to-r from-green-500 to-green-600 text-white border border-green-300 shadow-lg">
+                                      <CheckCircle className="h-4 w-4 mr-1.5 fill-current" />
+                                      {acceptedOffers.length} Accepted
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                             </div>
                             <div className="flex items-center gap-3">
                               <div className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium backdrop-blur-sm ${statusStyling.bgClass} ${statusStyling.textClass} border border-white/20 shadow-lg`}>
@@ -604,9 +688,9 @@ const Applications = () => {
                             )}
                           </div>
                           
-                          {/* Amount box only */}
+                          {/* Amount box with conditional content */}
                           <div className="grid grid-cols-1 gap-3">
-                              <div className="bg-gradient-to-br from-slate-50 to-slate-100 p-4 rounded-xl border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5">
+                            <div className="bg-gradient-to-br from-slate-50 to-slate-100 p-4 rounded-xl border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5">
                               <div className="flex justify-between items-start mb-2">
                                 <p className="text-sm font-semibold text-slate-600 uppercase tracking-wide">Loan Amount</p>
                                 <div className="bg-gradient-to-br from-[#212936] to-[#2c3c53] rounded-full p-1.5 shadow-sm group-hover:shadow-md transition-shadow">
@@ -618,11 +702,84 @@ const Applications = () => {
                                 <div className="bg-gradient-to-r from-[#212936] to-[#ff8000] h-2 rounded-full w-full"></div>
                               </div>
                               <div className="flex items-center justify-between">
-                                <span className="text-xs text-slate-600">Click to view matching lenders</span>
-                                <ArrowRight className="h-4 w-4 text-[#ff8000]" />
+                                <span className="text-xs text-slate-600">
+                                  {hasOffers ? (
+                                    <div className="space-y-1">
+                                      {activeOffers.length > 0 && (
+                                        <div className="flex items-center gap-1">
+                                          <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                                          <span>{activeOffers.length} active offer{activeOffers.length !== 1 ? 's' : ''}</span>
+                                        </div>
+                                      )}
+                                      {canConnectMoreLenders && (
+                                        <div className="flex items-center gap-1 text-[#ff8000]">
+                                          <div className="w-2 h-2 bg-[#ff8000] rounded-full"></div>
+                                          <span>Find more lenders</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    'Find matching lenders'
+                                  )}
+                                </span>
+                                {hasOffers && activeOffers.length > 0 ? (
+                                  <Star className="h-4 w-4 text-emerald-500" />
+                                ) : canConnectMoreLenders ? (
+                                  <Target className="h-4 w-4 text-[#ff8000]" />
+                                ) : (
+                                  <ArrowRight className="h-4 w-4 text-[#ff8000]" />
+                                )}
                               </div>
                             </div>
                           </div>
+                        </div>
+                        
+                        {/* Action Buttons */}
+                        <div className="flex gap-3 pt-4 border-t border-gray-100">
+                          {hasOffers && (activeOffers.length > 0 || acceptedOffers.length > 0) && (
+                            <Button 
+                              onClick={() => navigate(`/offers?application=${application.id}`)}
+                              size="sm"
+                              className="bg-[#ff8000] hover:bg-[#ff8000]/90 text-white font-medium text-xs px-3 py-1.5 h-auto"
+                            >
+                              <Star className="h-3 w-3 mr-1" />
+                              View {activeOffers.length + acceptedOffers.length} Offer{(activeOffers.length + acceptedOffers.length) !== 1 ? 's' : ''}
+                            </Button>
+                          )}
+                          
+                          {canConnectMoreLenders && (
+                            <Button 
+                              asChild 
+                              variant={hasOffers && activeOffers.length > 0 ? "outline" : "default"}
+                              className={hasOffers && activeOffers.length > 0 ? 
+                                "flex-1 border-[#ff8000] text-[#ff8000] hover:bg-[#ff8000]/10" : 
+                                "flex-1 bg-[#ff8000] hover:bg-[#ff8000]/90 text-white"
+                              }
+                            >
+                              <Link to={`/lender-marketplace/${application.id}`} state={{ application }} className="flex items-center justify-center gap-2">
+                                <Target className="h-4 w-4" />
+                                {hasOffers ? 
+                                  `Find More Lenders (${totalAcceptedOffers}/5 accepted)` : 
+                                  'View Matching Lenders'
+                                }
+                              </Link>
+                            </Button>
+                          )}
+                          
+                          {/* Show message based on application state */}
+                          {!canConnectMoreLenders && (
+                            <div className="flex-1 flex items-center justify-center p-2 bg-green-50 rounded-lg border border-green-200">
+                              <CheckCircle className="h-4 w-4 text-green-600 mr-2" />
+                              <span className="text-sm text-green-700 font-medium">
+                                {totalAcceptedOffers >= 5 ? 
+                                  `Maximum Acceptances Reached (${totalAcceptedOffers}/5)` :
+                                  allDealsCompleted ? 
+                                    'All Deals Completed' : 
+                                    'Application Completed'
+                                }
+                              </span>
+                            </div>
+                          )}
                         </div>
                       </CardContent>
                     </Card>

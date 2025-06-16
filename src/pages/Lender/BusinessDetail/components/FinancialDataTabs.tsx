@@ -22,8 +22,6 @@ const extractSummary = (summaryContent: any, documentType: string = ''): string 
   if (typeof summaryContent !== 'string' || !summaryContent.trim()) {
     return "No summary available";
   }
-
-  // ...existing code...
 };
 
 // Helper function to format dates properly
@@ -68,10 +66,6 @@ export const FinancialDataTabs: React.FC<FinancialDataTabsProps> = ({
   financialData,
   isLenderMatched
 }) => {
-  // Debug logging
-  console.log('[DEBUG FinancialDataTabs] Received financialData:', financialData);
-  console.log('[DEBUG FinancialDataTabs] isLenderMatched:', isLenderMatched);
-  
   // Check if we should show full financial data (matched or offer accepted)
   const showFullFinancialData = isLenderMatched;
   return (
