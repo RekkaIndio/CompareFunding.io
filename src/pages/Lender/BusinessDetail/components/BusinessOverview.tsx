@@ -2,9 +2,23 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
-import { Shield, ThumbsUp, BadgePoundSterling, Building2, Briefcase, Calendar } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { 
+  Shield, 
+  ThumbsUp, 
+  BadgePoundSterling, 
+  Building2, 
+  Briefcase, 
+  Calendar,
+  CheckCircle2,
+  AlertTriangle,
+  CreditCard,
+  ChevronDown,
+  ChevronUp
+} from 'lucide-react';
 import { ApplicationData } from '../types';
 import { formatAddress } from '@/lib/formatters';
+import { useState } from 'react';
 
 interface BusinessOverviewProps {
   applicationData: ApplicationData;
@@ -17,6 +31,8 @@ export const BusinessOverview: React.FC<BusinessOverviewProps> = ({
   canSeeBusinessDetails,
   isLenderMatched
 }) => {
+  const [showCurrentFunding, setShowCurrentFunding] = useState(false);
+  
   // Check if offer has been accepted
   const hasAcceptedOffer = applicationData?.application?.offers?.some(
     (o: any) => o.status === 'accepted'
@@ -78,9 +94,120 @@ export const BusinessOverview: React.FC<BusinessOverviewProps> = ({
     applicationData?.business?.registered_address || 
     applicationData?.business?.trading_address
   );
-                        
+
+  // Helper function to render current funding
+  const renderCurrentFunding = () => {
+    const currentFunding = applicationData?.business?.currentFunding;
+    
+    if (!currentFunding) {
+      return (
+        <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <CreditCard className="h-4 w-4 text-slate-500" />
+              <span className="font-medium text-slate-600">Current Funding Status</span>
+            </div>
+            <Badge variant="secondary" className="bg-slate-100 text-slate-600 border border-slate-200">
+              Information Not Available
+            </Badge>
+          </div>
+        </div>
+      );
+    }
+
+    const { hasCurrentFunding, fundingDetails = [] } = currentFunding;
+
+    if (hasCurrentFunding === 'no') {
+      return (
+        <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <CreditCard className="h-4 w-4 text-[#ff8000]" />
+              <span className="font-medium text-[#212936]">Current Funding Status</span>
+            </div>
+            <Badge className="bg-green-100 text-green-800 border border-green-200">
+              <CheckCircle2 className="h-3 w-3 mr-1" />
+              No Current Funding
+            </Badge>
+          </div>
+        </div>
+      );
+    }
+
+    if (hasCurrentFunding === 'yes' && fundingDetails.length > 0) {
+      return (
+        <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 hover:shadow-md transition-shadow">
+          <div 
+            className="flex items-center justify-between cursor-pointer"
+            onClick={() => setShowCurrentFunding(!showCurrentFunding)}
+          >
+            <div className="flex items-center gap-2">
+              <CreditCard className="h-4 w-4 text-[#ff8000]" />
+              <span className="font-medium text-[#212936]">Current Funding</span>
+              <Badge className="bg-blue-100 text-blue-800 border border-blue-200">
+                {fundingDetails.length} Active {fundingDetails.length === 1 ? 'Facility' : 'Facilities'}
+              </Badge>
+            </div>
+            {showCurrentFunding ? 
+              <ChevronUp className="h-4 w-4 text-slate-600" /> : 
+              <ChevronDown className="h-4 w-4 text-slate-600" />
+            }
+          </div>
+          
+          {showCurrentFunding && (
+            <div className="mt-4 space-y-3">
+              {fundingDetails.map((funding: any, index: number) => (
+                <div key={index} className="bg-white p-3 rounded-md border border-slate-200 shadow-sm">
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <span className="font-medium text-slate-500">Provider:</span>
+                      <div className="text-slate-800">{funding.provider || 'Not specified'}</div>
+                    </div>
+                    <div>
+                      <span className="font-medium text-slate-500">Product:</span>
+                      <div className="text-slate-800">{funding.product || 'Not specified'}</div>
+                    </div>
+                    <div>
+                      <span className="font-medium text-slate-500">Terms:</span>
+                      <div className="text-slate-800">{funding.terms || 'Not specified'}</div>
+                    </div>
+                    <div>
+                      <span className="font-medium text-slate-500">Balance:</span>
+                      <div className="text-slate-800">{funding.currentBalance || 'Not specified'}</div>
+                    </div>
+                    {funding.expiryDate && (
+                      <div className="col-span-2">
+                        <span className="font-medium text-slate-500">Expiry:</span>
+                        <div className="text-slate-800">{new Date(funding.expiryDate).toLocaleDateString()}</div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 hover:shadow-md transition-shadow">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <CreditCard className="h-4 w-4 text-[#ff8000]" />
+            <span className="font-medium text-[#212936]">Current Funding Status</span>
+          </div>
+          <Badge className="bg-orange-100 text-orange-800 border border-orange-200">
+            <AlertTriangle className="h-3 w-3 mr-1" />
+            Details Not Provided
+          </Badge>
+        </div>
+      </div>
+    );
+  };
+  
   return (
-    <Card className="bg-white shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden border-0">
+    <Card className="bg-white shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden border-0 flex flex-col h-full">
       <CardHeader className="bg-[#212936] text-white rounded-t-xl border-b-2 border-[#ff8000]">
         <div className="flex justify-between items-center">
           <CardTitle className="text-white font-bold flex items-center">
@@ -89,7 +216,7 @@ export const BusinessOverview: React.FC<BusinessOverviewProps> = ({
           </CardTitle>
         </div>
       </CardHeader>
-      <CardContent className="space-y-6 pt-6">
+      <CardContent className="space-y-6 pt-6 flex-1">
         {canSeeBusinessDetails ? (
           // Show full business details when lender has expressed interest or made an offer
           <>
@@ -203,13 +330,15 @@ export const BusinessOverview: React.FC<BusinessOverviewProps> = ({
           </>
         ) : (
           // Show limited info for non-matched lenders
-          <Alert className="bg-slate-50 border border-[#212936]/20">
-            <Shield className="h-4 w-4 text-[#ff8000]" />
-            <AlertTitle className="text-[#212936] font-semibold">Limited Information Available</AlertTitle>
-            <AlertDescription className="text-slate-700">
-              You need to create an offer to unlock the complete business profile including financial data and comprehensive business information.
-            </AlertDescription>
-          </Alert>
+          <>
+            <Alert className="bg-slate-50 border border-[#212936]/20">
+              <Shield className="h-4 w-4 text-[#ff8000]" />
+              <AlertTitle className="text-[#212936] font-semibold">Limited Information Available</AlertTitle>
+              <AlertDescription className="text-slate-700">
+                You need to create an offer to unlock the complete business profile including financial data and comprehensive business information.
+              </AlertDescription>
+            </Alert>
+          </>
         )}
 
         {/* Always show application details */}
@@ -250,6 +379,11 @@ export const BusinessOverview: React.FC<BusinessOverviewProps> = ({
               {applicationData.application?.personal_guarantee ? 'Yes' : 'No'}
             </div>
           </div>
+        </div>
+
+        {/* Current Funding Information - Always show this section */}
+        <div className="mt-6">
+          {renderCurrentFunding()}
         </div>
       </CardContent>
     </Card>

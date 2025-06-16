@@ -171,7 +171,7 @@ const lenderMenuItems = [
   { to: "/messages", icon: <MessageSquare size={22} />, label: "Messages" },
   { to: "/lender/billing", icon: <PoundSterling size={22} />, label: "Billing" },
   { to: "/lender/reporting", icon: <LineChart size={22} />, label: "Reporting" },
-  { to: "/lender/account", icon: <User size={22} />, label: "Account" },
+  { to: "/lender/profile", icon: <User size={22} />, label: "Account" },
   { to: "/lender/users", icon: <Users size={22} />, label: "Users" },
 ];
 

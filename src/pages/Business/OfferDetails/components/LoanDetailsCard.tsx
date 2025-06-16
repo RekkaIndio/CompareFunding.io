@@ -1,13 +1,17 @@
 import React from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
+import { MessageCircle } from 'lucide-react';
 import { formatCurrency, formatRepaymentFrequency } from '../utils';
 
 interface LoanDetailsCardProps {
   offer: any;
+  conversation?: any;
+  onNavigateToMessages?: () => void;
 }
 
-export const LoanDetailsCard: React.FC<LoanDetailsCardProps> = ({ offer }) => {
+export const LoanDetailsCard: React.FC<LoanDetailsCardProps> = ({ offer, conversation, onNavigateToMessages }) => {
   const loanAmount = offer.offered_amount;
   const interestRate = offer.interest_rate;
   const termMonths = offer.offered_term_months;
@@ -95,6 +99,19 @@ export const LoanDetailsCard: React.FC<LoanDetailsCardProps> = ({ offer }) => {
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
             <h4 className="font-semibold text-blue-900 mb-2">Additional Notes</h4>
             <p className="text-blue-800">{offer.business_notes}</p>
+          </div>
+        )}
+
+        {/* Messaging Section */}
+        {conversation && (
+          <div className="mt-6">
+            <Button 
+              onClick={onNavigateToMessages} 
+              className="w-full flex items-center justify-center bg-[#0056b3] text-white rounded-lg py-3 hover:bg-[#004494] transition-all duration-200"
+            >
+              <MessageCircle className="w-5 h-5 mr-2" />
+              View Conversation
+            </Button>
           </div>
         )}
       </CardContent>

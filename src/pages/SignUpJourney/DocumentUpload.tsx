@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useNavbar } from '@/contexts/NavbarContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import SignUpLayout from '@/components/SignUpLayout';
-import { getFirestore, doc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { getFirestore, doc, collection, addDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { toast } from '@/hooks/use-toast';
@@ -36,6 +37,7 @@ const DocumentUpload = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { showNavbar, hideNavbar } = useNavbar();
+  const { user } = useAuth();
   const [userInfo, setUserInfo] = useState(location.state || {});
   
   // Document upload state
@@ -149,23 +151,65 @@ const DocumentUpload = () => {
   const storage = getStorage();
 
   const handlePrevious = () => {
-    navigate('/signup-journey/hmrc', { state: userInfo });
+    navigate('/signup-journey/hmrc-status', { state: userInfo });
   };
 
-  const handleNext = () => {
-    if (isFormValid()) {
-      // If user chose to upload documents themselves and there are uploaded documents
-      const hasUploadedDocuments = shouldInviteColleague === 'no' && 
-        documents.some(doc => doc.uploaded && doc.file);
-      
-      if (hasUploadedDocuments) {
-        toast({
-          title: "Documents uploaded",
-          description: "Your documents have been uploaded successfully.",
-          variant: "default"
-        });
+  const handleNext = async () => {
+    if (!isFormValid()) {
+      toast({
+        title: "Form incomplete",
+        description: "Please complete all required fields before continuing.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      // Save document upload data to user profile
+      if (user?.uid) {
+        const db = getFirestore();
+        
+        // If user chose to upload documents themselves and there are uploaded documents
+        const hasUploadedDocuments = shouldInviteColleague === 'no' && 
+          documents.some(doc => doc.uploaded && doc.file);
+        
+        const documentUploadData = {
+          shouldInviteColleague,
+          colleagueEmail: shouldInviteColleague === 'yes' ? colleagueEmail : '',
+          colleagueMessage: shouldInviteColleague === 'yes' ? colleagueMessage : '',
+          inviteSent,
+          documentsStatus: documents.map(doc => ({
+            id: doc.id,
+            name: doc.name,
+            uploaded: doc.uploaded,
+            required: doc.required,
+            description: doc.description
+          })),
+          documentsUploaded: hasUploadedDocuments,
+          updatedAt: serverTimestamp()
+        };
+
+        // Save to users collection
+        await setDoc(doc(db, 'users', user.uid), {
+          ...userInfo,
+          documentUpload: documentUploadData
+        }, { merge: true });
+
+        // Also save to businesses collection for consistency
+        await setDoc(doc(db, 'businesses', user.uid), {
+          documentUpload: documentUploadData
+        }, { merge: true });
+
+        if (hasUploadedDocuments) {
+          toast({
+            title: "Documents uploaded",
+            description: "Your documents have been uploaded successfully.",
+            variant: "default"
+          });
+        }
       }
-      
+
+      // Navigate to next step with updated data
       navigate('/signup-journey/lender-preferences', { 
         state: { 
           ...userInfo, 
@@ -173,8 +217,15 @@ const DocumentUpload = () => {
           shouldInviteColleague,
           colleagueEmail: shouldInviteColleague === 'yes' ? colleagueEmail : '',
           colleagueMessage: shouldInviteColleague === 'yes' ? colleagueMessage : '',
-          documentsUploaded: hasUploadedDocuments
+          documentsUploaded: shouldInviteColleague === 'no' && documents.some(doc => doc.uploaded && doc.file)
         } 
+      });
+    } catch (error) {
+      console.error('Error saving document upload data:', error);
+      toast({
+        title: "Save error",
+        description: "There was an error saving your information. Please try again.",
+        variant: "destructive"
       });
     }
   };
@@ -381,6 +432,35 @@ const DocumentUpload = () => {
     }
   };
 
+  // Save user profile information
+  const saveUserProfile = async (profileData: any) => {
+    if (!user) return;
+
+    try {
+      const db = getFirestore();
+      const userDocRef = doc(db, "users", user.uid);
+      
+      // Set or update the user profile document
+      await setDoc(userDocRef, {
+        ...profileData,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+      
+      toast({
+        title: "Profile saved",
+        description: "Your profile information has been saved.",
+        variant: "default"
+      });
+    } catch (error) {
+      console.error("Error saving user profile:", error);
+      toast({
+        title: "Save failed",
+        description: "Failed to save profile information. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
   const sidebarProps = {
     title: "Document Upload",
     description: "Upload required documents yourself or invite a colleague to help with document submission.",
@@ -528,7 +608,7 @@ const DocumentUpload = () => {
                     📋 Document Upload
                   </p>
                   <p className="text-sm text-green-600 mb-2">
-                    You can upload your documents below to continue to the next step.
+                    You can upload your documents below to continue with your application.
                   </p>
                   <p className="text-sm text-green-700">
                     <CheckCircle className="h-3 w-3 inline mr-1" />

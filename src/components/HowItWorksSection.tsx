@@ -84,79 +84,80 @@ const HowItWorksSection = () => {
     </section>
 
     {/* Apply for funding today section */}
-    <section className="py-12 sm:py-16 md:py-24 relative overflow-hidden">
+    <section className="py-12 sm:py-16 md:py-20 lg:py-24 relative overflow-hidden min-h-[600px] lg:min-h-[700px]">
+      {/* Full width background image */}
       <div className="absolute inset-0">
         <img 
-          src="https://images.unsplash.com/photo-1494790108755-2616c9416c04?w=1200&h=600&fit=crop&auto=format&q=80"
-          alt="Woman working on laptop"
+          src="https://images.unsplash.com/photo-1556761175-b413da4baf72?w=1200&h=800&fit=crop&auto=format&q=80"
+          alt="Woman working on laptop in modern office"
           className="w-full h-full object-cover"
         />
-        <div className="absolute inset-0 bg-black/30"></div>
+        <div className="absolute inset-0 bg-gray-200/80"></div>
       </div>
       
-      <div className="container mx-auto px-4 relative z-10">
-        <div className="max-w-6xl mx-auto flex flex-col lg:flex-row items-center gap-6 sm:gap-8">
-          {/* Content Card */}
-          <div className="bg-white rounded-2xl p-5 sm:p-6 md:p-8 lg:p-10 shadow-xl max-w-2xl relative">
-            {/* Decorative elements - hidden on small screens */}
-            <div className="absolute -bottom-8 -right-8 z-0 hidden sm:block">
+      <div className="container mx-auto px-4 relative z-10 h-full">
+        <div className="max-w-7xl mx-auto h-full flex items-center justify-center lg:justify-start">
+          {/* Content Card - centered on mobile, left-aligned on desktop */}
+          <div className="bg-white rounded-2xl p-6 sm:p-8 lg:p-10 shadow-2xl w-full max-w-2xl lg:max-w-xl xl:max-w-2xl relative">
+            {/* Decorative elements */}
+            <div className="absolute -bottom-6 -right-6 z-0 hidden lg:block">
               <div className="relative">
-                <div className="w-16 sm:w-20 md:w-24 h-16 sm:h-20 md:h-24 bg-orange-500 rounded-full"></div>
-                <div className="w-20 sm:w-24 md:w-32 h-12 sm:h-16 md:h-20 bg-blue-900 rounded-l-full absolute top-1/2 right-8 sm:right-10 md:right-12 transform -translate-y-1/2"></div>
+                <div className="w-20 h-20 bg-orange-500 rounded-full"></div>
+                <div className="w-24 h-14 bg-blue-900 rounded-l-full absolute top-1/2 right-10 transform -translate-y-1/2"></div>
               </div>
             </div>
             
             <div className="relative z-10">
-              <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-5 sm:mb-6 md:mb-8 text-gray-900">
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold mb-6 lg:mb-8 text-gray-900 leading-tight">
                 Apply for funding <span className="text-orange-500">today</span>
               </h2>
               
-              <ul className="space-y-3 sm:space-y-4 mb-6 sm:mb-8">
+              <ul className="space-y-4 mb-8">
                 <li className="flex items-start">
-                  <div className="w-5 h-5 sm:w-6 sm:h-6 bg-green-100 rounded-full flex items-center justify-center mr-2 sm:mr-3 mt-0.5 flex-shrink-0">
-                    <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-green-500 rounded-full"></div>
+                  <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center mr-3 mt-1 flex-shrink-0">
+                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
                   </div>
-                  <span className="text-sm sm:text-base text-gray-700">
+                  <span className="text-sm sm:text-base text-gray-700 leading-relaxed">
                     We help businesses across the globe access a variety of funding solutions, in a completely transparent and value lead platform
                   </span>
                 </li>
                 <li className="flex items-start">
-                  <div className="w-5 h-5 sm:w-6 sm:h-6 bg-green-100 rounded-full flex items-center justify-center mr-2 sm:mr-3 mt-0.5 flex-shrink-0">
-                    <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-green-500 rounded-full"></div>
+                  <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center mr-3 mt-1 flex-shrink-0">
+                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
                   </div>
-                  <span className="text-sm sm:text-base text-gray-700">
+                  <span className="text-sm sm:text-base text-gray-700 leading-relaxed">
                     Whatever the need, we have the solutions
                   </span>
                 </li>
                 <li className="flex items-start">
-                  <div className="w-5 h-5 sm:w-6 sm:h-6 bg-green-100 rounded-full flex items-center justify-center mr-2 sm:mr-3 mt-0.5 flex-shrink-0">
-                    <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-green-500 rounded-full"></div>
+                  <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center mr-3 mt-1 flex-shrink-0">
+                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
                   </div>
-                  <span className="text-sm sm:text-base text-gray-700">
+                  <span className="text-sm sm:text-base text-gray-700 leading-relaxed">
                     With one profile you can receive offers and indicative terms from the entire market
                   </span>
                 </li>
                 <li className="flex items-start">
-                  <div className="w-5 h-5 sm:w-6 sm:h-6 bg-green-100 rounded-full flex items-center justify-center mr-2 sm:mr-3 mt-0.5 flex-shrink-0">
-                    <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-green-500 rounded-full"></div>
+                  <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-3 mt-1 flex-shrink-0">
+                    <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
                   </div>
-                  <span className="text-sm sm:text-base text-gray-700">
+                  <span className="text-sm sm:text-base text-blue-600 leading-relaxed font-medium">
                     Putting you in control of choosing the right option for you and your business
                   </span>
                 </li>
                 <li className="flex items-start">
-                  <div className="w-5 h-5 sm:w-6 sm:h-6 bg-green-100 rounded-full flex items-center justify-center mr-2 sm:mr-3 mt-0.5 flex-shrink-0">
-                    <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-green-500 rounded-full"></div>
+                  <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center mr-3 mt-1 flex-shrink-0">
+                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
                   </div>
-                  <span className="text-sm sm:text-base text-gray-700">
+                  <span className="text-sm sm:text-base text-gray-700 leading-relaxed">
                     Not sure, or have any questions either book a session or call the team today
                   </span>
                 </li>
               </ul>
               
-              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+              <div className="flex flex-col sm:flex-row gap-4">
                 <Button 
-                  className="bg-blue-900 hover:bg-blue-800 text-white font-semibold px-6 sm:px-8 py-2 sm:py-3 rounded-lg text-sm sm:text-base h-auto"
+                  className="bg-blue-900 hover:bg-blue-800 text-white font-semibold px-8 py-3 rounded-lg text-base h-auto transition-colors duration-200"
                   asChild
                 >
                   <Link to="/signup">
@@ -164,7 +165,7 @@ const HowItWorksSection = () => {
                   </Link>
                 </Button>
                 <Button 
-                  className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-6 sm:px-8 py-2 sm:py-3 rounded-lg text-sm sm:text-base h-auto"
+                  className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-8 py-3 rounded-lg text-base h-auto transition-colors duration-200"
                   asChild
                 >
                   <Link to="/contact">
@@ -174,9 +175,6 @@ const HowItWorksSection = () => {
               </div>
             </div>
           </div>
-          
-          {/* Right side spacing for image */}
-          <div className="flex-1 lg:min-h-[400px]"></div>
         </div>
       </div>
     </section>

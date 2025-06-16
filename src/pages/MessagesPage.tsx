@@ -46,7 +46,9 @@ import {
   Building2,
   User,
   Calendar,
-  PoundSterling
+  PoundSterling,
+  X,
+  Handshake
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
 import { 
@@ -158,6 +160,14 @@ const MessagesPage: React.FC = () => {
   const [shareDescription, setShareDescription] = useState('');
   const [shareCategory, setShareCategory] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+
+  // Deal closure state
+  const [showCloseDeal, setShowCloseDeal] = useState(false);
+  const [closeDealForm, setCloseDealForm] = useState({
+    reason: '',
+    outcome: 'completed' as 'completed' | 'closed',
+    notes: ''
+  });
 
   // Ensure navbar is visible
   useEffect(() => {
@@ -530,6 +540,32 @@ const MessagesPage: React.FC = () => {
     staleTime: 10000,
   });
 
+  // Fetch current offer for the selected conversation (to show deal closure options)
+  const { data: currentOffer, refetch: refetchOffer } = useQuery({
+    queryKey: ['currentOffer', selectedConversation?.applicationId, selectedConversation?.lenderId],
+    queryFn: async () => {
+      if (!selectedConversation || !user?.uid) return null;
+      
+      try {
+        const { data: offers } = await getDocuments('offers', [
+          { field: 'application_id', operator: '==', value: selectedConversation.applicationId },
+          { field: 'lender_id', operator: '==', value: selectedConversation.lenderId },
+          { field: 'status', operator: '==', value: 'accepted' }
+        ]);
+        
+        // Return the first accepted offer between this business and lender
+        return offers && offers.length > 0 ? offers[0] : null;
+      } catch (error) {
+        console.error('Error fetching current offer:', error);
+        return null;
+      }
+    },
+    enabled: !!selectedConversation && !!user?.uid,
+    refetchInterval: 30000,
+    refetchOnWindowFocus: false,
+    staleTime: 10000,
+  });
+
   // Document share mutation
   const documentShareMutation = useMutation({
     mutationFn: async () => {
@@ -655,6 +691,84 @@ const MessagesPage: React.FC = () => {
     },
   });
 
+  // Close deal mutation
+  const closeDealMutation = useMutation({
+    mutationFn: async (dealData: typeof closeDealForm) => {
+      if (!user?.uid || !selectedConversation || !currentOffer) {
+        throw new Error('Missing required data for closing deal');
+      }
+
+      const recipientId = (user?.role === 'business' || user?.role === 'business_owner')
+        ? selectedConversation.lenderId 
+        : selectedConversation.businessId;
+
+      // Update the offer with deal closure information
+      const offerUpdateData = {
+        deal_status: dealData.outcome === 'completed' ? 'completed' : 'closed',
+        closed_at: new Date().toISOString(),
+        closed_by: user.uid,
+        closure_reason: dealData.reason,
+        closure_notes: dealData.notes
+      };
+
+      const { error: offerError } = await updateDocument('offers', currentOffer.id, offerUpdateData);
+      if (offerError) throw offerError;
+
+      // Send a message about the deal closure
+      const actionText = dealData.outcome === 'completed' ? 'completed' : 'closed';
+      const messageContent = `🤝 Deal ${actionText}: ${dealData.reason}${dealData.notes ? `\n\nNotes: ${dealData.notes}` : ''}`;
+      
+      const messageData = {
+        application_id: selectedConversation.applicationId,
+        sender_id: user.uid,
+        recipient_id: recipientId,
+        content: messageContent,
+        sent_at: serverTimestamp(),
+        read: false,
+        message_type: 'system',
+        metadata: { 
+          type: 'deal_closure',
+          deal_status: dealData.outcome,
+          offer_id: currentOffer.id
+        }
+      };
+
+      await createDocument('messages', messageData);
+
+      // Create notification for the other party
+      await createDocument('notifications', {
+        recipient_id: recipientId,
+        type: 'deal_closed',
+        title: `Deal ${actionText}`,
+        message: `The deal for this application has been ${actionText}.`,
+        related_entity_id: currentOffer.id,
+        related_entity_type: 'offer',
+        application_id: selectedConversation.applicationId,
+        read: false,
+        sent_at: new Date().toISOString()
+      });
+
+      return offerUpdateData;
+    },
+    onSuccess: () => {
+      setShowCloseDeal(false);
+      setCloseDealForm({
+        reason: '',
+        outcome: 'completed',
+        notes: ''
+      });
+      refetchMessages();
+      refetchOffer();
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      queryClient.invalidateQueries({ queryKey: ['offers'] });
+      toast.success('Deal status updated successfully');
+    },
+    onError: (error: any) => {
+      console.error('Error closing deal:', error);
+      toast.error('Failed to update deal status');
+    },
+  });
+
   // Handle sending a message
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
@@ -758,6 +872,16 @@ const MessagesPage: React.FC = () => {
     documentShareMutation.mutate();
   };
 
+  // Handle deal closure
+  const handleCloseDeal = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!closeDealForm.reason.trim()) {
+      toast.error('Please provide a reason for closing the deal');
+      return;
+    }
+    closeDealMutation.mutate(closeDealForm);
+  };
+
   // Handle document download
   const handleDocumentDownload = async (document: SharedDocument) => {
     try {
@@ -793,10 +917,10 @@ const MessagesPage: React.FC = () => {
   // Filter conversations based on search term with memoization
   const filteredConversations = useMemo(() => {
     return conversations?.filter(conv =>
-      conv.lenderName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      conv.businessName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      conv.applicationNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      conv.applicationPurpose.toLowerCase().includes(searchTerm.toLowerCase())
+      (conv.lenderName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (conv.businessName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (conv.applicationNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (conv.applicationPurpose || '').toLowerCase().includes(searchTerm.toLowerCase())
     ) || [];
   }, [conversations, searchTerm]);
 
@@ -837,7 +961,7 @@ const MessagesPage: React.FC = () => {
                 <div>
                   <h1 className="text-3xl font-bold text-[#212936]">Messages</h1>
                   <p className="text-slate-600 mt-1">
-                    Communicate with {user.role === 'business' ? 'lenders' : 'businesses'} about your applications
+                    Communicate with {(user.role === 'business' || user.role === 'business_owner') ? 'lenders' : 'businesses'} about your applications
                   </p>
                 </div>
               </div>
@@ -895,28 +1019,33 @@ const MessagesPage: React.FC = () => {
                           <div className="flex items-start space-x-3">
                             <Avatar className="h-12 w-12 border-2 border-slate-200 shadow-sm">
                               <AvatarImage 
-                                src={user.role === 'business' 
+                                src={(user.role === 'business' || user.role === 'business_owner')
                                   ? conversation.lenderAvatar 
-                                  : (conversation.businessAvatar || conversation.lenderAvatar)
+                                  : conversation.businessAvatar
                                 } 
-                                alt={`${user.role === 'business' ? conversation.lenderName : conversation.businessName} logo`}
+                                alt={`${(user.role === 'business' || user.role === 'business_owner') ? (conversation.lenderName || 'Lender') : (conversation.businessName || 'Business')} logo`}
                               />
                               <AvatarFallback className="bg-[#212936] text-white font-semibold">
-                                {user.role === 'business' 
-                                  ? conversation.lenderName.charAt(0).toUpperCase()
-                                  : conversation.businessName.charAt(0).toUpperCase()
+                                {(user.role === 'business' || user.role === 'business_owner')
+                                  ? (conversation.lenderName || 'L').charAt(0).toUpperCase()
+                                  : (conversation.businessName || 'B').charAt(0).toUpperCase()
                                 }
                               </AvatarFallback>
                             </Avatar>
                             
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center justify-between mb-1">
-                                <h3 className="text-sm font-semibold text-[#212936] truncate">
-                                  {user.role === 'business' 
-                                    ? conversation.lenderName 
-                                    : conversation.businessName
-                                  }
-                                </h3>
+                                <div className="flex-1 min-w-0">
+                                  {(user.role === 'business' || user.role === 'business_owner') && (
+                                    <p className="text-xs text-slate-500 font-medium mb-0.5">LENDER</p>
+                                  )}
+                                  <h3 className="text-sm font-semibold text-[#212936] truncate">
+                                    {(user.role === 'business' || user.role === 'business_owner')
+                                      ? (conversation.lenderName || 'Lender') 
+                                      : (conversation.businessName || 'Business')
+                                    }
+                                  </h3>
+                                </div>
                                 {conversation.unreadCount > 0 && (
                                   <Badge className="bg-[#ff8000] text-white text-xs px-2 py-0.5">
                                     {conversation.unreadCount}
@@ -1116,6 +1245,21 @@ const MessagesPage: React.FC = () => {
                       )}
                     </CardContent>
                   </Card>
+
+                  {/* Close Deal Button - Show only for accepted offers that haven't been closed */}
+                  {currentOffer && currentOffer.status === 'accepted' && currentOffer.deal_status !== 'closed' && currentOffer.deal_status !== 'completed' && (
+                    <Card className="bg-white/95 backdrop-blur-sm border-slate-200/50 shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl">
+                      <CardContent className="p-4">
+                        <Button
+                          onClick={() => setShowCloseDeal(true)}
+                          className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-md transition-all duration-200"
+                        >
+                          <Handshake className="h-4 w-4 mr-2" />
+                          Close Deal
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  )}
                 </div>
               ) : (
                 <div className="h-full flex items-center justify-center">
@@ -1139,26 +1283,33 @@ const MessagesPage: React.FC = () => {
                       <div className="flex items-center space-x-3">
                         <Avatar className="h-12 w-12 border-2 border-white/20">
                           <AvatarImage 
-                            src={user.role === 'business' 
+                            src={(user.role === 'business' || user.role === 'business_owner')
                               ? selectedConversation.lenderAvatar 
-                              : (selectedConversation.businessAvatar || selectedConversation.lenderAvatar)
+                              : selectedConversation.businessAvatar
                             } 
-                            alt={`${user.role === 'business' ? selectedConversation.lenderName : selectedConversation.businessName} logo`}
+                            alt={`${(user.role === 'business' || user.role === 'business_owner') ? (selectedConversation.lenderName || 'Lender') : (selectedConversation.businessName || 'Business')} logo`}
                           />
                           <AvatarFallback className="bg-white/10 text-white font-semibold">
-                            {user.role === 'business' 
-                              ? selectedConversation.lenderName.charAt(0).toUpperCase()
-                              : selectedConversation.businessName.charAt(0).toUpperCase()
+                            {(user.role === 'business' || user.role === 'business_owner')
+                              ? (selectedConversation.lenderName || 'L').charAt(0).toUpperCase()
+                              : (selectedConversation.businessName || 'B').charAt(0).toUpperCase()
                             }
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <h3 className="font-semibold text-lg text-white">
-                            {user.role === 'business' 
-                              ? selectedConversation.lenderName 
-                              : selectedConversation.businessName
-                            }
-                          </h3>
+                          <div className="flex items-center space-x-2 mb-1">
+                            {(user.role === 'business' || user.role === 'business_owner') && (
+                              <Badge className="bg-[#ff8000]/20 text-[#ff8000] border-[#ff8000]/30 text-xs px-2 py-0.5 font-medium">
+                                LENDER
+                              </Badge>
+                            )}
+                            <h3 className="font-semibold text-lg text-white">
+                              {(user.role === 'business' || user.role === 'business_owner')
+                                ? (selectedConversation.lenderName || 'Lender') 
+                                : (selectedConversation.businessName || 'Business')
+                              }
+                            </h3>
+                          </div>
                           <div className="flex items-center space-x-2 text-sm text-gray-200">
                             <span>Application {selectedConversation.applicationNumber}</span>
                             <span>•</span>
@@ -1556,6 +1707,85 @@ const MessagesPage: React.FC = () => {
                   <div className="flex items-center space-x-2">
                     <Send className="h-4 w-4" />
                     <span>Send Request</span>
+                  </div>
+                )}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Close Deal Dialog */}
+      <Dialog open={showCloseDeal} onOpenChange={setShowCloseDeal}>
+        <DialogContent className="max-w-md bg-white border-slate-200">
+          <DialogHeader className="pb-4 border-b border-slate-100">
+            <DialogTitle className="text-xl font-semibold text-[#212936] flex items-center">
+              <Handshake className="mr-2 h-5 w-5 text-green-600" />
+              Close Deal
+            </DialogTitle>
+            <DialogDescription className="text-slate-600 mt-2">
+              Mark this deal as completed or closed. This action will end the deal for this specific lender-business relationship.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleCloseDeal} className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-slate-700">
+                Deal Outcome
+              </Label>
+              <Select
+                value={closeDealForm.outcome}
+                onValueChange={(value: 'completed' | 'closed') => 
+                  setCloseDealForm(prev => ({ ...prev, outcome: value }))
+                }
+              >
+                <SelectTrigger className="border-slate-200 focus:border-green-600 focus:ring-green-600/20">
+                  <SelectValue placeholder="Select outcome" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="completed">Deal Completed Successfully</SelectItem>
+                  <SelectItem value="closed">Deal Closed (Not Completed)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="close-reason" className="text-sm font-medium text-slate-700">
+                Reason/Notes
+              </Label>
+              <Textarea
+                id="close-reason"
+                value={closeDealForm.reason}
+                onChange={(e) => setCloseDealForm(prev => ({ ...prev, reason: e.target.value }))}
+                placeholder="Please provide a reason for closing this deal..."
+                className="border-slate-200 focus:border-green-600 focus:ring-green-600/20 min-h-[100px]"
+                required
+              />
+            </div>
+
+            <div className="flex justify-end space-x-3 pt-4 border-t border-slate-100">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowCloseDeal(false)}
+                className="border-slate-200 text-slate-600 hover:bg-slate-50 px-6"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={closeDealMutation.isPending || !closeDealForm.reason.trim()}
+                className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-md px-6"
+              >
+                {closeDealMutation.isPending ? (
+                  <div className="flex items-center space-x-2">
+                    <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                    <span>Closing...</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center space-x-2">
+                    <Handshake className="h-4 w-4" />
+                    <span>Close Deal</span>
                   </div>
                 )}
               </Button>

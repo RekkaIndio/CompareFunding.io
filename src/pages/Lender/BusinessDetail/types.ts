@@ -99,6 +99,38 @@ export interface Business {
   annual_revenue?: string | number;
   company_size?: string;
   vat_number?: string;
+  // HMRC Status
+  hmrcStatus?: {
+    isUpToDate?: string;
+    vatDetails?: {
+      amount?: string;
+      timeToPay?: string;
+      details?: string;
+    };
+    corpTaxDetails?: {
+      amount?: string;
+      timeToPay?: string;
+      details?: string;
+    };
+    payeDetails?: {
+      amount?: string;
+      timeToPay?: string;
+      details?: string;
+    };
+    updatedAt?: any;
+  };
+  // Current Funding
+  currentFunding?: {
+    hasCurrentFunding?: string;
+    fundingDetails?: Array<{
+      provider?: string;
+      product?: string;
+      terms?: string;
+      expiryDate?: string;
+      currentBalance?: string;
+    }>;
+    updatedAt?: any;
+  };
 }
 
 export interface ApplicationData {

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -29,6 +29,8 @@ import { getLenderConnectionRequests, getLenderConnectedApplications, acceptConn
 import { toast } from 'sonner';
 import PageLayout from '@/components/PageLayout';
 import { useAuth } from '@/contexts/AuthContext';
+
+import ApplicationCard from '@/pages/Lender/MatchedApplications/components/ApplicationCard';
 import { formatAddress, getBusinessDisplayName } from '@/lib/formatters';
 
 const LenderDashboard = () => {
@@ -85,10 +87,12 @@ const LenderDashboard = () => {
     queryFn: async () => {
       if (!user?.uid) throw new Error('User not authenticated');
       
-      const { data, error } = await getLenderConnectionRequests(user.uid);
+      // Use the same direct query as pendingConnections for consistency
+      const { data, error } = await getDocuments('lender_connections', [
+        { field: 'lender_id', operator: '==', value: user.uid }
+      ]);
       
       if (error) {
-        console.error('Error loading connection requests:', error);
         return [];
       }
       
@@ -107,7 +111,6 @@ const LenderDashboard = () => {
       const { data, error } = await getLenderConnectedApplications(user.uid);
       
       if (error) {
-        console.error('Error loading connected applications:', error);
         return [];
       }
       
@@ -119,7 +122,8 @@ const LenderDashboard = () => {
   // Fetch matched applications using our new function
   const { 
     data: lenderApplications, 
-    isLoading: applicationsLoading 
+    isLoading: applicationsLoading,
+    error: applicationsError 
   } = useQuery({
     queryKey: ['lenderApplications', user?.uid],
     queryFn: async () => {
@@ -134,15 +138,27 @@ const LenderDashboard = () => {
         throw error;
       }
       
-
       return data || [];
     },
     enabled: !!user?.uid,
   });
 
-  // Separate matched from available applications
-  const matchedApplications = lenderApplications?.filter(app => app.isMatched) || [];
-  const availableApplications = lenderApplications?.filter(app => !app.isMatched) || [];
+  // Helper function to check if application is declined by current lender
+  const isApplicationDeclinedByLender = (app: any) => {
+    if (!user?.uid) return false;
+    
+    // Check interested_lenders array for declined status
+    const interestedLenders = app.interested_lenders || [];
+    const lenderEntry = interestedLenders.find((l: any) => l.lender_id === user.uid);
+    
+    return lenderEntry?.status === 'declined' || lenderEntry?.status === 'rejected';
+  };
+
+  // Helper function to check if current lender has made an offer on this application
+  const hasLenderMadeOffer = (app: any) => {
+    if (!user?.uid || !lenderOffers) return false;
+    return lenderOffers.some(offer => offer.application_id === app.id);
+  };
 
   // Fetch offers made by lender
   const { data: lenderOffers, isLoading: offersLoading } = useQuery({
@@ -181,7 +197,6 @@ const LenderDashboard = () => {
       ]);
       
       if (error) {
-        console.error('Error loading accepted offers:', error);
         toast.error('Error loading accepted offers');
         throw error;
       }
@@ -222,7 +237,6 @@ const LenderDashboard = () => {
                 business: businessData
               };
             } catch (err) {
-              console.error(`Error fetching data for offer ${offer.id}:`, err);
               // Return the offer with whatever data we have
               return offer;
             }
@@ -252,8 +266,6 @@ const LenderDashboard = () => {
         );
         
         if (error) {
-          console.error('Error fetching notifications:', error);
-          
           // Check if it's an index error and provide instructions
           // Optionally, handle index error here if needed
           return [];
@@ -264,7 +276,6 @@ const LenderDashboard = () => {
           [...data].sort((a, b) => new Date(b.sent_at || 0).getTime() - new Date(a.sent_at || 0).getTime()) 
           : [];
       } catch (err) {
-        console.error('Error fetching notifications:', err);
         return [];
       }
     },
@@ -285,7 +296,6 @@ const LenderDashboard = () => {
       ]);
       
       if (error) {
-        console.error('Error loading pending connections:', error);
         return [];
       }
       
@@ -294,6 +304,75 @@ const LenderDashboard = () => {
     enabled: !!user?.uid,
     refetchInterval: 5000, // Refetch every 5 seconds to catch new connections
   });
+
+  // Fetch applications related to connection requests that might not be in lenderApplications
+  const { data: connectionApplications, isLoading: connectionAppsLoading } = useQuery({
+    queryKey: ['connectionApplications', user?.uid, connectionRequests],
+    queryFn: async () => {
+      if (!user?.uid || !connectionRequests || connectionRequests.length === 0) {
+        return [];
+      }
+      
+      // Get unique application IDs from connection requests
+      const applicationIds = [...new Set(connectionRequests.map(req => req.application_id))].filter(id => typeof id === 'string') as string[];
+      
+      if (applicationIds.length === 0) {
+        return [];
+      }
+      
+      // Fetch each application
+      const applications = await Promise.all(
+        applicationIds.map(async (appId) => {
+          try {
+            const { data: appData, error } = await getDocument('applications', appId);
+            if (error || !appData) {
+              return null;
+            }
+            
+            // Get business details
+            const { data: businessData } = await getDocument('businesses', appData.user_id || appData.business_id);
+            
+            return {
+              ...appData,
+              id: appId,
+              business_id: appData.user_id || appData.business_id,
+              isFromConnectionRequest: true,
+              business: businessData ? {
+                business_name: businessData.business_name || 'Unnamed Business',
+                logo_url: businessData.logo_url,
+                industry_sector: businessData.industry_sector
+              } : null
+            };
+          } catch (error) {
+            return null;
+          }
+        })
+      );
+      
+      return applications.filter(app => app !== null);
+    },
+    enabled: !!user?.uid && !!connectionRequests && connectionRequests.length > 0,
+  });
+
+  // Separate matched from available applications and filter out declined ones
+  const allNonDeclinedApplications = useMemo(() => {
+    // Combine applications from different sources
+    const mainApplications = lenderApplications?.filter(app => !isApplicationDeclinedByLender(app)) || [];
+    const connectionApps = connectionApplications?.filter(app => !isApplicationDeclinedByLender(app)) || [];
+    
+    // Merge and deduplicate based on application ID
+    const allApps = [...mainApplications];
+    connectionApps.forEach(connApp => {
+      if (!allApps.some(app => app.id === connApp.id)) {
+        allApps.push(connApp);
+      }
+    });
+    
+    return allApps;
+  }, [lenderApplications, connectionApplications, user?.uid]);
+  
+  const matchedApplications = allNonDeclinedApplications.filter(app => app.isMatched) || [];
+  const availableApplications = allNonDeclinedApplications.filter(app => !app.isMatched) || [];
 
   // Handle accepting/declining connection requests
   const handleConnectionRequest = async (connectionId: string, action: 'accept' | 'decline') => {
@@ -313,7 +392,6 @@ const LenderDashboard = () => {
       queryClient.invalidateQueries({ queryKey: ['connectedApplications', user?.uid] });
       queryClient.invalidateQueries({ queryKey: ['lenderApplications', user?.uid] });
     } catch (error) {
-      console.error(`Error ${action}ing connection:`, error);
       toast.error(`Failed to ${action} connection request.`);
     }
   };
@@ -332,6 +410,11 @@ const LenderDashboard = () => {
       (offer.status === 'completed' && offer.is_active)
     ).length || 0,
     prospects: availableApplications?.filter(app => !app.isViewed).length || 0,
+    applicationsWithoutOffers: allNonDeclinedApplications?.filter(app => {
+      // Check if this lender has already made an offer on this application
+      const hasOffer = lenderOffers?.some(offer => offer.application_id === app.id);
+      return !hasOffer; // Applications where no offer has been made yet
+    }).length || 0,
     pendingConnections: pendingConnections?.length || 0,
     conversionRate: lenderOffers?.length 
       ? Math.round((lenderOffers.filter(offer => 
@@ -363,7 +446,7 @@ const LenderDashboard = () => {
   return (
     <PageLayout showSidebar={true}>
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-gray-100">
-        <div className="max-w-8xl mx-auto py-8 px-6 space-y-8">
+        <div className="container px-6 py-8 mx-auto space-y-8">
         {/* Header Section */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
           <div className="bg-white/90 backdrop-blur-sm rounded-xl border border-slate-200/50 shadow-lg p-6 flex-1">
@@ -392,7 +475,93 @@ const LenderDashboard = () => {
           </div>
         </div>
 
-        {/* Key Metrics Cards */}
+        {/* Key Metrics Cards - Matched Applications Style */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+          {/* Total Applications Card */}
+          <div className="bg-white/90 backdrop-blur-sm border border-slate-200/50 shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl">
+            <div className="pt-6 px-6 pb-4">
+              <div className="flex items-center justify-between">
+                <div className="bg-[#212936] p-3 rounded-full shadow-sm">
+                  <BarChart3 className="h-6 w-6 text-[#ff8000]" />
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-medium text-slate-600">Total Applications</p>
+                  <h3 className="text-2xl font-bold text-[#212936]">
+                    {allNonDeclinedApplications === undefined ? (
+                      <span className="animate-pulse">...</span>
+                    ) : (
+                      allNonDeclinedApplications?.length || 0
+                    )}
+                  </h3>
+                </div>
+              </div>
+            </div>
+          </div>
+          {/* Matched Applications Card */}
+          <div className="bg-white/90 backdrop-blur-sm border border-slate-200/50 shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl">
+            <div className="pt-6 px-6 pb-4">
+              <div className="flex items-center justify-between">
+                <div className="bg-[#212936] p-3 rounded-full shadow-sm">
+                  <CheckCircle className="h-6 w-6 text-[#ff8000]" />
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-medium text-slate-600">Matched Applications</p>
+                  <h3 className="text-2xl font-bold text-[#212936]">
+                    {allNonDeclinedApplications === undefined ? (
+                      <span className="animate-pulse">...</span>
+                    ) : (
+                      matchedApplications?.length || 0
+                    )}
+                  </h3>
+                </div>
+              </div>
+            </div>
+          </div>
+          {/* Total Loan Value Card */}
+          <div className="bg-white/90 backdrop-blur-sm border border-slate-200/50 shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl">
+            <div className="pt-6 px-6 pb-4">
+              <div className="flex items-center justify-between">
+                <div className="bg-[#212936] p-3 rounded-full shadow-sm">
+                  <CreditCard className="h-6 w-6 text-[#ff8000]" />
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-medium text-slate-600">Total Loan Value</p>
+                  <h3 className="text-2xl font-bold text-[#212936]">
+                    {allNonDeclinedApplications === undefined ? (
+                      <span className="animate-pulse">...</span>
+                    ) : (
+                      `£${(allNonDeclinedApplications?.reduce((sum, app) => sum + (app.loan_amount || 0), 0) || 0).toLocaleString()}`
+                    )}
+                  </h3>
+                </div>
+              </div>
+            </div>
+          </div>
+          {/* New Applications Card */}
+          <div className="bg-white/90 backdrop-blur-sm border border-slate-200/50 shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl">
+            <div className="pt-6 px-6 pb-4">
+              <div className="flex items-center justify-between">
+                <div className="bg-[#212936] p-3 rounded-full shadow-sm">
+                  <Users className="h-6 w-6 text-[#ff8000]" />
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-medium text-slate-600">New Applications</p>
+                  <h3 className="text-2xl font-bold text-[#212936]">
+                    {allNonDeclinedApplications === undefined ? (
+                      <span className="animate-pulse">...</span>
+                    ) : (
+                      allNonDeclinedApplications?.filter(app => {
+                        // Check if this lender has already made an offer on this application
+                        const hasOffer = lenderOffers?.some(offer => offer.application_id === app.id);
+                        return !hasOffer; // Show as "new" if no offer has been made yet
+                      }).length || 0
+                    )}
+                  </h3>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
   
         {/* Enhanced Tabs Navigation */}
         <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200/50 overflow-hidden">
@@ -419,9 +588,9 @@ const LenderDashboard = () => {
               >
                 <Users className="h-4 w-4" />
                 Applications
-                {stats.prospects > 0 && (
+                {stats.applicationsWithoutOffers > 0 && (
                   <span className="ml-1 px-2 py-0.5 text-xs bg-[#ff8000] text-white rounded-full">
-                    {stats.prospects}
+                    {stats.applicationsWithoutOffers}
                   </span>
                 )}
               </button>
@@ -486,41 +655,27 @@ const LenderDashboard = () => {
                       </div>
                     ) : acceptedOffers && acceptedOffers.length > 0 ? (
                       <div className="space-y-4">
-                        {acceptedOffers.slice(0, 5).map(offer => (
-                          <div 
-                            key={offer.id}
-                            className="group p-4 border border-gray-200 rounded-xl hover:border-green-300 hover:shadow-md cursor-pointer transition-all duration-200 bg-gradient-to-r from-gray-50 to-green-50/30"
-                            onClick={() => navigate(`/business/${offer.application_id}`)}
-                          >
-                            <div className="flex justify-between items-center">
-                              <div className="flex items-center gap-4">
-                                <div className="h-12 w-12 bg-gradient-to-br from-green-100 to-green-200 rounded-lg flex items-center justify-center">
-                                  <Building2 className="h-6 w-6 text-green-600" />
-                                </div>
-                                <div>
-                                  <div className="font-semibold text-gray-900 group-hover:text-green-700 transition-colors">
-                                    {getBusinessDisplayName(offer.application, offer.business)}
-                                  </div>
-                                  <div className="text-sm text-gray-600 mt-1">
-                                    Loan Amount: {new Intl.NumberFormat('en-GB', {
-                                      style: 'currency',
-                                      currency: 'GBP'
-                                    }).format(offer.offered_amount || 0)}
-                                  </div>
-                                  <div className="text-xs text-gray-500 mt-1 flex items-center gap-2">
-                                    <Calendar className="h-3 w-3" />
-                                    Funded {new Date(offer.accepted_at).toLocaleDateString()}
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-3">
-                                <span className="px-3 py-1 text-xs rounded-full bg-green-100 text-green-800 font-medium">
-                                  Active
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
+                    {acceptedOffers.slice(0, 5).map(offer => (
+                      <ApplicationCard
+                        key={offer.id}
+                        app={{
+                          ...offer.application,
+                          offered_amount: offer.offered_amount,
+                          status: offer.status,
+                          business: offer.business,
+                          accepted_at: offer.accepted_at,
+                        }}
+                        user={user}
+                        isApplicationDeclined={() => false}
+                        canSeeBusinessDetails={() => true}
+                        handleExpressInterest={() => {}}
+                        navigate={navigate}
+                        handleStartConversation={() => {}}
+                        isLenderMatched={() => true}
+                        getCreditScoreRisk={() => ''}
+                        hasLenderMadeOffer={hasLenderMadeOffer}
+                      />
+                    ))}
                         {acceptedOffers.length > 5 && (
                           <div className="text-center pt-4">
                             <button 
@@ -571,7 +726,7 @@ const LenderDashboard = () => {
                     </div>
                   </div>
                   <div className="p-6">
-                    {applicationsLoading ? (
+                    {applicationsLoading || connectionAppsLoading ? (
                       <div className="space-y-4">
                         {[...Array(4)].map((_, i) => (
                           <div key={i} className="animate-pulse">
@@ -588,44 +743,21 @@ const LenderDashboard = () => {
                       </div>
                     ) : availableApplications && availableApplications.length > 0 ? (
                       <div className="space-y-4">
-                        {availableApplications.slice(0, 5).map(app => (
-                          <div 
-                            key={app.id}
-                            className="group p-4 border border-gray-200 rounded-xl hover:border-blue-300 hover:shadow-md cursor-pointer transition-all duration-200 bg-gradient-to-r from-gray-50 to-blue-50/30"
-                            onClick={() => navigate(`/business/${app.id}`)}
-                          >
-                            <div className="flex justify-between items-center">
-                              <div className="flex items-center gap-4">
-                                <div className="h-12 w-12 bg-gradient-to-br from-blue-100 to-blue-200 rounded-lg flex items-center justify-center">
-                                  <Building2 className="h-6 w-6 text-blue-600" />
-                                </div>
-                                <div>
-                                  <div className="font-semibold text-gray-900 group-hover:text-blue-700 transition-colors">
-                                    {app.company_name || app.business_name || 'Business'}
-                                  </div>
-                                  <div className="text-sm text-gray-600 mt-1">
-                                    Loan Amount: {new Intl.NumberFormat('en-GB', {
-                                      style: 'currency',
-                                      currency: 'GBP'
-                                    }).format(app.loan_amount || 0)}
-                                  </div>
-                                  <div className="text-xs text-gray-500 mt-1 flex items-center gap-2">
-                                    <Calendar className="h-3 w-3" />
-                                    Applied {new Date(app.created_at || app.application_date).toLocaleDateString()}
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-3">
-                                <span className="px-3 py-1 text-xs rounded-full bg-blue-100 text-blue-800 font-medium">
-                                  New
-                                </span>
-                                <div className="p-2 text-gray-400 group-hover:text-blue-600 transition-colors">
-                                  <Eye className="h-4 w-4" />
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
+                    {availableApplications.slice(0, 5).map(app => (
+                      <ApplicationCard
+                        key={app.id}
+                        app={app}
+                        user={user}
+                        isApplicationDeclined={() => false}
+                        canSeeBusinessDetails={app => app.isMatched}
+                        handleExpressInterest={() => {}}
+                        navigate={navigate}
+                        handleStartConversation={() => {}}
+                        isLenderMatched={app => !!app.isMatched}
+                        getCreditScoreRisk={() => ''}
+                        hasLenderMadeOffer={hasLenderMadeOffer}
+                      />
+                    ))}
                         {availableApplications.length > 5 && (
                           <div className="text-center pt-4">
                             <button 
@@ -708,7 +840,7 @@ const LenderDashboard = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="text-sm font-medium text-orange-700">New Prospects</div>
-                    <div className="text-2xl font-bold text-orange-900">{stats.prospects}</div>
+                    <div className="text-2xl font-bold text-orange-900">{stats.applicationsWithoutOffers}</div>
                   </div>
                   <AlertCircle className="h-8 w-8 text-orange-500" />
                 </div>
@@ -717,7 +849,7 @@ const LenderDashboard = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="text-sm font-medium text-purple-700">In Review</div>
-                    <div className="text-2xl font-bold text-purple-900">{Math.max(0, stats.totalApplicationsAvailable - stats.prospects)}</div>
+                    <div className="text-2xl font-bold text-purple-900">{Math.max(0, stats.totalApplicationsAvailable - stats.applicationsWithoutOffers)}</div>
                   </div>
                   <Clock className="h-8 w-8 text-purple-500" />
                 </div>
@@ -730,98 +862,45 @@ const LenderDashboard = () => {
                 <div className="flex items-center justify-between">
                   <h3 className="font-semibold text-white">Applications</h3>
                   <span className="text-sm text-slate-300">
-                    {lenderApplications?.length || 0} total applications
+                    {allNonDeclinedApplications?.length || 0} total applications
                   </span>
                 </div>
               </div>
-              <div className="divide-y divide-gray-200">
-                {applicationsLoading ? (
-                  <div className="p-6">
-                    <div className="space-y-4">
-                      {[...Array(5)].map((_, i) => (
-                        <div key={i} className="animate-pulse">
-                          <div className="flex items-center space-x-4">
-                            <div className="h-16 w-16 bg-gray-200 rounded-xl"></div>
-                            <div className="flex-1">
-                              <div className="h-5 bg-gray-200 rounded w-1/3 mb-2"></div>
-                              <div className="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
-                              <div className="h-3 bg-gray-200 rounded w-1/4"></div>
-                            </div>
-                            <div className="h-8 w-20 bg-gray-200 rounded"></div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : lenderApplications && lenderApplications.length > 0 ? (
-                  <>
-                    {lenderApplications.map(app => (
-                      <div 
-                        key={app.id} 
-                        className="group p-6 hover:bg-gray-50 cursor-pointer transition-all duration-200"
-                        onClick={() => navigate(`/business/${app.id}`)}
-                      >
-                        <div className="flex items-center gap-4">
-                          <div className="h-16 w-16 bg-gradient-to-br from-orange-100 to-orange-200 rounded-xl flex items-center justify-center group-hover:shadow-md transition-shadow">
-                            <Building2 className="h-8 w-8 text-orange-600" />
-                          </div>
+              <div className="p-6">
+                {applicationsLoading || connectionAppsLoading ? (
+                  <div className="space-y-4">
+                    {[...Array(5)].map((_, i) => (
+                      <div key={i} className="animate-pulse">
+                        <div className="flex items-center space-x-4">
+                          <div className="h-16 w-16 bg-gray-200 rounded-xl"></div>
                           <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-1">
-                              <h4 className="font-semibold text-gray-900 group-hover:text-orange-700 transition-colors">
-                                {app.company_name || 'Business'}
-                              </h4>
-                              {!app.isViewed && (
-                                <span className="px-2 py-0.5 text-xs bg-orange-500 text-white rounded-full animate-pulse">
-                                  New
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-sm text-gray-600 mb-2">
-                              <span className="font-medium">
-                                {new Intl.NumberFormat('en-GB', {
-                                  style: 'currency',
-                                  currency: 'GBP'
-                                }).format(app.loan_amount || 0)}
-                              </span>
-                              <span className="mx-2">•</span>
-                              <span>{app.loan_purpose || 'Business funding'}</span>
-                            </div>
-                            <div className="flex items-center gap-4 text-xs text-gray-500">
-                              <div className="flex items-center gap-1">
-                                <Calendar className="h-3 w-3" />
-                                Applied {new Date(app.created_at || Date.now()).toLocaleDateString()}
-                              </div>
-                              {app.credit_score && (
-                                <div className="flex items-center gap-1">
-                                  <BarChart3 className="h-3 w-3" />
-                                  Credit Score: {app.credit_score}
-                                </div>
-                              )}
-                            </div>
+                            <div className="h-5 bg-gray-200 rounded w-1/3 mb-2"></div>
+                            <div className="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
+                            <div className="h-3 bg-gray-200 rounded w-1/4"></div>
                           </div>
-                          <div className="flex items-center gap-3">
-                            <div className="text-right">
-                              <div className={`px-3 py-1 text-sm rounded-full font-medium ${
-                                app.isMatched 
-                                  ? 'bg-green-100 text-green-800' 
-                                  : 'bg-blue-100 text-blue-800'
-                              }`}>
-                                {app.isMatched ? 'Matched' : 'Available'}
-                              </div>
-                              {app.isMatched && (
-                                <div className="text-xs text-gray-500 mt-1">
-                                  Review to make offer
-                                </div>
-                              )}
-                            </div>
-                            <div className="text-gray-400 group-hover:text-orange-500 transition-colors">
-                              <ArrowUpRight className="h-5 w-5" />
-                            </div>
-                          </div>
+                          <div className="h-8 w-20 bg-gray-200 rounded"></div>
                         </div>
                       </div>
                     ))}
-                  </>
+                  </div>
+                ) : allNonDeclinedApplications && allNonDeclinedApplications.length > 0 ? (
+                  <div className="space-y-4">
+                    {allNonDeclinedApplications.map(app => (
+                      <ApplicationCard
+                        key={app.id}
+                        app={app}
+                        user={user}
+                        isApplicationDeclined={isApplicationDeclinedByLender}
+                        canSeeBusinessDetails={app => app.isMatched}
+                        handleExpressInterest={() => {}}
+                        navigate={navigate}
+                        handleStartConversation={() => {}}
+                        isLenderMatched={app => !!app.isMatched}
+                        getCreditScoreRisk={() => ''}
+                        hasLenderMadeOffer={hasLenderMadeOffer}
+                      />
+                    ))}
+                  </div>
                 ) : (
                   <div className="p-12 text-center">
                     <div className="mx-auto h-16 w-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
@@ -851,7 +930,7 @@ const LenderDashboard = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="text-sm font-medium text-orange-700">Pending Requests</div>
-                    <div className="text-2xl font-bold text-orange-900">{stats.pendingConnectionRequests}</div>
+                    <div className="text-2xl font-bold text-orange-900">{pendingConnections?.length || 0}</div>
                   </div>
                   <Clock className="h-8 w-8 text-orange-500" />
                 </div>
@@ -869,7 +948,7 @@ const LenderDashboard = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="text-sm font-medium text-blue-700">Total Requests</div>
-                    <div className="text-2xl font-bold text-blue-900">{connectionRequests?.length || 0}</div>
+                    <div className="text-2xl font-bold text-blue-900">{(connectionRequests?.length || 0) + (pendingConnections?.length || 0)}</div>
                   </div>
                   <Building2 className="h-8 w-8 text-blue-500" />
                 </div>
@@ -887,7 +966,7 @@ const LenderDashboard = () => {
             )}
 
             {/* Pending Connection Requests */}
-            {!connectionsLoading && connectionRequests?.filter(req => req.status === 'pending').length > 0 && (
+            {!connectionsLoading && !pendingConnectionsLoading && pendingConnections && pendingConnections.length > 0 && (
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                 <div className="px-6 py-5 bg-orange-500">
                   <div className="flex items-center gap-3">
@@ -901,85 +980,58 @@ const LenderDashboard = () => {
                   </div>
                 </div>
                 
-                <div className="divide-y divide-gray-200">
-                  {connectionRequests.filter(req => req.status === 'pending').map((connection) => (
-                    <div key={connection.id} className="p-6 hover:bg-gray-50 transition-colors">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-4 mb-4">
-                            <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-[#212936] to-[#2a3441] flex items-center justify-center">
-                              <Building2 className="h-6 w-6 text-white" />
-                            </div>
-                            <div>
-                              <h3 className="text-lg font-semibold text-gray-900">
-                                {connection.application_data?.business_name || 'Business Name'}
-                              </h3>
-                              <p className="text-sm text-gray-600">
-                                Application #{connection.application_data?.application_number || connection.application_id?.slice(-8).toUpperCase() || 'Unknown'}
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                Connected on {new Date(connection.connected_at).toLocaleDateString()}
-                              </p>
-                            </div>
-                          </div>
-                          
-                          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-                            <div className="bg-blue-50 p-3 rounded-lg">
-                              <div className="text-xs font-medium text-blue-700 mb-1">Product Type</div>
-                              <div className="text-sm font-bold text-blue-900">
-                                {connection.application_data?.product_type?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'N/A'}
-                              </div>
-                            </div>
-                            <div className="bg-green-50 p-3 rounded-lg">
-                              <div className="text-xs font-medium text-green-700 mb-1">Loan Amount</div>
-                              <div className="text-sm font-bold text-green-900">
-                                £{connection.application_data?.loan_amount?.toLocaleString() || 'N/A'}
-                              </div>
-                            </div>
-                            <div className="bg-purple-50 p-3 rounded-lg">
-                              <div className="text-xs font-medium text-purple-700 mb-1">Term</div>
-                              <div className="text-sm font-bold text-purple-900">
-                                {connection.application_data?.loan_term_months || 'N/A'} months
-                              </div>
-                            </div>
-                            <div className="bg-amber-50 p-3 rounded-lg">
-                              <div className="text-xs font-medium text-amber-700 mb-1">Industry</div>
-                              <div className="text-sm font-bold text-amber-900">
-                                {connection.application_data?.industry || 'N/A'}
-                              </div>
-                            </div>
-                          </div>
-                          
-                          {connection.application_data?.purpose && (
-                            <div className="mb-4">
-                              <div className="text-sm font-medium text-gray-700 mb-1">Purpose</div>
-                              <p className="text-gray-600 text-sm">{connection.application_data.purpose}</p>
-                            </div>
-                          )}
-                        </div>
-                        
-                        <div className="flex items-center gap-3 ml-6">
-                          <Button
-                            variant="outline"
-                            onClick={() => handleConnectionRequest(connection.id, 'decline')}
-                            className="border-red-300 text-red-700 hover:bg-red-50"
-                          >
-                            Decline
-                          </Button>
-                          <Button
-                            onClick={() => {
-                              // First accept the connection
-                              handleConnectionRequest(connection.id, 'accept');
-                              // Then navigate to business detail page after a short delay
-                              setTimeout(() => {
-                                navigate(`/business/${connection.application_id}`);
-                              }, 1000);
-                            }}
-                            className="bg-[#ff8000] hover:bg-[#e6720e] text-white"
-                          >
-                            Accept & Review
-                          </Button>
-                        </div>
+                <div className="p-6 space-y-4">
+                  {pendingConnections.map((connection) => (
+                    <div key={connection.id} className="relative">
+                      <ApplicationCard
+                        app={{
+                          ...connection.application_data,
+                          id: connection.application_id,
+                          company_name: connection.application_data?.business_name,
+                          loan_amount: connection.application_data?.loan_amount,
+                          loan_purpose: connection.application_data?.purpose,
+                          created_at: connection.connected_at,
+                          isMatched: false,
+                          status: 'pending_connection'
+                        }}
+                        user={user}
+                        isApplicationDeclined={() => false}
+                        canSeeBusinessDetails={() => false}
+                        handleExpressInterest={() => {}}
+                        navigate={navigate}
+                        handleStartConversation={() => {}}
+                        isLenderMatched={() => false}
+                        getCreditScoreRisk={() => ''}
+                        hasLenderMadeOffer={hasLenderMadeOffer}
+                      />
+                      {/* Action buttons overlay */}
+                      <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleConnectionRequest(connection.id, 'decline');
+                          }}
+                          className="border-red-300 text-red-700 hover:bg-red-50 bg-white shadow-sm"
+                        >
+                          Decline
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            // First accept the connection
+                            handleConnectionRequest(connection.id, 'accept');
+                            // Then navigate to business detail page after a short delay
+                            setTimeout(() => {
+                              navigate(`/business/${connection.application_id}`);
+                            }, 1000);
+                          }}
+                          className="bg-[#ff8000] hover:bg-[#e6720e] text-white shadow-sm"
+                        >
+                          Accept & Review
+                        </Button>
                       </div>
                     </div>
                   ))}
@@ -1012,55 +1064,43 @@ const LenderDashboard = () => {
                   </div>
                 </div>
                 
-                <div className="divide-y divide-gray-200">
+                <div className="p-6 space-y-4">
                   {connectedApplications.slice(0, 5).map((application) => (
-                    <div key={application.id} className="p-6 hover:bg-gray-50 transition-colors">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-4 mb-3">
-                            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center">
-                              <Building2 className="h-5 w-5 text-white" />
-                            </div>
-                            <div>
-                              <h3 className="font-semibold text-gray-900">
-                                {application.business_profile?.business_name || application.business_name || 'Business'}
-                              </h3>
-                              <p className="text-sm text-gray-600">
-                                Application #{application.application_number || application.id?.slice(-8).toUpperCase()}
-                              </p>
-                            </div>
-                          </div>
-                          
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                            <div className="text-sm">
-                              <span className="text-gray-500">Amount:</span>
-                              <span className="ml-1 font-medium">£{application.loan_amount?.toLocaleString() || 'N/A'}</span>
-                            </div>
-                            <div className="text-sm">
-                              <span className="text-gray-500">Term:</span>
-                              <span className="ml-1 font-medium">{application.loan_term_months || 'N/A'} months</span>
-                            </div>
-                            <div className="text-sm">
-                              <span className="text-gray-500">Purpose:</span>
-                              <span className="ml-1 font-medium">{application.purpose || 'N/A'}</span>
-                            </div>
-                            <div className="text-sm">
-                              <span className="text-gray-500">Connected:</span>
-                              <span className="ml-1 font-medium">{new Date(application.connected_at).toLocaleDateString()}</span>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center gap-2 ml-6">
-                          <Button
-                            variant="outline"
-                            onClick={() => navigate(`/business/${application.id}`)}
-                            className="text-gray-700 hover:bg-gray-50"
-                          >
-                            <Eye className="h-4 w-4 mr-2" />
-                            Review
-                          </Button>
-                        </div>
+                    <div key={application.id} className="relative">
+                      <ApplicationCard
+                        app={{
+                          ...application,
+                          company_name: application.business_profile?.business_name || application.business_name,
+                          loan_amount: application.loan_amount,
+                          loan_purpose: application.purpose,
+                          created_at: application.connected_at,
+                          isMatched: true,
+                          status: 'connected'
+                        }}
+                        user={user}
+                        isApplicationDeclined={() => false}
+                        canSeeBusinessDetails={() => true}
+                        handleExpressInterest={() => {}}
+                        navigate={navigate}
+                        handleStartConversation={() => {}}
+                        isLenderMatched={() => true}
+                        getCreditScoreRisk={() => ''}
+                        hasLenderMadeOffer={hasLenderMadeOffer}
+                      />
+                      {/* Review button overlay */}
+                      <div className="absolute top-4 right-4 z-10">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/business/${application.id}`);
+                          }}
+                          className="text-gray-700 hover:bg-gray-50 bg-white shadow-sm"
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          Review
+                        </Button>
                       </div>
                     </div>
                   ))}
@@ -1081,7 +1121,9 @@ const LenderDashboard = () => {
             )}
 
             {/* No connections state */}
-            {!connectionsLoading && !connectedAppsLoading && (!connectionRequests || connectionRequests.length === 0) && (!connectedApplications || connectedApplications.length === 0) && (
+            {!connectionsLoading && !connectedAppsLoading && !pendingConnectionsLoading && 
+             (!pendingConnections || pendingConnections.length === 0) && 
+             (!connectedApplications || connectedApplications.length === 0) && (
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                 <div className="p-12 text-center">
                   <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">

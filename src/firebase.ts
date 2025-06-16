@@ -127,6 +127,61 @@ const getGoogleRedirectResult = async () => {
   }
 };
 
+// Magic Link Authentication functions
+const sendMagicLink = async (email: string) => {
+  try {
+    const actionCodeSettings = {
+      // URL you want to redirect back to. The domain (www.example.com) for this
+      // URL must be in the authorized domains list in the Firebase Console.
+      url: `${window.location.origin}/auth/verify-email`,
+      // This must be true.
+      handleCodeInApp: true,
+      // iOS bundle ID and Android package name for mobile apps
+      iOS: {
+        bundleId: 'com.comparefunding.app'
+      },
+      android: {
+        packageName: 'com.comparefunding.app',
+        installApp: true,
+        minimumVersion: '12'
+      },
+      // Custom dynamic link domain (if you have one set up)
+      // dynamicLinkDomain: 'comparefunding.page.link'
+    };
+    
+    await sendSignInLinkToEmail(auth, email, actionCodeSettings);
+    // Save the email locally so you don't need to ask the user for it again
+    window.localStorage.setItem('emailForSignIn', email);
+    return { success: true, error: null };
+  } catch (error: any) {
+    return { success: false, error: { message: error.message } };
+  }
+};
+
+const signInWithMagicLink = async (email: string, emailLink: string) => {
+  try {
+    // Confirm the link is a sign-in with email link.
+    if (isSignInWithEmailLink(auth, emailLink)) {
+      const result = await signInWithEmailLink(auth, email, emailLink);
+      // Clear email from storage.
+      window.localStorage.removeItem('emailForSignIn');
+      return { data: result, error: null };
+    } else {
+      return { data: null, error: { message: 'Invalid sign-in link' } };
+    }
+  } catch (error: any) {
+    return { data: null, error: { message: error.message } };
+  }
+};
+
+const checkIfSignInWithEmailLink = () => {
+  return isSignInWithEmailLink(auth, window.location.href);
+};
+
+const getEmailFromStorage = () => {
+  return window.localStorage.getItem('emailForSignIn');
+};
+
 // Helper functions for Firestore database operations
 const getDocument = async (collectionName: string, documentId: string) => {
   try {
@@ -818,6 +873,10 @@ export {
   signInWithGoogle,
   signInWithGoogleRedirect,
   getGoogleRedirectResult,
+  sendMagicLink,
+  signInWithMagicLink,
+  checkIfSignInWithEmailLink,
+  getEmailFromStorage,
   getDocument,
   getDocuments,
   createDocument,

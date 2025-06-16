@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { User as FirebaseUser } from 'firebase/auth';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth, createUser, loginUser, logoutUser, updateUserProfile, signInWithGoogle } from '@/firebase';
+import { auth, createUser, loginUser, logoutUser, updateUserProfile, signInWithGoogle, sendMagicLink, signInWithMagicLink, checkIfSignInWithEmailLink, getEmailFromStorage } from '@/firebase';
 import { useNavigate } from 'react-router-dom';
 import { collection, doc, setDoc, getDoc } from 'firebase/firestore';
 import { firestore } from '@/firebase';
@@ -17,6 +17,10 @@ type AuthContextType = {
   signUp: (email: string, password: string, userData?: any, autoLogin?: boolean) => Promise<{ error: any | null; data: any | null; }>;
   signIn: (email: string, password: string) => Promise<{ error: any | null; data: any | null; }>;
   signInWithGoogle: () => Promise<{ error: any | null; data: any | null; }>;
+  sendMagicLink: (email: string) => Promise<{ success: boolean; error: any | null; }>;
+  signInWithMagicLink: (email: string, emailLink: string) => Promise<{ error: any | null; data: any | null; }>;
+  checkIfSignInWithEmailLink: () => boolean;
+  getEmailFromStorage: () => string | null;
   signOut: () => Promise<void>;
 };
 
@@ -222,6 +226,64 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const sendMagicLinkToEmail = async (email: string) => {
+    try {
+      const result = await sendMagicLink(email);
+      return result;
+    } catch (error: any) {
+      return { success: false, error: { message: error.message } };
+    }
+  };
+
+  const signInWithMagicLinkAuth = async (email: string, emailLink: string) => {
+    try {
+      const { data: userCredential, error } = await signInWithMagicLink(email, emailLink);
+      
+      if (error) {
+        return { data: null, error };
+      }
+
+      if (userCredential?.user) {
+        // Store user data in Firestore for magic link users
+        const userRef = doc(firestore, "users", userCredential.user.uid);
+        const userSnap = await getDoc(userRef);
+        
+        if (!userSnap.exists()) {
+          // New user - create user document with business role (default)
+          await setDoc(userRef, {
+            email: userCredential.user.email,
+            firstName: userCredential.user.displayName?.split(' ')[0] || '',
+            lastName: userCredential.user.displayName?.split(' ').slice(1).join(' ') || '',
+            role: 'business',
+            createdAt: new Date().toISOString(),
+            provider: 'magic-link',
+          });
+        }
+        
+        // Fetch user role for returning data
+        const updatedUserSnap = await getDoc(userRef);
+        const userData = updatedUserSnap.data();
+        
+        return { 
+          data: { ...userCredential, userRole: userData?.role || 'business' }, 
+          error: null 
+        };
+      }
+      
+      return { data: userCredential, error: null };
+    } catch (error: any) {
+      return { data: null, error: { message: error.message } };
+    }
+  };
+
+  const checkIfMagicLinkSignIn = () => {
+    return checkIfSignInWithEmailLink();
+  };
+
+  const getStoredEmail = () => {
+    return getEmailFromStorage();
+  };
+
   return (
     <AuthContext.Provider 
       value={{ 
@@ -230,7 +292,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signUp, 
         signIn, 
         signOut, 
-        signInWithGoogle: signInWithGoogleSSO 
+        signInWithGoogle: signInWithGoogleSSO,
+        sendMagicLink: sendMagicLinkToEmail,
+        signInWithMagicLink: signInWithMagicLinkAuth,
+        checkIfSignInWithEmailLink: checkIfMagicLinkSignIn,
+        getEmailFromStorage: getStoredEmail,
       }}
     >
       {children}

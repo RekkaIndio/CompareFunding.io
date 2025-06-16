@@ -63,41 +63,7 @@ const BusinessDetailPage = () => {
     }
   }, [applicationData, getDisplayName]);
 
-  // Debug logs for visibility checks and financial data
-  useEffect(() => {
-    if (applicationData) {
-      console.log('[DEBUG BusinessDetailPage] Application data:', applicationData);
-      console.log('[DEBUG BusinessDetailPage] Credit score data:', applicationData.creditScore);
-    }
-    
-    if (financialData) {
-      console.log('[DEBUG BusinessDetailPage] Financial data:', financialData);
-    }
-  }, [applicationData, financialData, canSeeBusinessDetails]);
-
-  // Debug output for application data
-  useEffect(() => {
-    if (applicationData) {
-
-      
-      // Log the business ID we're using
-      const businessId = applicationData.application?.business_id || 
-                       applicationData.business?.id || 
-                       applicationData.application?.user_id;
-                       
-
-      
-      // Log financial data state
-
-      
-      // Log lender match status explicitly
-      const matchStatus = isLenderMatched();
-
-    }
-  }, [applicationData, financialData, isLenderMatched]);
-
   if (error) {
-    console.error('BusinessDetail error:', error);
     return (
       <PageLayout>
         <div className="container py-8">
@@ -183,7 +149,10 @@ const BusinessDetailPage = () => {
                 />
               </div>
               <div>
-                <CreditScoreCard creditScore={applicationData.creditScore} />
+                <CreditScoreCard 
+                  creditScore={applicationData.creditScore} 
+                  hmrcStatus={applicationData.business?.hmrcStatus}
+                />
               </div>
             </div>
 
@@ -198,6 +167,9 @@ const BusinessDetailPage = () => {
               <FundingRequestCard 
                 application={applicationData.application}
                 isLenderMatched={canSeeBusinessDetails()}
+                applicationData={applicationData}
+                lenderName={lenderProfile?.lender_name || lenderProfile?.company_name || 'Lender'}
+                financialData={financialData}
               />
               <FinancialDocumentsCard 
                 financialData={financialData}

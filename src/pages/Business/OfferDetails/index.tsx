@@ -12,13 +12,14 @@ import PageLayout from '@/components/PageLayout';
 import { getDocument, getDocuments, updateDocument, createDocument, serverTimestamp } from '@/firebase';
 import { formatApplicationNumber } from '@/lib/applicationUtils';
 import { formatCurrency, formatRepaymentFrequency } from './components';
+import { useOfferActions } from '@/pages/Business/OffersList/useOfferActions';
+import { Offer } from '@/pages/Business/OffersList/types';
 import { 
   LoanDetailsCard,
   CostBreakdownCard,
   ActionCard,
   BusinessInfoCard,
   DocumentsCard,
-  MessagingCard,
   LenderProfileModal,
   ApplicationDetailsCard
 } from './components';
@@ -32,6 +33,9 @@ const OfferDetails = () => {
   const [activeTab, setActiveTab] = useState('details');
   const [isLenderProfileModalOpen, setIsLenderProfileModalOpen] = useState(false);
   const isLender = user?.role === 'lender';
+  
+  // Use the centralized offer actions hook for consistent notification logic
+  const { handleAcceptOffer, handleDeclineOffer } = useOfferActions(user);
   
   // Fetch offer details using Firebase
   const { data: offer, isLoading: isLoadingOffer } = useQuery({
@@ -140,141 +144,17 @@ const OfferDetails = () => {
     enabled: !!offer?.application_id && !!user?.uid && activeTab === 'messages',
   });
 
-  // Accept offer
-  const handleAcceptOffer = async () => {
-    try {
-      if (!id || !offer || !offer.application_id) {
-        toast.error('Missing required information');
-        return;
-      }
-      
-      // Update offer status with detailed information
-      const { error: offerError } = await updateDocument('offers', id, { 
-        status: 'accepted',
-        accepted_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        is_active: true,
-        acceptance_date: new Date().toISOString(),
-        acceptance_status: 'completed'
-      });
-      
-      if (offerError) throw offerError;
-      
-      // Update application status with necessary flags for lender visibility
-      const { error: applicationError } = await updateDocument(
-        'applications', 
-        offer.application_id,
-        { 
-          status: 'approved',
-          status_updated_at: new Date().toISOString(),
-          has_accepted_offer: true,
-          accepted_offer_id: id,
-          accepted_at: new Date().toISOString(),
-          lender_id: offer.lender_id,
-          is_visible_to_lender: true,
-          application_stage: 'accepted',
-          last_activity_date: new Date().toISOString(),
-          // Ensure the lender is in matched_lenders array for messaging
-          matched_lenders: [offer.lender_id] // This enables messaging between business and lender
-        }
-      );
-      
-      if (applicationError) throw applicationError;
-      
-      // Create detailed notification for the lender
-      await createDocument('notifications', {
-        recipient_id: offer.lender_id,
-        type: 'offer_accepted',
-        title: 'Offer Accepted',
-        message: `Your offer for ${formatCurrency(offer.offered_amount)} has been accepted by the business.`,
-        related_entity_id: id,
-        related_entity_type: 'offer',
-        application_id: offer.application_id,
-        business_id: offer.applications?.business_id,
-        business_name: offer.applications?.business_name,
-        offer_amount: offer.offered_amount,
-        status: 'accepted',
-        requires_action: true,
-        priority: 'high',
-        category: 'offer_acceptance',
-        read: false,
-        sent_at: new Date().toISOString(),
-        action_url: `/business/${offer.application_id}`
-      });
-      
-      // Create a welcome message to kickstart the conversation
-      try {
-        const { error: messageError } = await createDocument('messages', {
-          application_id: offer.application_id,
-          sender_id: user.uid,
-          recipient_id: offer.lender_id,
-          content: `Hello! I've accepted your financing offer. Looking forward to working with you on this application.`,
-          sent_at: serverTimestamp(),
-          read: false,
-        });
-        
-        if (messageError) {
-          console.error('Error creating welcome message:', messageError);
-        }
-      } catch (messageError) {
-        console.error('Error creating welcome message:', messageError);
-      }
-      
-      toast.success('Offer accepted successfully! The lender has been notified.');
-      
-      // Refresh the page after successful acceptance
-      setTimeout(() => {
-        window.location.reload();
-      }, 2000);
-      
-    } catch (err) {
-      console.error('Error accepting offer:', err);
-      toast.error('Failed to accept offer');
+  // Wrapper functions to match ActionCard prop signatures
+  const handleAcceptOfferWrapper = async () => {
+    if (offer) {
+      await handleAcceptOffer(offer);
     }
   };
 
-  // Decline offer
-  const handleDeclineOffer = async () => {
-    try {
-      if (!id || !offer) {
-        toast.error('Missing offer ID');
-        return;
-      }
-      
-      // Update offer status
-      const { error } = await updateDocument('offers', id, { 
-        status: 'declined',
-        decline_reason: declineReason || 'No reason provided',
-        updated_at: new Date().toISOString()
-      });
-      
-      if (error) throw error;
-      
-      // Create notification for the lender
-      await createDocument('notifications', {
-        recipient_id: offer.lender_id,
-        type: 'offer_declined',
-        title: 'Offer Declined',
-        message: `Your offer for ${formatCurrency(offer.offered_amount)} has been declined by the business.`,
-        related_entity_id: id,
-        related_entity_type: 'offer',
-        application_id: offer.application_id,
-        decline_reason: declineReason || 'No reason provided',
-        read: false,
-        sent_at: new Date().toISOString()
-      });
-      
+  const handleDeclineOfferWrapper = async () => {
+    if (offer) {
+      await handleDeclineOffer(offer, declineReason);
       setIsDeclineDialogOpen(false);
-      toast.success('Offer declined. The lender has been notified.');
-      
-      // Refresh the page after successful decline
-      setTimeout(() => {
-        window.location.reload();
-      }, 2000);
-      
-    } catch (err) {
-      console.error('Error declining offer:', err);
-      toast.error('Failed to decline offer');
     }
   };
 
@@ -458,7 +338,11 @@ const OfferDetails = () => {
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-10">
               {/* Main content - 3/5 width on desktop for more space */}
               <div className="lg:col-span-3 space-y-10">
-                <LoanDetailsCard offer={offer} />
+                <LoanDetailsCard 
+                  offer={offer} 
+                  conversation={conversation}
+                  onNavigateToMessages={() => navigate('/messages', { state: { conversation } })}
+                />
                 <CostBreakdownCard offer={offer} />
                 {isLender && offer.applications && (
                   <ApplicationDetailsCard offer={offer} />
@@ -475,13 +359,15 @@ const OfferDetails = () => {
                   isDeclined={isDeclined}
                   isWithdrawn={isWithdrawn}
                   isPending={isPending}
-                  onAccept={handleAcceptOffer}
-                  onDecline={handleDeclineOffer}
+                  onAccept={handleAcceptOfferWrapper}
+                  onDecline={handleDeclineOfferWrapper}
                   onWithdraw={handleWithdrawOffer}
                   declineReason={declineReason}
                   setDeclineReason={setDeclineReason}
                   isDeclineDialogOpen={isDeclineDialogOpen}
                   setIsDeclineDialogOpen={setIsDeclineDialogOpen}
+                  conversation={conversation}
+                  onNavigateToMessages={() => navigate('/messages', { state: { conversation } })}
                 />
                 
                 <BusinessInfoCard 
@@ -491,16 +377,6 @@ const OfferDetails = () => {
                 />
                 
                 <DocumentsCard />
-                
-                {/* Messaging Card - Contextual to this offer */}
-                {(isAccepted || (isLender && isPending) || isNegotiating) && conversation && (
-                  <MessagingCard 
-                    conversation={conversation}
-                    messages={messages || []}
-                    isLender={isLender}
-                    onSendMessage={handleSendMessage}
-                  />
-                )}
               </div>
             </div>
           </div>

@@ -1,20 +1,30 @@
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
-import { FileText } from 'lucide-react';
-import { Application } from '../types';
+import { FileText, Download } from 'lucide-react';
+import { Application, ApplicationData, FinancialData } from '../types';
 import { useNavigate } from 'react-router-dom';
+import { generateApplicationPdf, downloadPdf, generatePdfFilename } from '@/services/applicationPdfService';
+import { toast } from 'sonner';
+import { useState } from 'react';
 
 interface FundingRequestCardProps {
   application: Application | null | undefined;
   isLenderMatched: boolean;
+  applicationData?: ApplicationData | null;
+  lenderName?: string;
+  financialData?: FinancialData;
 }
 
 export const FundingRequestCard: React.FC<FundingRequestCardProps> = ({
   application,
   isLenderMatched,
+  applicationData,
+  lenderName,
+  financialData,
 }) => {
   const navigate = useNavigate();
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const getFinancialMetric = (value?: number) => {
     if (!value) return '£0';
@@ -24,6 +34,34 @@ export const FundingRequestCard: React.FC<FundingRequestCardProps> = ({
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(value);
+  };
+
+  // Handle PDF download
+  const handleDownloadApplication = async () => {
+    if (!application || !applicationData) {
+      toast.error('Application data not available');
+      return;
+    }
+
+    setIsDownloading(true);
+    
+    try {
+      const pdfBytes = await generateApplicationPdf(applicationData, {
+        isLenderMatched,
+        lenderName,
+        generatedDate: new Date(),
+      }, financialData);
+      
+      const filename = generatePdfFilename(application, applicationData?.business, isLenderMatched);
+      downloadPdf(pdfBytes, filename);
+      
+      toast.success(`Application ${isLenderMatched ? 'details' : 'preview'} downloaded successfully`);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast.error('Failed to generate PDF. Please try again.');
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   // Get action button based on match status
@@ -91,9 +129,23 @@ export const FundingRequestCard: React.FC<FundingRequestCardProps> = ({
       </CardContent>
       <CardFooter className="flex-col items-stretch gap-2 bg-slate-50 rounded-b-xl p-4 mt-auto">
         {getActionButton()}
-        <Button variant="outline" className="w-full border-slate-200 hover:bg-slate-100 shadow-sm">
-          <FileText className="mr-2 h-4 w-4" />
-          Download Application
+        <Button 
+          variant="outline" 
+          className="w-full border-slate-200 hover:bg-slate-100 shadow-sm"
+          onClick={handleDownloadApplication}
+          disabled={isDownloading || !applicationData}
+        >
+          {isDownloading ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
+              Generating PDF...
+            </>
+          ) : (
+            <>
+              <Download className="mr-2 h-4 w-4" />
+              Download Application {isLenderMatched ? '(Full Details)' : '(Preview)'}
+            </>
+          )}
         </Button>
       </CardFooter>
     </Card>

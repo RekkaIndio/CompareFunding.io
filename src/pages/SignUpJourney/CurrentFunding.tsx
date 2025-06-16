@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useNavbar } from '@/contexts/NavbarContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,6 +10,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import SignUpLayout from '@/components/SignUpLayout';
+import { getFirestore, doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { toast } from 'sonner';
 import { CreditCard, PlusCircle, MinusCircle, AlertCircle, PoundSterling, Calendar, Building } from 'lucide-react';
 
 interface FundingDetails {
@@ -23,6 +26,7 @@ const CurrentFunding = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { showNavbar, hideNavbar } = useNavbar();
+  const { user } = useAuth();
   const [userInfo, setUserInfo] = useState(location.state || {});
   
   // Current funding form data
@@ -96,15 +100,45 @@ const CurrentFunding = () => {
     });
   };
 
-  const handleNext = () => {
-    if (isFormValid()) {
-      navigate('/signup-journey/hmrc', { 
+  const handleNext = async () => {
+    if (!isFormValid()) {
+      toast.error('Please complete all required fields before continuing.');
+      return;
+    }
+
+    try {
+      // Save current funding data to user profile
+      if (user?.uid) {
+        const db = getFirestore();
+        const currentFundingData = {
+          hasCurrentFunding,
+          fundingDetails: hasCurrentFunding === 'yes' ? fundingDetails : [],
+          updatedAt: serverTimestamp()
+        };
+
+        // Save to users collection
+        await setDoc(doc(db, 'users', user.uid), {
+          ...userInfo,
+          currentFunding: currentFundingData
+        }, { merge: true });
+
+        // Also save to businesses collection for consistency
+        await setDoc(doc(db, 'businesses', user.uid), {
+          currentFunding: currentFundingData
+        }, { merge: true });
+      }
+
+      // Navigate to next step with updated data
+      navigate('/signup-journey/hmrc-status', { 
         state: { 
           ...userInfo, 
           hasCurrentFunding,
           fundingDetails: hasCurrentFunding === 'yes' ? fundingDetails : []
         } 
       });
+    } catch (error) {
+      console.error('Error saving current funding data:', error);
+      toast.error('There was an error saving your information. Please try again.');
     }
   };
 
@@ -130,7 +164,7 @@ const CurrentFunding = () => {
         navigate('/signup-journey/current-funding', { state: userInfo });
         break;
       case 4:
-        navigate('/signup-journey/hmrc', { state: { ...userInfo, ...currentFormData } });
+        navigate('/signup-journey/hmrc-status', { state: { ...userInfo, ...currentFormData } });
         break;
       case 5:
         navigate('/signup-journey/document-upload', { state: { ...userInfo, ...currentFormData } });
@@ -199,6 +233,29 @@ const CurrentFunding = () => {
         expiryDate: '',
         currentBalance: '',
       }]);
+    }
+  };
+
+  // Save user profile data
+  const saveUserProfile = async () => {
+    if (!user) return;
+
+    const db = getFirestore();
+    const userRef = doc(db, 'users', user.uid);
+
+    try {
+      await setDoc(userRef, {
+        currentFunding: {
+          hasCurrentFunding,
+          fundingDetails: hasCurrentFunding === 'yes' ? fundingDetails : [],
+        },
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+
+      toast.success('Profile updated successfully');
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      toast.error('Failed to update profile. Please try again.');
     }
   };
 

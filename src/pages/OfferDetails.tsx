@@ -5,6 +5,8 @@ import { getDocument, updateDocument, createDocument, serverTimestamp } from '@/
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { formatApplicationNumber } from '@/lib/applicationUtils';
+import { useOfferActions } from '@/pages/Business/OffersList/useOfferActions';
+import { Offer } from '@/pages/Business/OffersList/types';
 import PageLayout from '@/components/PageLayout';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -66,6 +68,9 @@ const OfferDetails = () => {
   const [declineReason, setDeclineReason] = useState('');
   const [isDeclineDialogOpen, setIsDeclineDialogOpen] = useState(false);
   const [isLenderProfileModalOpen, setIsLenderProfileModalOpen] = useState(false);
+  
+  // Use the centralized offer actions hook for consistent notification logic
+  const { handleAcceptOffer, handleDeclineOffer } = useOfferActions(user);
   const isLender = user?.role === 'lender';
   
   // Fetch offer details using Firebase
@@ -182,144 +187,17 @@ const OfferDetails = () => {
     enabled: !!offer?.lender_id && isLenderProfileModalOpen,
   });
 
-  // Accept offer
-  const handleAcceptOffer = async () => {
-    try {
-      if (!id || !offer || !offer.application_id) {
-        toast.error('Missing required information');
-        return;
-      }
-      
-      // Update offer status with detailed information
-      const { error: offerError } = await updateDocument('offers', id, { 
-        status: 'accepted',
-        accepted_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        is_active: true,
-        acceptance_date: new Date().toISOString(),
-        acceptance_status: 'completed'
-      });
-      
-      if (offerError) throw offerError;
-      
-      // Update application status with necessary flags for lender visibility
-      const { error: applicationError } = await updateDocument(
-        'applications', 
-        offer.application_id,
-        { 
-          status: 'approved',
-          status_updated_at: new Date().toISOString(),
-          has_accepted_offer: true,
-          accepted_offer_id: id,
-          accepted_at: new Date().toISOString(),
-          lender_id: offer.lender_id,
-          is_visible_to_lender: true,
-          application_stage: 'accepted',
-          last_activity_date: new Date().toISOString(),
-          // Ensure the lender is in matched_lenders array for messaging
-          matched_lenders: [offer.lender_id] // This enables messaging between business and lender
-        }
-      );
-      
-      if (applicationError) throw applicationError;
-      
-      // Create detailed notification for the lender
-      await createDocument('notifications', {
-        recipient_id: offer.lender_id,
-        type: 'offer_accepted',
-        title: 'Offer Accepted',
-        message: `Your offer for ${formatCurrency(offer.offered_amount)} has been accepted by the business.`,
-        related_entity_id: id,
-        related_entity_type: 'offer',
-        application_id: offer.application_id,
-        business_id: offer.applications?.business_id,
-        business_name: offer.applications?.business_name,
-        offer_amount: offer.offered_amount,
-        status: 'accepted',
-        requires_action: true,
-        priority: 'high',
-        category: 'offer_acceptance',
-        read: false,
-        sent_at: new Date().toISOString(),
-        action_url: `/business/${offer.application_id}`
-      });
-      
-      // No need to create a conversation document - our Messages.tsx system builds conversations virtually
-
-      // Create a welcome message to kickstart the conversation
-      try {
-        // Create the initial message using serverTimestamp for proper ordering
-        const { error: messageError } = await createDocument('messages', {
-          application_id: offer.application_id,
-          sender_id: user.uid, // Business sends the welcome message
-          recipient_id: offer.lender_id,
-          content: `Hello! I've accepted your financing offer. Looking forward to working with you on this application.`,
-          sent_at: serverTimestamp(), // Use serverTimestamp for consistent ordering
-          read: false,
-        });
-        
-        if (messageError) {
-          console.error('Error creating welcome message:', messageError);
-        }
-      } catch (messageError) {
-        console.error('Error creating welcome message:', messageError);
-      }
-      
-      toast.success('Offer accepted successfully! The lender has been notified.');
-      
-      // Refresh the page after successful acceptance
-      setTimeout(() => {
-        window.location.reload();
-      }, 2000);
-      
-    } catch (err) {
-      console.error('Error accepting offer:', err);
-      toast.error('Failed to accept offer');
+  // Wrapper functions to match button onClick signatures
+  const handleAcceptOfferWrapper = async () => {
+    if (offer) {
+      await handleAcceptOffer(offer);
     }
   };
 
-  // Decline offer
-  const handleDeclineOffer = async () => {
-    try {
-      if (!id || !offer) {
-        toast.error('Missing offer ID');
-        return;
-      }
-      
-      // Update offer status
-      const { error } = await updateDocument('offers', id, { 
-        status: 'declined',
-        decline_reason: declineReason || 'No reason provided',
-        updated_at: new Date().toISOString()
-      });
-      
-      if (error) throw error;
-      
-      // Create notification for the lender
-      await createDocument('notifications', {
-        recipient_id: offer.lender_id,
-        type: 'offer_declined',
-        title: 'Offer Declined',
-        message: `Your offer for ${formatCurrency(offer.offered_amount)} has been declined by the business.`,
-        related_entity_id: id,
-        related_entity_type: 'offer',
-        application_id: offer.application_id,
-        decline_reason: declineReason || 'No reason provided',
-        read: false,
-        sent_at: new Date().toISOString()
-      });
-      
+  const handleDeclineOfferWrapper = async () => {
+    if (offer) {
+      await handleDeclineOffer(offer, declineReason);
       setIsDeclineDialogOpen(false);
-      toast.success('Offer declined. The lender has been notified.');
-      
-      // Refresh the page after successful decline
-      setTimeout(() => {
-        window.location.reload();
-      }, 2000);
-      
-    } catch (err) {
-      console.error('Error declining offer:', err);
-      toast.error('Failed to decline offer');
     }
   };
 
@@ -946,7 +824,7 @@ const OfferDetails = () => {
                         <div className="flex flex-col gap-3">
                           <Button 
                             className="w-full bg-[#ff8000] hover:bg-[#ff8000]/90 text-white shadow-lg hover:scale-105 transition-transform"
-                            onClick={handleAcceptOffer}
+                            onClick={handleAcceptOfferWrapper}
                           >
                             <ThumbsUp className="mr-2 h-4 w-4" />
                             Accept Offer
@@ -982,7 +860,7 @@ const OfferDetails = () => {
                                 </Button>
                                 <Button
                                   variant="destructive"
-                                  onClick={handleDeclineOffer}
+                                  onClick={handleDeclineOfferWrapper}
                                 >
                                   Confirm Decline
                                 </Button>

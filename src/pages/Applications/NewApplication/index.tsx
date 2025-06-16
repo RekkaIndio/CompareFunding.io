@@ -46,6 +46,7 @@ const NewApplication = () => {
   const [hasAccountingConnection, setHasAccountingConnection] = useState(false);
   const [wasDataPrefilled, setWasDataPrefilled] = useState(false);
   const [draftApplicationId, setDraftApplicationId] = useState<string | null>(null);
+  const [applicationNumber, setApplicationNumber] = useState<string | null>(null);
   
   // Get draft ID from URL parameters
   const draftId = searchParams.get('draft');
@@ -113,6 +114,7 @@ const NewApplication = () => {
             } else if (draftData) {
               console.log('📄 Draft data loaded:', draftData);
               setDraftApplicationId(draftId);
+              setApplicationNumber(draftData.application_number);
               
               // Pre-fill form with draft data
               form.reset({
@@ -182,6 +184,7 @@ const NewApplication = () => {
               const draftId = await createDraftApplication(mappedData, profileData);
               if (draftId) {
                 setDraftApplicationId(draftId);
+                setApplicationNumber(generateApplicationNumber(businessProfile?.company_number));
                 console.log('Draft application created with ID:', draftId);
               } else {
                 console.log('Failed to create draft application');
@@ -403,6 +406,7 @@ const NewApplication = () => {
           } else if (draftData) {
             console.log('📄 Draft data loaded:', draftData);
             setDraftApplicationId(draftId);
+            setApplicationNumber(draftData.application_number);
             
             // Pre-fill form with draft data
             form.reset({
@@ -544,7 +548,7 @@ const NewApplication = () => {
                   {draftApplicationId && (
                     <div className="mt-2 space-y-1">
                       <div className="text-sm">
-                        <strong>Application ID:</strong> {draftApplicationId.slice(0, 8).toUpperCase()}
+                        <strong>Application Number:</strong> {applicationNumber || 'Generating...'}
                       </div>
                       <div className="text-sm">
                         <Button 
@@ -571,44 +575,14 @@ const NewApplication = () => {
                 
                 {/* Enhanced action buttons with premium styling */}
                 <div className="flex flex-col sm:flex-row justify-center gap-4 mt-12">
-                  <Button
+                    <Button
                     type="button"
                     variant="outline"
-                    className="px-8 py-3 border-2 border-slate-300 hover:border-[#212936] hover:bg-slate-50 text-[#212936] font-semibold transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5"
+                    className="px-8 py-3 border-2 border-slate-300 hover:border-[#212936] hover:bg-slate-50 text-white font-semibold transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5"
                     onClick={() => navigate('/applications')}
-                  >
-                    Cancel
-                  </Button>
-                  
-                  {/* Test button for creating draft - only in development */}
-                  {/* {process.env.NODE_ENV === 'development' && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="px-6 py-3 border-2 border-blue-300 hover:border-blue-500 hover:bg-blue-50 text-blue-600 font-semibold transition-all duration-200"
-                      onClick={async () => {
-                        try {
-                          const testData = {
-                            loan_amount: 50000,
-                            purpose_category: 'expansion',
-                            purpose: 'Business expansion test',
-                            loan_term_months: 24,
-                            loan_type: 'term_loan'
-                          };
-                          const draftId = await createDraftApplication(testData, businessProfile);
-                          if (draftId) {
-                            toast.success(`Test draft created: ${draftId}`);
-                            console.log('Test draft application created:', draftId);
-                          }
-                        } catch (err) {
-                          console.error('Error creating test draft:', err);
-                        }
-                      }}
                     >
-                      Create Test Draft
+                    Cancel
                     </Button>
-                  )} */}
-                  
                   <Button 
                     type="submit" 
                     className="px-8 py-3 bg-gradient-to-r from-[#ff8000] to-[#ffaa00] hover:from-[#ff9900] hover:to-[#ffbb00] text-white font-semibold shadow-lg transition-all duration-200 hover:shadow-xl hover:-translate-y-0.5"

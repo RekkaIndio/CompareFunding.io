@@ -3,7 +3,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { AlertTriangle, CheckCircle2, XCircle, Clock, AlertCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, XCircle, Clock, AlertCircle, MessageCircle } from 'lucide-react';
 import { formatCurrency } from '../utils';
 
 interface ActionCardProps {
@@ -21,6 +21,8 @@ interface ActionCardProps {
   setDeclineReason: (reason: string) => void;
   isDeclineDialogOpen: boolean;
   setIsDeclineDialogOpen: (open: boolean) => void;
+  conversation?: any;
+  onNavigateToMessages?: () => void;
 }
 
 export const ActionCard: React.FC<ActionCardProps> = ({
@@ -37,7 +39,9 @@ export const ActionCard: React.FC<ActionCardProps> = ({
   declineReason,
   setDeclineReason,
   isDeclineDialogOpen,
-  setIsDeclineDialogOpen
+  setIsDeclineDialogOpen,
+  conversation,
+  onNavigateToMessages
 }) => {
   const handleDeclineSubmit = () => {
     onDecline();
@@ -123,9 +127,18 @@ export const ActionCard: React.FC<ActionCardProps> = ({
               <p className="text-gray-600 mb-4">
                 You accepted this offer for <span className="font-semibold">{formatCurrency(offer.offered_amount)}</span>
               </p>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-gray-500 mb-4">
                 The lender has been notified and will be in touch with next steps.
               </p>
+              {conversation && onNavigateToMessages && (
+                <Button 
+                  onClick={onNavigateToMessages}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  <MessageCircle className="mr-2 h-4 w-4" />
+                  Message Lender
+                </Button>
+              )}
             </div>
           ) : isDeclined ? (
             <div className="text-center py-6">
@@ -190,6 +203,17 @@ export const ActionCard: React.FC<ActionCardProps> = ({
                 </Button>
               </div>
               
+              {conversation && onNavigateToMessages && (
+                <Button 
+                  variant="outline"
+                  onClick={onNavigateToMessages}
+                  className="w-full mt-3 border-blue-200 text-blue-600 hover:bg-blue-50"
+                >
+                  <MessageCircle className="mr-2 h-4 w-4" />
+                  Message Lender
+                </Button>
+              )}
+              
               <p className="text-xs text-gray-500 text-center mt-4">
                 By accepting this offer, you agree to the terms and conditions outlined above.
               </p>
@@ -200,31 +224,99 @@ export const ActionCard: React.FC<ActionCardProps> = ({
 
       {/* Decline Dialog */}
       <Dialog open={isDeclineDialogOpen} onOpenChange={setIsDeclineDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-md mx-auto bg-white rounded-2xl shadow-2xl border border-slate-200/20 max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Decline Offer</DialogTitle>
-            <DialogDescription>
-              Please provide a reason for declining this offer. This will help the lender understand your decision.
+            <DialogTitle className="flex items-center gap-3 text-[#212936] text-lg">
+              <div className="p-2 bg-gradient-to-br from-red-500 to-red-600 rounded-xl">
+                <XCircle className="h-4 w-4 text-white" />
+              </div>
+              Decline Offer
+            </DialogTitle>
+            <DialogDescription className="text-slate-600 text-sm mt-2">
+              Please provide a reason for declining this offer. This will help the lender understand your decision and improve their future offers.
             </DialogDescription>
           </DialogHeader>
+          
           <div className="space-y-4">
-            <Textarea
-              placeholder="Reason for declining (optional)"
-              value={declineReason}
-              onChange={(e) => setDeclineReason(e.target.value)}
-              className="min-h-[100px]"
-            />
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setIsDeclineDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button 
-                variant="destructive" 
-                onClick={handleDeclineSubmit}
-              >
-                Decline Offer
-              </Button>
+            {/* Offer Summary */}
+            <div className="bg-gradient-to-br from-slate-50 via-red-50 to-rose-50 rounded-xl p-4 border border-slate-200/50">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-white rounded-xl shadow-sm border border-slate-200">
+                  <AlertTriangle className="h-4 w-4 text-red-500" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-[#212936] text-sm">Declining Offer</h3>
+                  <p className="text-xs text-slate-600">Amount: {formatCurrency(offer.offered_amount)}</p>
+                </div>
+              </div>
             </div>
+
+            {/* What happens next */}
+            <div className="space-y-3">
+              <h4 className="font-bold text-[#212936] flex items-center gap-2 text-sm">
+                <div className="p-1 bg-gradient-to-br from-red-500 to-red-600 rounded-lg">
+                  <AlertCircle className="h-3 w-3 text-white" />
+                </div>
+                What happens when you decline?
+              </h4>
+              
+              <div className="space-y-2">
+                <div className="flex items-start gap-3 p-3 bg-white rounded-xl border border-slate-200 shadow-sm">
+                  <div className="flex-shrink-0 mt-1">
+                    <div className="p-1 bg-gradient-to-br from-[#212936] to-[#2a3441] rounded-full">
+                      <div className="h-1 w-1 bg-red-500 rounded-full"></div>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-[#212936] mb-1 text-sm">Lender is notified immediately</p>
+                    <p className="text-xs text-slate-600">The lender will receive your decline notification along with your feedback</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start gap-3 p-3 bg-white rounded-xl border border-slate-200 shadow-sm">
+                  <div className="flex-shrink-0 mt-1">
+                    <div className="p-1 bg-gradient-to-br from-amber-500 to-orange-500 rounded-full">
+                      <div className="h-1 w-1 bg-white rounded-full"></div>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-[#212936] mb-1 text-sm">Offer becomes unavailable</p>
+                    <p className="text-xs text-slate-600">This action cannot be undone - the offer will be permanently declined</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Reason Textarea */}
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-[#212936]">Reason for declining (optional)</label>
+              <Textarea
+                placeholder="e.g., Looking for a lower interest rate, different terms, or found alternative funding..."
+                value={declineReason}
+                onChange={(e) => setDeclineReason(e.target.value)}
+                className="min-h-[100px] bg-white border-slate-200 focus:border-red-300 focus:ring-red-200 rounded-xl"
+              />
+              <p className="text-xs text-slate-500">
+                Your feedback helps lenders improve their offers for future applications.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-4 border-t border-slate-200">
+            <Button 
+              variant="outline" 
+              onClick={() => setIsDeclineDialogOpen(false)}
+              className="bg-[#212936] border-[#212936] text-white hover:bg-[#2a3441] hover:border-[#2a3441] flex-1"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleDeclineSubmit}
+              className="bg-gradient-to-r from-[#ff8000] to-[#ffaa00] hover:from-[#ff9900] hover:to-[#ffbb00] text-white font-semibold shadow-lg transition-all duration-200 hover:shadow-xl hover:-translate-y-0.5 flex-1"
+            >
+              <XCircle className="mr-2 h-4 w-4" />
+              Decline Offer
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

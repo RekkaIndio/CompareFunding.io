@@ -57,143 +57,90 @@ export const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-bold text-[#212936]">
+      <DialogContent className="max-w-5xl max-h-[85vh] bg-white/95 backdrop-blur-sm border-slate-200/50 shadow-lg rounded-xl flex flex-col">
+        <DialogHeader className="bg-gradient-to-br from-[#212936] to-[#2c3c53] text-white rounded-t-xl p-4 -m-6 mb-4 flex-shrink-0">
+          <DialogTitle className="text-lg font-bold text-white">
             Lender Profile
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-gray-200 text-sm">
             Detailed information about {offer?.lender_name || 'this lender'}
           </DialogDescription>
         </DialogHeader>
         
-        {isLoadingLenderProfile ? (
-          <div className="flex justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#212936]"></div>
-          </div>
-        ) : lenderProfile ? (
-          <div className="space-y-6">
-            {/* Lender Header */}
-            <div className="flex items-start gap-4 p-4 bg-gradient-to-r from-slate-50 to-blue-50 rounded-lg border">
-              <div className="flex-shrink-0">
-                <Avatar className="w-16 h-16 border-2 border-white shadow-sm">
-                  <AvatarImage 
-                    src={lenderProfile.logo_url || lenderProfile.company_logo || offer?.company_logo} 
-                    alt={`${lenderProfile.lender_name || lenderProfile.company_name} logo`}
-                  />
-                  <AvatarFallback className="bg-[#212936] text-white">
-                    {(lenderProfile.lender_name || lenderProfile.company_name || 'L').charAt(0).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-              </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold text-[#212936]">
-                  {lenderProfile.lender_name || lenderProfile.company_name || 'Unnamed Lender'}
-                </h3>
-                {lenderProfile.business_type && (
-                  <p className="text-sm text-gray-600">{lenderProfile.business_type}</p>
-                )}
-                {lenderProfile.established_year && (
-                  <p className="text-sm text-gray-500">Established: {lenderProfile.established_year}</p>
-                )}
-              </div>
-              <Badge className="bg-green-100 text-green-800 border-green-200">
-                <BadgeCheck className="h-3 w-3 mr-1" />
-                Verified
-              </Badge>
+        
+        <div className="flex-1 overflow-y-auto pr-2 -mr-2 px-1 min-h-0">
+          {isLoadingLenderProfile ? (
+            <div className="flex justify-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#212936]"></div>
             </div>
+          ) : lenderProfile ? (
+            <div className="space-y-6 py-2">
+              {/* Lender Header */}
+              <div className="group bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-5 border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200">
+                <div className="flex items-start gap-5">
+                  <div className="flex-shrink-0">
+                    <Avatar className="w-16 h-16 border-4 border-white shadow-lg">
+                      <AvatarImage 
+                        src={lenderProfile.logo_url || lenderProfile.company_logo || offer?.company_logo} 
+                        alt={`${lenderProfile.lender_name || lenderProfile.company_name} logo`}
+                      />
+                      <AvatarFallback className="bg-[#212936] text-white text-lg font-bold">
+                        {(lenderProfile.lender_name || lenderProfile.company_name || 'L').charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-bold text-[#212936] mb-2">
+                      {lenderProfile.lender_name || lenderProfile.company_name || 'Unnamed Lender'}
+                    </h3>
+                    {lenderProfile.business_type && (
+                      <p className="text-sm text-slate-600 mb-1">{lenderProfile.business_type}</p>
+                    )}
+                    {lenderProfile.established_year && (
+                      <p className="text-xs text-slate-500">Established: {lenderProfile.established_year}</p>
+                    )}
+                  </div>
+                  <Badge className="bg-green-100 text-green-800 border-green-200 shadow-sm">
+                    <BadgeCheck className="h-3 w-3 mr-1" />
+                    Verified
+                  </Badge>
+                </div>
+              </div>
 
             {/* Company Information */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
               {lenderProfile.company_size && (
-                <div className="bg-white p-4 rounded-lg border">
-                  <h4 className="font-medium text-slate-900 mb-2">Company Size</h4>
+                <div className="group bg-gradient-to-br from-slate-50 to-slate-100 p-5 rounded-xl border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200">
+                  <h4 className="font-medium text-slate-900 mb-3 flex items-center gap-2">
+                    <div className="bg-gradient-to-br from-[#212936] to-[#2c3c53] rounded-full p-1.5 shadow-sm">
+                      <Building2 className="h-3 w-3 text-white" />
+                    </div>
+                    Company Size
+                  </h4>
                   <p className="text-sm text-slate-600">{lenderProfile.company_size}</p>
                 </div>
               )}
               
               {lenderProfile.industry_focus && (
-                <div className="bg-white p-4 rounded-lg border">
-                  <h4 className="font-medium text-slate-900 mb-2">Industry Focus</h4>
+                <div className="group bg-gradient-to-br from-slate-50 to-slate-100 p-5 rounded-xl border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200">
+                  <h4 className="font-medium text-slate-900 mb-3 flex items-center gap-2">
+                    <div className="bg-gradient-to-br from-[#212936] to-[#2c3c53] rounded-full p-1.5 shadow-sm">
+                      <Building2 className="h-3 w-3 text-white" />
+                    </div>
+                    Industry Focus
+                  </h4>
                   <p className="text-sm text-slate-600">{lenderProfile.industry_focus}</p>
                 </div>
               )}
 
-              {lenderProfile.lending_criteria && (
-                <div className="bg-white p-4 rounded-lg border md:col-span-2">
-                  <h4 className="font-medium text-slate-900 mb-2">Lending Criteria</h4>
-                  <div className="text-sm text-slate-600 space-y-2">
-                    {typeof lenderProfile.lending_criteria === 'string' ? (
-                      <p>{lenderProfile.lending_criteria}</p>
-                    ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {lenderProfile.lending_criteria.min_loan_amount && (
-                          <div>
-                            <span className="font-medium">Min Loan:</span> £{lenderProfile.lending_criteria.min_loan_amount.toLocaleString()}
-                          </div>
-                        )}
-                        {lenderProfile.lending_criteria.max_loan_amount && (
-                          <div>
-                            <span className="font-medium">Max Loan:</span> £{lenderProfile.lending_criteria.max_loan_amount.toLocaleString()}
-                          </div>
-                        )}
-                        {lenderProfile.lending_criteria.min_annual_revenue && (
-                          <div>
-                            <span className="font-medium">Min Annual Revenue:</span> £{lenderProfile.lending_criteria.min_annual_revenue.toLocaleString()}
-                          </div>
-                        )}
-                        {lenderProfile.lending_criteria.min_business_age_months && (
-                          <div>
-                            <span className="font-medium">Min Business Age:</span> {lenderProfile.lending_criteria.min_business_age_months} months
-                          </div>
-                        )}
-                        {lenderProfile.lending_criteria.funding_speed_days && (
-                          <div>
-                            <span className="font-medium">Funding Speed:</span> {lenderProfile.lending_criteria.funding_speed_days} days
-                          </div>
-                        )}
-                        {lenderProfile.lending_criteria.interest_rate_range && (
-                          <div>
-                            <span className="font-medium">Interest Rate:</span> {
-                              typeof lenderProfile.lending_criteria.interest_rate_range === 'string' 
-                                ? lenderProfile.lending_criteria.interest_rate_range
-                                : `${lenderProfile.lending_criteria.interest_rate_range.min}% - ${lenderProfile.lending_criteria.interest_rate_range.max}%`
-                            }
-                          </div>
-                        )}
-                        {lenderProfile.lending_criteria.preferred_industries && Array.isArray(lenderProfile.lending_criteria.preferred_industries) && (
-                          <div className="md:col-span-2">
-                            <span className="font-medium">Preferred Industries:</span>
-                            <div className="flex flex-wrap gap-1 mt-1">
-                              {lenderProfile.lending_criteria.preferred_industries.map((industry: string, index: number) => (
-                                <Badge key={index} variant="outline" className="text-xs">
-                                  {industry}
-                                </Badge>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        {lenderProfile.lending_criteria.funding_types && Array.isArray(lenderProfile.lending_criteria.funding_types) && (
-                          <div className="md:col-span-2">
-                            <span className="font-medium">Funding Types:</span>
-                            <div className="flex flex-wrap gap-1 mt-1">
-                              {lenderProfile.lending_criteria.funding_types.map((type: string, index: number) => (
-                                <Badge key={index} variant="outline" className="text-xs">
-                                  {type}
-                                </Badge>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
               {(lenderProfile.min_loan_amount || lenderProfile.max_loan_amount) && (
-                <div className="bg-white p-4 rounded-lg border">
-                  <h4 className="font-medium text-slate-900 mb-2">Loan Range</h4>
+                <div className="group bg-gradient-to-br from-slate-50 to-slate-100 p-5 rounded-xl border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200">
+                  <h4 className="font-medium text-slate-900 mb-3 flex items-center gap-2">
+                    <div className="bg-gradient-to-br from-[#212936] to-[#2c3c53] rounded-full p-1.5 shadow-sm">
+                      <BadgeCheck className="h-3 w-3 text-white" />
+                    </div>
+                    Loan Range
+                  </h4>
                   <p className="text-sm text-slate-600">
                     {lenderProfile.min_loan_amount && `£${lenderProfile.min_loan_amount.toLocaleString()}`}
                     {lenderProfile.min_loan_amount && lenderProfile.max_loan_amount && ' - '}
@@ -203,31 +150,84 @@ export const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
               )}
             </div>
 
+            {/* Lending Criteria */}
+            {lenderProfile.lending_criteria && (
+              <div className="group bg-gradient-to-br from-slate-50 to-slate-100 p-5 rounded-xl border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200">
+                <h4 className="font-medium text-slate-900 mb-4 flex items-center gap-2">
+                  <div className="bg-gradient-to-br from-[#212936] to-[#2c3c53] rounded-full p-1.5 shadow-sm">
+                    <BadgeCheck className="h-3 w-3 text-white" />
+                  </div>
+                  Lending Criteria
+                </h4>
+                <div className="text-sm text-slate-600">
+                  {typeof lenderProfile.lending_criteria === 'string' ? (
+                    <p>{lenderProfile.lending_criteria}</p>
+                  ) : (
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                      {lenderProfile.lending_criteria.min_loan_amount && (
+                        <div className="bg-white p-3 rounded border">
+                          <span className="font-medium text-slate-700">Min:</span> 
+                          <span className="ml-1">£{lenderProfile.lending_criteria.min_loan_amount.toLocaleString()}</span>
+                        </div>
+                      )}
+                      {lenderProfile.lending_criteria.max_loan_amount && (
+                        <div className="bg-white p-3 rounded border">
+                          <span className="font-medium text-slate-700">Max:</span> 
+                          <span className="ml-1">£{lenderProfile.lending_criteria.max_loan_amount.toLocaleString()}</span>
+                        </div>
+                      )}
+                      {lenderProfile.lending_criteria.interest_rate_range && (
+                        <div className="bg-white p-3 rounded border">
+                          <span className="font-medium text-slate-700">Rate:</span> 
+                          <span className="ml-1">{
+                            typeof lenderProfile.lending_criteria.interest_rate_range === 'string' 
+                              ? lenderProfile.lending_criteria.interest_rate_range
+                              : `${lenderProfile.lending_criteria.interest_rate_range.min}%-${lenderProfile.lending_criteria.interest_rate_range.max}%`
+                          }</span>
+                        </div>
+                      )}
+                      {lenderProfile.lending_criteria.funding_speed_days && (
+                        <div className="bg-white p-3 rounded border">
+                          <span className="font-medium text-slate-700">Speed:</span> 
+                          <span className="ml-1">{lenderProfile.lending_criteria.funding_speed_days}d</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Contact Information */}
             {(lenderProfile.contact_email || lenderProfile.phone || lenderProfile.website) && (
-              <div className="bg-slate-50 p-4 rounded-lg border">
-                <h4 className="font-medium text-slate-900 mb-3">Contact Information</h4>
-                <div className="space-y-2">
+              <div className="group bg-gradient-to-br from-slate-50 to-slate-100 p-5 rounded-xl border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200">
+                <h4 className="font-medium text-slate-900 mb-4 flex items-center gap-2">
+                  <div className="bg-gradient-to-br from-[#212936] to-[#2c3c53] rounded-full p-1.5 shadow-sm">
+                    <Mail className="h-3 w-3 text-white" />
+                  </div>
+                  Contact Information
+                </h4>
+                <div className="inline-flex flex-wrap gap-3">
                   {lenderProfile.contact_email && (
-                    <div className="flex items-center gap-2">
-                      <Mail className="h-4 w-4 text-slate-500" />
+                    <div className="flex items-center gap-3 bg-white p-3 rounded border">
+                      <Mail className="h-3 w-3 text-slate-500" />
                       <span className="text-sm text-slate-600">{lenderProfile.contact_email}</span>
                     </div>
                   )}
                   {lenderProfile.phone && (
-                    <div className="flex items-center gap-2">
-                      <Phone className="h-4 w-4 text-slate-500" />
+                    <div className="flex items-center gap-3 bg-white p-3 rounded border">
+                      <Phone className="h-3 w-3 text-slate-500" />
                       <span className="text-sm text-slate-600">{lenderProfile.phone}</span>
                     </div>
                   )}
                   {lenderProfile.website && (
-                    <div className="flex items-center gap-2">
-                      <Globe className="h-4 w-4 text-slate-500" />
+                    <div className="flex items-center gap-3 bg-white p-3 rounded border">
+                      <Globe className="h-3 w-3 text-slate-500" />
                       <a 
                         href={lenderProfile.website} 
                         target="_blank" 
                         rel="noopener noreferrer"
-                        className="text-sm text-blue-600 hover:underline"
+                        className="text-sm text-blue-600 hover:text-blue-800 hover:underline transition-colors"
                       >
                         {lenderProfile.website}
                       </a>
@@ -237,50 +237,68 @@ export const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
               </div>
             )}
 
-            {/* Company Description */}
-            {lenderProfile.company_description && (
-              <div className="bg-white p-4 rounded-lg border">
-                <h4 className="font-medium text-slate-900 mb-2">About</h4>
-                <p className="text-sm text-slate-600 leading-relaxed">
-                  {lenderProfile.company_description}
-                </p>
+            {/* Specializations */}
+            {lenderProfile.specializations && lenderProfile.specializations.length > 0 && (
+              <div className="group bg-gradient-to-br from-slate-50 to-slate-100 p-5 rounded-xl border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200">
+                <h4 className="font-medium text-slate-900 mb-4 flex items-center gap-2">
+                  <div className="bg-gradient-to-br from-[#212936] to-[#2c3c53] rounded-full p-1.5 shadow-sm">
+                    <BadgeCheck className="h-3 w-3 text-white" />
+                  </div>
+                  Specializations
+                </h4>
+                <div className="bg-white p-3 rounded border">
+                  <div className="flex flex-wrap gap-2">
+                    {lenderProfile.specializations.map((spec: string, index: number) => (
+                      <Badge key={index} variant="outline" className="text-xs bg-slate-50 hover:bg-slate-100 transition-colors">
+                        {spec}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
 
-            {/* Specializations */}
-            {lenderProfile.specializations && lenderProfile.specializations.length > 0 && (
-              <div className="bg-white p-4 rounded-lg border">
-                <h4 className="font-medium text-slate-900 mb-2">Specializations</h4>
-                <div className="flex flex-wrap gap-2">
-                  {lenderProfile.specializations.map((spec: string, index: number) => (
-                    <Badge key={index} variant="outline" className="text-xs">
-                      {spec}
-                    </Badge>
-                  ))}
+            {/* Company Description */}
+            {lenderProfile.company_description && (
+              <div className="group bg-gradient-to-br from-slate-50 to-slate-100 p-5 rounded-xl border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200">
+                <h4 className="font-medium text-slate-900 mb-4 flex items-center gap-2">
+                  <div className="bg-gradient-to-br from-[#212936] to-[#2c3c53] rounded-full p-1.5 shadow-sm">
+                    <Building2 className="h-3 w-3 text-white" />
+                  </div>
+                  About
+                </h4>
+                <div className="bg-white p-4 rounded border">
+                  <p className="text-sm text-slate-600 leading-relaxed">
+                    {lenderProfile.company_description}
+                  </p>
                 </div>
               </div>
             )}
           </div>
         ) : (
           <div className="text-center py-8">
-            <Building2 className="h-12 w-12 text-slate-400 mx-auto mb-3" />
-            <p className="text-slate-600">No detailed profile information available for this lender.</p>
-            <p className="text-sm text-slate-500 mt-1">
-              Basic information about {offer?.lender_name || 'this lender'} is available in the offer details.
-            </p>
+            <div className="group bg-gradient-to-br from-slate-50 to-slate-100 p-6 rounded-xl border border-slate-200 shadow-md">
+              <Building2 className="h-12 w-12 text-slate-400 mx-auto mb-3" />
+              <p className="text-slate-600 font-medium mb-1">No detailed profile information available for this lender.</p>
+              <p className="text-xs text-slate-500">
+                Basic information about {offer?.lender_name || 'this lender'} is available in the offer details.
+              </p>
+            </div>
           </div>
         )}
+        </div>
         
-        <DialogFooter>
+        <DialogFooter className="bg-slate-50 p-4 -m-6 mt-4 rounded-b-xl border-t border-slate-200 flex-shrink-0">
           <Button 
             variant="outline" 
             onClick={onClose}
+            className="hover:bg-slate-100 transition-colors text-white bg-slate-700 border-slate-700 hover:bg-slate-800"
           >
             Close
           </Button>
           {!isLender && lenderProfile && (
             <Button 
-              className="bg-[#212936] hover:bg-[#212936]/90"
+              className="bg-orange-500 hover:bg-orange-600 text-white shadow-lg hover:shadow-xl transition-all duration-200"
               onClick={() => {
                 onClose();
                 // Scroll to messaging section

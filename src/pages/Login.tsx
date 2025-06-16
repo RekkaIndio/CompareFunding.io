@@ -17,8 +17,11 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import PageLayout from '@/components/PageLayout';
+import SSOButtons from '@/components/SSOButtons';
+import MagicLinkAuth from '@/components/MagicLinkAuth';
 import { getDoc, doc, setDoc } from 'firebase/firestore';
 import { firestore } from '@/firebase';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email'),
@@ -67,7 +70,7 @@ const validateUserRole = async (userId: string): Promise<{role: string | null, v
 
 const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
-  const { signIn } = useAuth();
+  const { signIn, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
 
   const form = useForm<LoginFormValues>({
@@ -133,6 +136,28 @@ const Login = () => {
     }
   };
 
+  // Handle SSO success
+  const handleSSOSuccess = async (userData: any) => {
+    toast.success("Successfully logged in!");
+    
+    // Get the user's role and redirect accordingly
+    const { role, valid } = await validateUserRole(userData.userId);
+    
+    if (valid && role) {
+      // Force reload the page to ensure AuthContext picks up the role changes
+      window.location.href = role === 'lender' ? '/lender/dashboard' : '/business/dashboard';
+      return;
+    }
+    
+    // Default redirect if role is not specified or invalid
+    navigate('/applications');
+  };
+
+  // Handle SSO error
+  const handleSSOError = (error: string) => {
+    toast.error(error);
+  };
+
   return (
     <PageLayout>
       <div className="container flex items-center justify-center min-h-[calc(100vh-200px)] py-12">
@@ -144,53 +169,88 @@ const Login = () => {
             </p>
           </div>
 
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input placeholder="name@example.com" type="email" {...field} className="bg-white focus:outline-none focus:ring-0 focus:border-2 focus:border-[#ff8000]" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <div className="flex items-center justify-between">
-                      <FormLabel>Password</FormLabel>
-                      <Link 
-                        to="/forgot-password" 
-                        className="text-xs text-[#ff8000] hover:underline"
-                      >
-                        Forgot password?
-                      </Link>
-                    </div>
-                    <FormControl>
-                      <Input placeholder="Enter your password" type="password" {...field} className="bg-white focus:outline-none focus:ring-0 focus:border-2 focus:border-[#ff8000]" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <Button
-                type="submit"
-                className="w-full bg-[#ff8000] hover:bg-[#ff8000]/90 text-white font-semibold"
-                disabled={isLoading}
+          <Tabs defaultValue="password" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-6 bg-gray-100 rounded-lg p-1">
+              <TabsTrigger 
+                value="password" 
+                className="data-[state=active]:bg-[#ff8000] data-[state=active]:text-white text-[#2a3441] font-medium rounded-md transition-all duration-200"
               >
-                {isLoading ? 'Signing in...' : 'Sign in'}
-              </Button>
-            </form>
-          </Form>
+                Password
+              </TabsTrigger>
+              <TabsTrigger 
+                value="magic-link" 
+                className="data-[state=active]:bg-[#ff8000] data-[state=active]:text-white text-[#2a3441] font-medium rounded-md transition-all duration-200"
+              >
+                Magic Link
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="password" className="space-y-4 mt-0">
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  {/* SSO Buttons Section */}
+                  <SSOButtons
+                    onSuccess={handleSSOSuccess}
+                    onError={handleSSOError}
+                    isLoading={isLoading}
+                    setIsLoading={setIsLoading}
+                    signInWithGoogle={signInWithGoogle}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-[#2a3441] font-medium">Email</FormLabel>
+                        <FormControl>
+                          <Input placeholder="name@example.com" type="email" {...field} className="bg-white focus:outline-none focus:ring-0 focus:border-2 focus:border-[#ff8000]" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <div className="flex items-center justify-between">
+                          <FormLabel className="text-[#2a3441] font-medium">Password</FormLabel>
+                          <Link 
+                            to="/forgot-password" 
+                            className="text-xs text-[#ff8000] hover:underline"
+                          >
+                            Forgot password?
+                          </Link>
+                        </div>
+                        <FormControl>
+                          <Input placeholder="Enter your password" type="password" {...field} className="bg-white focus:outline-none focus:ring-0 focus:border-2 focus:border-[#ff8000]" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <Button
+                    type="submit"
+                    className="w-full bg-[#ff8000] hover:bg-[#ff8000]/90 text-white font-semibold"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? 'Signing in...' : 'Sign in'}
+                  </Button>
+                </form>
+              </Form>
+            </TabsContent>
+            
+            <TabsContent value="magic-link" className="space-y-4 mt-0">
+              <MagicLinkAuth 
+                isLoading={isLoading}
+                setIsLoading={setIsLoading}
+              />
+            </TabsContent>
+          </Tabs>
 
           <div className="text-center pt-4">
             <p className="text-sm text-[#2a3441]">
