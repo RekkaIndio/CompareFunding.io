@@ -20,7 +20,7 @@ const BusinessDashboard = () => {
   const { showNavbar } = useNavbar();
   const { startTour } = useTour();
   const [searchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState('active');
+  const [activeTab, setActiveTab] = useState('offers');
 
   const {
     businessProfile,
@@ -113,31 +113,50 @@ const BusinessDashboard = () => {
                 </div>
 
                 {/* Tab Content */}
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                  <div className="lg:col-span-3">
-                    
-                    <TabsContent value="offers" className="mt-0">
+                <TabsContent value="offers" className="mt-0">
+                  <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                    <div className="lg:col-span-3">
                       <ApplicationsWithOffers applications={applications} offers={offers} />
-                    </TabsContent>
+                    </div>
+                    <div className="lg:col-span-1 space-y-6">
+                      <NewApplicationCard />
+                      <DeclineFeedbackCard 
+                        notifications={notifications} 
+                        applications={applications} 
+                      />
+                    </div>
+                  </div>
+                </TabsContent>
 
-                    <TabsContent value="active" className="mt-0">
+                <TabsContent value="active" className="mt-0">
+                  <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                    <div className="lg:col-span-3">
                       <ActiveApplications applications={applications} />
-                    </TabsContent>
-                    
-                    <TabsContent value="drafts" className="mt-0">
+                    </div>
+                    <div className="lg:col-span-1 space-y-6">
+                      <NewApplicationCard />
+                      <DeclineFeedbackCard 
+                        notifications={notifications} 
+                        applications={applications} 
+                      />
+                    </div>
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="drafts" className="mt-0">
+                  <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                    <div className="lg:col-span-3">
                       <DraftApplications applications={applications} />
-                    </TabsContent>
+                    </div>
+                    <div className="lg:col-span-1 space-y-6">
+                      <NewApplicationCard />
+                      <DeclineFeedbackCard 
+                        notifications={notifications} 
+                        applications={applications} 
+                      />
+                    </div>
                   </div>
-                  
-                  {/* Sidebar with New Application Card and Decline Feedback */}
-                  <div className="lg:col-span-1 space-y-6">
-                    <NewApplicationCard />
-                    <DeclineFeedbackCard 
-                      notifications={notifications} 
-                      applications={applications} 
-                    />
-                  </div>
-                </div>
+                </TabsContent>
               </div>
             </Tabs>
           </div>

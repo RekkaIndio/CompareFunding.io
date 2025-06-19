@@ -106,6 +106,13 @@ export const RequestDocumentsDialog: React.FC<RequestDocumentsDialogProps> = ({
       
       const lenderName = lenderProfile?.company_name || lenderProfile?.lender_name || 'Lender';
 
+      console.log('Creating information request with data:', {
+        application_id: applicationData.application.id,
+        business_id: applicationData.application.user_id,
+        lender_id: user.uid,
+        lender_name: lenderName
+      });
+
       // Create the information request
       const requestData = {
         application_id: applicationData.application.id,
@@ -123,7 +130,11 @@ export const RequestDocumentsDialog: React.FC<RequestDocumentsDialogProps> = ({
         updated_at: new Date().toISOString(),
       };
 
+      console.log('Submitting information request:', requestData);
+
       const result = await createDocument('information_requests', requestData);
+      
+      console.log('Information request creation result:', result);
       
       if (result.error) {
         throw new Error(result.error.message);
@@ -132,6 +143,7 @@ export const RequestDocumentsDialog: React.FC<RequestDocumentsDialogProps> = ({
       // Create notification for the business
       const notificationData = {
         user_id: applicationData.application.user_id,
+        recipient_id: applicationData.application.user_id, // Also include recipient_id for consistency
         type: 'information_request',
         title: 'Information Request',
         message: `${lenderName} has requested additional information for your application`,
@@ -145,7 +157,11 @@ export const RequestDocumentsDialog: React.FC<RequestDocumentsDialogProps> = ({
         created_at: new Date().toISOString(),
       };
 
-      await createDocument('notifications', notificationData);
+      console.log('Creating notification:', notificationData);
+
+      const notificationResult = await createDocument('notifications', notificationData);
+      
+      console.log('Notification creation result:', notificationResult);
 
       toast.success('Information request sent successfully');
       setIsOpen(false);

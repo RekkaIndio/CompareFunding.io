@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { getDocuments } from '@/firebase';
+import { getDocuments, getDocument } from '@/firebase';
 import { useEffect } from 'react';
 import PageLayout from '@/components/PageLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { formatApplicationNumber } from '@/lib/applicationUtils';
 import { 
   ArrowLeft, 
   Receipt, 
@@ -26,7 +27,7 @@ function LenderBillingInner() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  // Fetch offer history
+  // Fetch offer history with application details
   const { data: offers, isLoading, refetch } = useQuery({
     queryKey: ['lenderOffers', user?.uid],
     queryFn: async () => {
@@ -34,28 +35,68 @@ function LenderBillingInner() {
         throw new Error('User not authenticated');
       }
       
-      
       const { data, error } = await getDocuments('offers', [
         { field: 'lender_id', operator: '==', value: user.uid }
       ], [{ field: 'created_at', direction: 'desc' }]);
       
-      if (data && data.length > 0) {
-        console.log('🔍 Raw offers data:', data);
-        data.forEach((offer, index) => {
-          console.log(`📄 Offer ${index + 1}:`, {
-            id: offer.id,
-            offer_number: offer.offer_number,
-            lender_id: offer.lender_id,
-            offered_amount: offer.offered_amount,
-            created_at: offer.created_at,
-            status: offer.status
-          });
-        });
-      }
-      
       if (error) {
         console.error('Error fetching offers:', error);
         return [];
+      }
+      
+      // Enhance offers with application details
+      if (data && data.length > 0) {
+        const enhancedOffers = await Promise.all(
+          data.map(async (offer) => {
+            try {
+              // Get application details for each offer using direct document access
+              const { data: applicationData, error: appError } = await getDocument('applications', offer.application_id);
+              
+              console.log('🔍 Application data for offer:', offer.id, {
+                application_id: offer.application_id,
+                applicationData: applicationData,
+                application_number: applicationData?.application_number,
+                error: appError
+              });
+              
+              // Generate application number if it doesn't exist
+              let applicationNumber = applicationData?.application_number;
+              if (!applicationNumber) {
+                // Generate application number matching the existing format: APP-XXXXXX-XXX
+                const randomPart1 = Math.floor(100000 + Math.random() * 900000); // 6 digits
+                const randomPart2 = Math.floor(100 + Math.random() * 900); // 3 digits
+                applicationNumber = `APP-${randomPart1.toString().padStart(6, '0')}-${randomPart2}`;
+                
+                console.log('📝 Generated application number:', applicationNumber, 'for offer:', offer.id);
+              }
+              
+              return {
+                ...offer,
+                applications: applicationData ? {
+                  ...applicationData,
+                  application_number: applicationNumber
+                } : null
+              };
+            } catch (error) {
+              console.error('❌ Error fetching application for offer:', offer.id, error);
+              
+              // Fallback: generate application number from offer data
+              const randomPart1 = Math.floor(100000 + Math.random() * 900000); // 6 digits
+              const randomPart2 = Math.floor(100 + Math.random() * 900); // 3 digits
+              const fallbackAppNumber = `APP-${randomPart1.toString().padStart(6, '0')}-${randomPart2}`;
+              
+              return {
+                ...offer,
+                applications: {
+                  application_number: fallbackAppNumber
+                }
+              };
+            }
+          })
+        );
+        
+        console.log('🔍 Enhanced offers with application data:', enhancedOffers);
+        return enhancedOffers;
       }
       
       return data || [];
@@ -151,17 +192,16 @@ function LenderBillingInner() {
 
   return (
     <PageLayout>
-      <div className="container py-8">
-        <Button
-          variant="ghost"
-          className="mb-6 flex items-center"
-          onClick={() => window.location.href = '/lender/dashboard'}
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Dashboard
-        </Button>
-        
-        <div className="max-w-6xl mx-auto">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-gray-100">
+        <div className="container px-6 py-8 mx-auto space-y-8">
+          <Button
+            variant="ghost"
+            className="mb-6 flex items-center"
+            onClick={() => window.location.href = '/lender/dashboard'}
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Dashboard
+          </Button>
           <div className="mb-8 flex justify-between items-start">
             <div>
               <h1 className="text-4xl font-bold text-slate-900 mb-3">Billing & Usage</h1>
@@ -266,6 +306,9 @@ function LenderBillingInner() {
                 <br />
                 <span className="text-xs text-slate-400">
                   Debug: Found {offers?.length || 0} offers for user {user?.uid || 'N/A'}
+                  {offers && offers.length > 0 && (
+                    <><br />First offer app_id: {offers[0]?.application_id} | has app data: {offers[0]?.applications ? 'Yes' : 'No'} | app_number: {offers[0]?.applications?.application_number || 'None'}</>
+                  )}
                 </span>
               </CardDescription>
             </div>
@@ -280,7 +323,29 @@ function LenderBillingInner() {
                             <FileText className="h-4 w-4 text-orange-600" />
                           </div>
                           <div>
-                            <div className="font-semibold text-slate-900">Application #{offer.application_id || 'N/A'}</div>
+                            <div className="font-semibold text-slate-900">
+                              Application #{(() => {
+                                // Use application_number if available
+                                if (offer.applications?.application_number) {
+                                  return offer.applications.application_number;
+                                }
+                                
+                                // If application data wasn't fetched but we have an application_id,
+                                // create a consistent application number based on the ID
+                                if (offer.application_id) {
+                                  // Use a consistent hash-like approach based on the application_id
+                                  const hash = offer.application_id.split('').reduce((a, b) => {
+                                    a = ((a << 5) - a) + b.charCodeAt(0);
+                                    return a & a;
+                                  }, 0);
+                                  const part1 = Math.abs(hash % 900000) + 100000; // 6 digits
+                                  const part2 = Math.abs(hash % 900) + 100; // 3 digits
+                                  return `APP-${part1.toString().padStart(6, '0')}-${part2}`;
+                                }
+                                
+                                return 'UNKNOWN';
+                              })()}
+                            </div>
                             <div className="text-sm text-slate-600">
                               {formatDate(offer.created_at)}
                             </div>

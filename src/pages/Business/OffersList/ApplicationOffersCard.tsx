@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { 
   PoundSterling, Calendar, TrendingUp, Target, Clock, BarChart3, 
-  Award, Shield, TrendingDown, MessageSquare, Star, Eye
+  Award, Shield, TrendingDown, Star, Eye, Search
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Offer, GroupedOffers } from './types';
@@ -25,15 +25,13 @@ interface ApplicationOffersCardProps {
   groupData: GroupedOffers[string];
   isHistorical?: boolean;
   id?: string;
-  onRespondToOffer: (offer: Offer) => void;
 }
 
 export const ApplicationOffersCard: React.FC<ApplicationOffersCardProps> = ({ 
   applicationId, 
   groupData, 
   isHistorical = false, 
-  id,
-  onRespondToOffer 
+  id
 }) => {
   const { application_details, offers } = groupData;
   const hasNoOffers = offers.length === 0 || (offers.length === 1 && offers[0].status === 'no-offers');
@@ -341,17 +339,6 @@ export const ApplicationOffersCard: React.FC<ApplicationOffersCardProps> = ({
                         </Link>
                     </Button>
                     
-                    {!isHistorical && ['pending', 'negotiating'].includes(offer.status) && (
-                      <Button 
-                        size="sm"
-                        className="bg-gradient-to-r from-[#ff8800] to-[#ffaa00] hover:from-[#ff9900] hover:to-[#ffbb00] text-white font-semibold shadow-md hover:shadow-lg transition-all duration-200"
-                        onClick={() => onRespondToOffer(offer)}
-                      >
-                        <MessageSquare className="h-4 w-4 mr-1.5" />
-                        Respond
-                      </Button>
-                    )}
-                    
                     {isHistorical && offer.status === 'completed' && (
                       <LenderReviewDialog
                         lenderId={offer.lender_id}
@@ -376,11 +363,25 @@ export const ApplicationOffersCard: React.FC<ApplicationOffersCardProps> = ({
             
             <Separator className="my-6 bg-gray-200" />
             
-            {/* Enhanced summary section */}
-            <div className="text-center">
+            {/* Enhanced summary section with marketplace button */}
+            <div className="flex flex-col items-center gap-4">
               <div className="text-sm text-gray-600">
                 Application #{formatApplicationNumber(application_details, applicationId)}
               </div>
+              
+              {/* Lender Marketplace Button */}
+              {!isHistorical && (
+                <Button 
+                  asChild
+                  size="sm"
+                  className="bg-gradient-to-r from-[#ff8000] to-[#ffaa00] hover:from-[#ff9900] hover:to-[#ffbb00] text-white font-semibold shadow-md hover:shadow-lg transition-all duration-200"
+                >
+                  <Link to={`/lender-marketplace/${applicationId}`}>
+                    <Search className="h-4 w-4 mr-2" />
+                    Find More Lenders
+                  </Link>
+                </Button>
+              )}
             </div>
           </>
         )}

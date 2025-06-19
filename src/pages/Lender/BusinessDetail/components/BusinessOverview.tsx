@@ -13,12 +13,10 @@ import {
   CheckCircle2,
   AlertTriangle,
   CreditCard,
-  ChevronDown,
-  ChevronUp
+  Users
 } from 'lucide-react';
 import { ApplicationData } from '../types';
 import { formatAddress } from '@/lib/formatters';
-import { useState } from 'react';
 
 interface BusinessOverviewProps {
   applicationData: ApplicationData;
@@ -31,7 +29,6 @@ export const BusinessOverview: React.FC<BusinessOverviewProps> = ({
   canSeeBusinessDetails,
   isLenderMatched
 }) => {
-  const [showCurrentFunding, setShowCurrentFunding] = useState(false);
   
   // Check if offer has been accepted
   const hasAcceptedOffer = applicationData?.application?.offers?.some(
@@ -88,6 +85,38 @@ export const BusinessOverview: React.FC<BusinessOverviewProps> = ({
   const companyNumber = getCompanyNumber();
   const yearsTrading = getYearsTrading();
   
+  // Get company city with fallback logic
+  const getCompanyCity = (): string => {
+    const business = applicationData?.business;
+    if (!business) return 'Not specified';
+    
+    // Try multiple address sources and field names for city
+    const addresses = [
+      business.address,
+      business.registered_address,
+      business.trading_address
+    ];
+    
+    for (const address of addresses) {
+      if (address) {
+        // Try different field names for city using type assertion for flexibility
+        const addressAny = address as any;
+        const city = address.city || 
+                    addressAny.town || 
+                    addressAny.locality || 
+                    addressAny.addressLocality ||
+                    addressAny.addressTown;
+        if (city && city.trim()) {
+          return city.trim();
+        }
+      }
+    }
+    
+    return 'Not specified';
+  };
+  
+  const companyCity = getCompanyCity();
+  
   // Get company address with fallback logic
   const companyAddress = formatAddress(
     applicationData?.business?.address || 
@@ -137,10 +166,7 @@ export const BusinessOverview: React.FC<BusinessOverviewProps> = ({
     if (hasCurrentFunding === 'yes' && fundingDetails.length > 0) {
       return (
         <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 hover:shadow-md transition-shadow">
-          <div 
-            className="flex items-center justify-between cursor-pointer"
-            onClick={() => setShowCurrentFunding(!showCurrentFunding)}
-          >
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <CreditCard className="h-4 w-4 text-[#ff8000]" />
               <span className="font-medium text-[#212936]">Current Funding</span>
@@ -148,44 +174,38 @@ export const BusinessOverview: React.FC<BusinessOverviewProps> = ({
                 {fundingDetails.length} Active {fundingDetails.length === 1 ? 'Facility' : 'Facilities'}
               </Badge>
             </div>
-            {showCurrentFunding ? 
-              <ChevronUp className="h-4 w-4 text-slate-600" /> : 
-              <ChevronDown className="h-4 w-4 text-slate-600" />
-            }
           </div>
           
-          {showCurrentFunding && (
-            <div className="mt-4 space-y-3">
-              {fundingDetails.map((funding: any, index: number) => (
-                <div key={index} className="bg-white p-3 rounded-md border border-slate-200 shadow-sm">
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div>
-                      <span className="font-medium text-slate-500">Provider:</span>
-                      <div className="text-slate-800">{funding.provider || 'Not specified'}</div>
-                    </div>
-                    <div>
-                      <span className="font-medium text-slate-500">Product:</span>
-                      <div className="text-slate-800">{funding.product || 'Not specified'}</div>
-                    </div>
-                    <div>
-                      <span className="font-medium text-slate-500">Terms:</span>
-                      <div className="text-slate-800">{funding.terms || 'Not specified'}</div>
-                    </div>
-                    <div>
-                      <span className="font-medium text-slate-500">Balance:</span>
-                      <div className="text-slate-800">{funding.currentBalance || 'Not specified'}</div>
-                    </div>
-                    {funding.expiryDate && (
-                      <div className="col-span-2">
-                        <span className="font-medium text-slate-500">Expiry:</span>
-                        <div className="text-slate-800">{new Date(funding.expiryDate).toLocaleDateString()}</div>
-                      </div>
-                    )}
+          <div className="mt-4 space-y-3">
+            {fundingDetails.map((funding: any, index: number) => (
+              <div key={index} className="bg-white p-3 rounded-md border border-slate-200 shadow-sm">
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <span className="font-medium text-slate-500">Provider:</span>
+                    <div className="text-slate-800">{funding.provider || 'Not specified'}</div>
                   </div>
+                  <div>
+                    <span className="font-medium text-slate-500">Product:</span>
+                    <div className="text-slate-800">{funding.product || 'Not specified'}</div>
+                  </div>
+                  <div>
+                    <span className="font-medium text-slate-500">Terms:</span>
+                    <div className="text-slate-800">{funding.terms || 'Not specified'}</div>
+                  </div>
+                  <div>
+                    <span className="font-medium text-slate-500">Balance:</span>
+                    <div className="text-slate-800">{funding.currentBalance || 'Not specified'}</div>
+                  </div>
+                  {funding.expiryDate && (
+                    <div className="col-span-2">
+                      <span className="font-medium text-slate-500">Expiry:</span>
+                      <div className="text-slate-800">{new Date(funding.expiryDate).toLocaleDateString()}</div>
+                    </div>
+                  )}
                 </div>
-              ))}
-            </div>
-          )}
+              </div>
+            ))}
+          </div>
         </div>
       );
     }
@@ -258,6 +278,10 @@ export const BusinessOverview: React.FC<BusinessOverviewProps> = ({
                     <span className="text-sm text-green-700 block">Years Trading</span>
                     <span className="font-medium text-slate-800">{yearsTrading}</span>
                   </div>
+                  <div>
+                    <span className="text-sm text-green-700 block">City</span>
+                    <span className="font-medium text-slate-800">{companyCity}</span>
+                  </div>
                   {applicationData.business?.annual_revenue && (
                     <div>
                       <span className="text-sm text-green-700 block">Annual Revenue</span>
@@ -266,6 +290,25 @@ export const BusinessOverview: React.FC<BusinessOverviewProps> = ({
                           ? `£${applicationData.business.annual_revenue.toLocaleString()}`
                           : applicationData.business.annual_revenue
                         }
+                      </span>
+                    </div>
+                  )}
+                  {(applicationData.business as any)?.company_size && (
+                    <div>
+                      <span className="text-sm text-green-700 block">Company Size</span>
+                      <span className="font-medium text-slate-800">{(applicationData.business as any).company_size}</span>
+                    </div>
+                  )}
+                  {((applicationData.business as any)?.forecast_revenue || (applicationData.business as any)?.forecastRevenue) && (
+                    <div>
+                      <span className="text-sm text-green-700 block">Forecast Revenue</span>
+                      <span className="font-medium text-slate-800">
+                        {(() => {
+                          const forecastValue = (applicationData.business as any)?.forecast_revenue || (applicationData.business as any)?.forecastRevenue;
+                          return typeof forecastValue === 'number' 
+                            ? `£${forecastValue.toLocaleString()}`
+                            : `£${parseInt(forecastValue).toLocaleString()}`;
+                        })()}
                       </span>
                     </div>
                   )}
@@ -314,7 +357,7 @@ export const BusinessOverview: React.FC<BusinessOverviewProps> = ({
                 <div className="text-sm text-slate-500 mb-2 flex items-center">
                   <Briefcase className="h-4 w-4 mr-1 text-[#ff8000]" /> Industry Sector
                 </div>
-                <div className="font-medium text-slate-800">
+                <div className="font-medium text-slate-800 capitalize">
                   {applicationData.business?.industry_sector || 'Not specified'}
                 </div>
               </div>
@@ -338,6 +381,52 @@ export const BusinessOverview: React.FC<BusinessOverviewProps> = ({
                 You need to create an offer to unlock the complete business profile including financial data and comprehensive business information.
               </AlertDescription>
             </Alert>
+
+            {/* Show Company Size and Forecast Revenue even for non-matched lenders */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
+              <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 hover:shadow-md transition-shadow">
+                <div className="text-sm text-slate-500 mb-2 flex items-center">
+                  <Building2 className="h-4 w-4 mr-1 text-[#ff8000]" /> City
+                </div>
+                <div className="font-medium text-slate-800">
+                  {companyCity}
+                </div>
+              </div>
+              <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 hover:shadow-md transition-shadow">
+                <div className="text-sm text-slate-500 mb-2 flex items-center">
+                  <Briefcase className="h-4 w-4 mr-1 text-[#ff8000]" /> Industry Sector
+                </div>
+                <div className="font-medium text-slate-800 capitalize">
+                  {applicationData.business?.industry_sector || 'Not specified'}
+                </div>
+              </div>
+              <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 hover:shadow-md transition-shadow">
+                <div className="text-sm text-slate-500 mb-2 flex items-center">
+                  <Users className="h-4 w-4 mr-1 text-[#ff8000]" /> Company Size
+                </div>
+                <div className="font-medium text-slate-800">
+                  {(applicationData.business as any)?.company_size || 'Not specified'}
+                </div>
+              </div>
+              <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 hover:shadow-md transition-shadow">
+                <div className="text-sm text-slate-500 mb-2 flex items-center">
+                  <BadgePoundSterling className="h-4 w-4 mr-1 text-[#ff8000]" /> Forecast Revenue
+                </div>
+                <div className="font-medium text-slate-800">
+                  {(() => {
+                    const annualRev = applicationData?.business?.annual_revenue;
+                    const forecastRev = (applicationData.business as any)?.forecast_revenue || (applicationData.business as any)?.forecastRevenue;
+                    const revenue = forecastRev || annualRev;
+                    
+                    if (!revenue) return 'Not specified';
+                    
+                    return typeof revenue === 'number' 
+                      ? `£${revenue.toLocaleString()}`
+                      : `£${parseInt(revenue).toLocaleString()}`;
+                  })()}
+                </div>
+              </div>
+            </div>
           </>
         )}
 

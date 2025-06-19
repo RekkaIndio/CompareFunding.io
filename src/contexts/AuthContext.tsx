@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { User as FirebaseUser } from 'firebase/auth';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth, createUser, loginUser, logoutUser, updateUserProfile, signInWithGoogle, sendMagicLink, signInWithMagicLink, checkIfSignInWithEmailLink, getEmailFromStorage } from '@/firebase';
+import { auth, createUser, loginUser, logoutUser, updateUserProfile, signInWithGoogle, sendMagicLink, signInWithMagicLink, checkIfSignInWithEmailLink, getEmailFromStorage, sendPasswordReset } from '@/firebase';
 import { useNavigate } from 'react-router-dom';
 import { collection, doc, setDoc, getDoc } from 'firebase/firestore';
 import { firestore } from '@/firebase';
@@ -21,6 +21,7 @@ type AuthContextType = {
   signInWithMagicLink: (email: string, emailLink: string) => Promise<{ error: any | null; data: any | null; }>;
   checkIfSignInWithEmailLink: () => boolean;
   getEmailFromStorage: () => string | null;
+  sendPasswordReset: (email: string) => Promise<{ success: boolean; error: any | null; }>;
   signOut: () => Promise<void>;
 };
 
@@ -284,6 +285,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return getEmailFromStorage();
   };
 
+  const sendPasswordResetEmail = async (email: string) => {
+    try {
+      const result = await sendPasswordReset(email);
+      return result;
+    } catch (error: any) {
+      return { success: false, error: { message: error.message } };
+    }
+  };
+
   return (
     <AuthContext.Provider 
       value={{ 
@@ -297,6 +307,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signInWithMagicLink: signInWithMagicLinkAuth,
         checkIfSignInWithEmailLink: checkIfMagicLinkSignIn,
         getEmailFromStorage: getStoredEmail,
+        sendPasswordReset: sendPasswordResetEmail,
       }}
     >
       {children}

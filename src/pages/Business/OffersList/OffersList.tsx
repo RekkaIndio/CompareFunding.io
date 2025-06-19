@@ -9,9 +9,7 @@ import { InboxIcon, Users, Target, ArrowRight, Clock, Archive } from 'lucide-rea
 import {
   IndividualOfferCard,
   ApplicationOffersCard,
-  OfferResponseModal,
   useOffersData,
-  useOfferActions,
   Offer,
   GroupedOffers
 } from './index';
@@ -25,9 +23,7 @@ const OffersList = () => {
   const [activeTab, setActiveTab] = useState('active');
   const isLender = user?.role === 'lender';
   
-  // Modal state for offer responses
-  const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null);
-  const [isResponseModalOpen, setIsResponseModalOpen] = useState(false);
+
   
   // Cleanup function to remove any existing declined offers
   const cleanupDeclinedOffers = async () => {
@@ -90,30 +86,7 @@ const OffersList = () => {
   // Fetch offers data
   const { data: offers, isLoading } = useOffersData();
   
-  // Get offer action handlers
-  const { handleAcceptOffer, handleDeclineOffer } = useOfferActions(user);
-  
-  // Open response modal
-  const handleRespondToOffer = (offer: Offer) => {
-    setSelectedOffer(offer);
-    setIsResponseModalOpen(true);
-  };
-  
-  // Handle accepting offer
-  const onAcceptOffer = async (offer: Offer) => {
-    await handleAcceptOffer(offer);
-    setIsResponseModalOpen(false);
-    setSelectedOffer(null);
-  };
-  
-  // Handle declining offer
-  const onDeclineOffer = async (reason: string) => {
-    if (selectedOffer) {
-      await handleDeclineOffer(selectedOffer, reason);
-      setIsResponseModalOpen(false);
-      setSelectedOffer(null);
-    }
-  };
+
   
   // Group offers by application_id for businesses, or keep individual for lenders
   const groupOffersByApplication = (offersList: Offer[]) => {
@@ -460,7 +433,6 @@ const OffersList = () => {
                           <IndividualOfferCard 
                             key={offer.id} 
                             offer={offer} 
-                            onRespondToOffer={handleRespondToOffer}
                           />
                         ))
                       ) : (
@@ -471,7 +443,6 @@ const OffersList = () => {
                             applicationId={applicationId} 
                             groupData={groupData} 
                             id={`application-${applicationId}`}
-                            onRespondToOffer={handleRespondToOffer}
                           />
                         ))
                       )}
@@ -505,7 +476,6 @@ const OffersList = () => {
                             key={offer.id} 
                             offer={offer} 
                             isHistorical={true} 
-                            onRespondToOffer={handleRespondToOffer}
                           />
                         ))
                       ) : (
@@ -517,7 +487,6 @@ const OffersList = () => {
                             groupData={groupData} 
                             isHistorical={true}
                             id={`application-${applicationId}`}
-                            onRespondToOffer={handleRespondToOffer}
                           />
                         ))
                       )}
@@ -529,15 +498,6 @@ const OffersList = () => {
           </div>
         </div>
       </div>
-
-      {/* Response Modal */}
-      <OfferResponseModal
-        isOpen={isResponseModalOpen}
-        onClose={() => setIsResponseModalOpen(false)}
-        offer={selectedOffer}
-        onAccept={onAcceptOffer}
-        onDecline={onDeclineOffer}
-      />
     </PageLayout>
   );
 }

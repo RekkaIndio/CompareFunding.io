@@ -3,13 +3,15 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { FileText, Lock, Shield, ThumbsUp, TrendingUp } from 'lucide-react';
+import { FileText, Lock, Shield, ThumbsUp, TrendingUp, RefreshCw } from 'lucide-react';
 import { FinancialData } from '../types';
 import FinancialsTable from '@/pages/Business/Documents/FinancialsTable';
 
 interface FinancialDataTabsProps {
   financialData: FinancialData | undefined;
   isLenderMatched?: boolean;
+  onRefresh?: () => void;
+  isLoading?: boolean;
 }
 
 // Helper function to check if a financial data section exists
@@ -64,7 +66,9 @@ const formatDate = (dateInput: any): string => {
 
 export const FinancialDataTabs: React.FC<FinancialDataTabsProps> = ({
   financialData,
-  isLenderMatched
+  isLenderMatched,
+  onRefresh,
+  isLoading
 }) => {
   // Check if we should show full financial data (matched or offer accepted)
   const showFullFinancialData = isLenderMatched;
@@ -76,6 +80,18 @@ export const FinancialDataTabs: React.FC<FinancialDataTabsProps> = ({
             <h2 className="text-xl font-semibold text-white">Financial Data</h2>
             <p className="text-sm text-slate-300">Review business financial documents</p>
           </div>
+          {onRefresh && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onRefresh}
+              disabled={isLoading}
+              className="bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white disabled:opacity-50"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+              {isLoading ? 'Refreshing...' : 'Refresh Data'}
+            </Button>
+          )}
         </div>
       </CardHeader>
       <CardContent className="p-0">

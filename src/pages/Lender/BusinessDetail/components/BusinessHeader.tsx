@@ -1,11 +1,13 @@
 import { Button } from '@/components/ui/button';
-import { ThumbsUp, FileText, ThumbsDown, MessageSquare } from 'lucide-react';
+import { ThumbsUp, FileText, ThumbsDown, MessageSquare, Loader2 } from 'lucide-react';
 import { ApplicationData } from '../types';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useState } from 'react';
 import DeclineApplicationDialog from './DeclineApplicationDialog';
 import { RequestDocumentsDialog } from '@/components/RequestDocumentsDialog';
+import { createDocument, updateDocument } from '@/firebase';
+import { toast } from 'sonner';
 
 interface BusinessHeaderProps {
   displayName: string;
@@ -24,6 +26,91 @@ export const BusinessHeader: React.FC<BusinessHeaderProps> = ({
   const { user } = useAuth();
   const [isDeclineDialogOpen, setIsDeclineDialogOpen] = useState(false);
   const [isRequestDialogOpen, setIsRequestDialogOpen] = useState(false);
+  const [isAcceptingApplication, setIsAcceptingApplication] = useState(false);
+  const [hasAcceptedApplication, setHasAcceptedApplication] = useState(false);
+  
+  // Auto-accept application and create standard offer
+  const handleAutoAcceptApplication = async (applicationId: string) => {
+    setIsAcceptingApplication(true);
+    
+    try {
+      if (!user?.uid || !applicationData?.application) {
+        toast.error('Missing required information');
+        return;
+      }
+
+      const application = applicationData.application;
+      
+      // Create a standard offer based on the application details
+      const standardOffer = {
+        application_id: applicationId,
+        lender_id: user.uid,
+        lender_name: user.displayName || 'Unknown Lender', 
+        offered_amount: application.loan_amount || 0,
+        interest_rate: 8.5, // Standard rate - could be calculated based on business criteria
+        term_months: application.loan_term_months || 12,
+        monthly_payment: 0, // Will be calculated
+        arrangement_fee: Math.round((application.loan_amount || 0) * 0.02), // 2% arrangement fee
+        status: 'pending',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
+        offer_details: {
+          product_type: (application as any).product_type || (application as any).selectedProduct || 'business_loan',
+          security_required: 'No',
+          early_repayment_charges: 'No',
+          additional_fees: 'None'
+        }
+      };
+
+      // Calculate monthly payment
+      const principal = standardOffer.offered_amount;
+      const monthlyRate = (standardOffer.interest_rate / 100) / 12;
+      const numPayments = standardOffer.term_months;
+      
+      if (monthlyRate > 0) {
+        standardOffer.monthly_payment = Math.round(
+          (principal * monthlyRate * Math.pow(1 + monthlyRate, numPayments)) / 
+          (Math.pow(1 + monthlyRate, numPayments) - 1)
+        );
+      } else {
+        standardOffer.monthly_payment = Math.round(principal / numPayments);
+      }
+
+      // Create the offer
+      const { data: offerData, error: offerError } = await createDocument('offers', standardOffer);
+      if (offerError) throw offerError;
+
+      // Update application status to indicate it has an offer
+      await updateDocument('applications', applicationId, {
+        status: 'offered',
+        has_offers: true,
+        updated_at: new Date().toISOString()
+      });
+
+      // Create notification for the business
+      await createDocument('notifications', {
+        recipient_id: application.user_id,
+        type: 'offer_received',
+        title: 'New Funding Offer',
+        message: `You have received a new funding offer for £${standardOffer.offered_amount.toLocaleString()}`,
+        related_entity_id: offerData?.id,
+        related_entity_type: 'offer',
+        application_id: applicationId,
+        read: false,
+        sent_at: new Date().toISOString()
+      });
+
+      setHasAcceptedApplication(true);
+      toast.success('Interest sent! Standard offer created for the business.');
+
+    } catch (error) {
+      console.error('Error auto-accepting application:', error);
+      toast.error('Failed to send interest. Please try again.');
+    } finally {
+      setIsAcceptingApplication(false);
+    }
+  };
   
   // Get action buttons based on match status and offer acceptance
   const getActionButtons = () => {
@@ -75,15 +162,24 @@ export const BusinessHeader: React.FC<BusinessHeaderProps> = ({
       );
     }
     
+    // Check if this lender has made an offer (from database)
+    const hasLenderMadeOfferInDB = applicationData.application.offers?.some(
+      o => o.lender_id === user?.uid
+    );
+    
+    // Check if this lender has sent interest (has an offer in the database)
+    const hasLenderSentInterest = hasLenderMadeOfferInDB || hasAcceptedApplication;
+    
     // If lender has made an offer or has accepted offer, show matched status buttons
-    if (hasLenderMadeOffer || hasAcceptedOffer || isApplicationApproved) {
+    if (hasLenderMadeOffer || hasLenderSentInterest || hasAcceptedOffer || isApplicationApproved) {
       buttons.push(
         <Button 
           key="matched"
           className="bg-green-600 hover:bg-green-700 text-white shadow-lg rounded-lg transition-transform px-4 py-2"
+          disabled
         >
           <ThumbsUp className="mr-2 h-4 w-4" />
-          {hasAcceptedOffer || isApplicationApproved ? 'Offer Accepted' : 'Offer Submitted'}
+          {hasAcceptedOffer || isApplicationApproved ? 'Offer Accepted' : 'Interest Sent'}
         </Button>
       );
       
@@ -100,16 +196,26 @@ export const BusinessHeader: React.FC<BusinessHeaderProps> = ({
       );
       
       // Don't add decline button for matched applications since they are already matched
-    } else if (isLenderMatched) {
-      // Lender is connected but hasn't made an offer yet - show Create Offer and Request buttons
+    } else if (isLenderMatched && !hasLenderSentInterest) {
+      // Lender is connected but hasn't made an offer yet - show Accept and Request buttons
       buttons.push(
         <Button 
-          key="create-offer"
+          key="accept-application"
           className="bg-[#ff8000] hover:bg-[#ff8000]/90 text-white shadow-lg rounded-lg hover:scale-105 transition-transform px-4 py-2"
-          onClick={() => navigate(`/create-offer/${applicationId}`)}
+          onClick={() => handleAutoAcceptApplication(applicationId)}
+          disabled={isAcceptingApplication}
         >
-          <FileText className="mr-2 h-4 w-4" />
-          Create Offer
+          {isAcceptingApplication ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Sending Interest...
+            </>
+          ) : (
+            <>
+              <ThumbsUp className="mr-2 h-4 w-4" />
+              Accept Application
+            </>
+          )}
         </Button>
       );
       
@@ -138,43 +244,55 @@ export const BusinessHeader: React.FC<BusinessHeaderProps> = ({
         </Button>
       );
     } else {
-      // Not connected at all - this shouldn't happen in normal flow since we check connections
-      // but keep as fallback - treat same as connected for now
-      buttons.push(
-        <Button 
-          key="create-offer"
-          className="bg-[#ff8000] hover:bg-[#ff8000]/90 text-white shadow-lg rounded-lg hover:scale-105 transition-transform px-4 py-2"
-          onClick={() => navigate(`/create-offer/${applicationId}`)}
-        >
-          <FileText className="mr-2 h-4 w-4" />
-          Create Offer
-        </Button>
-      );
-      
-      // Add Request button to fallback section as well
-      buttons.push(
-        <Button 
-          key="request-info"
-          className="bg-[#212936] hover:bg-[#2c3c53] text-white shadow-lg rounded-lg hover:scale-105 transition-transform px-4 py-2"
-          onClick={() => setIsRequestDialogOpen(true)}
-        >
-          <MessageSquare className="mr-2 h-4 w-4" />
-          Request
-        </Button>
-      );
-      
-      // Add decline button for non-matched applications as well
-      buttons.push(
-        <Button 
-          key="decline"
-          variant="destructive"
-          className="shadow-lg rounded-lg hover:scale-105 transition-transform px-4 py-2"
-          onClick={() => setIsDeclineDialogOpen(true)}
-        >
-          <ThumbsDown className="mr-2 h-4 w-4" />
-          Decline
-        </Button>
-      );
+      // Not connected at all OR already sent interest - this shouldn't happen in normal flow since we check connections
+      // but keep as fallback - only show accept if no interest has been sent
+      if (!hasLenderSentInterest) {
+        buttons.push(
+          <Button 
+            key="accept-application"
+            className="bg-[#ff8000] hover:bg-[#ff8000]/90 text-white shadow-lg rounded-lg hover:scale-105 transition-transform px-4 py-2"
+            onClick={() => handleAutoAcceptApplication(applicationId)}
+            disabled={isAcceptingApplication}
+          >
+            {isAcceptingApplication ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Sending Interest...
+              </>
+            ) : (
+              <>
+                <ThumbsUp className="mr-2 h-4 w-4" />
+                Accept Application
+              </>
+            )}
+          </Button>
+        );
+        
+        // Add Request button to fallback section as well
+        buttons.push(
+          <Button 
+            key="request-info"
+            className="bg-[#212936] hover:bg-[#2c3c53] text-white shadow-lg rounded-lg hover:scale-105 transition-transform px-4 py-2"
+            onClick={() => setIsRequestDialogOpen(true)}
+          >
+            <MessageSquare className="mr-2 h-4 w-4" />
+            Request
+          </Button>
+        );
+        
+        // Add decline button for non-matched applications as well
+        buttons.push(
+          <Button 
+            key="decline"
+            variant="destructive"
+            className="shadow-lg rounded-lg hover:scale-105 transition-transform px-4 py-2"
+            onClick={() => setIsDeclineDialogOpen(true)}
+          >
+            <ThumbsDown className="mr-2 h-4 w-4" />
+            Decline
+          </Button>
+        );
+      }
     }
     
     return (
@@ -184,13 +302,11 @@ export const BusinessHeader: React.FC<BusinessHeaderProps> = ({
     );
   };
 
-  // Check if there's an accepted offer or the application is approved
-  const hasAcceptedOffer = applicationData?.application?.offers?.some(
-    o => o.lender_id === user?.uid && o.status === 'accepted'
-  );
-  const isApplicationApproved = (applicationData?.application as any)?.status === 'approved';
   // Only show full business details if an offer has been made, accepted, or application approved
-  const showFullBusinessDetails = hasLenderMadeOffer || hasAcceptedOffer || isApplicationApproved;
+  const showFullBusinessDetails = hasLenderMadeOffer || 
+    applicationData?.application?.offers?.some(o => o.lender_id === user?.uid && o.status === 'accepted') || 
+    (applicationData?.application as any)?.status === 'approved' || 
+    applicationData?.application?.offers?.some(o => o.lender_id === user?.uid);
   
   return (
     <>

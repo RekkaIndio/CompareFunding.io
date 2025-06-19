@@ -14,6 +14,7 @@ import { getAuth } from 'firebase/auth';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { toast } from '@/hooks/use-toast';
 import { analyzeFinancialDocument } from '@/services/openai/profitAndLoss';
+import { mailgunService } from '@/services/mailgunService';
 import { 
   Upload, 
   FileText, 
@@ -408,8 +409,14 @@ const DocumentUpload = () => {
     }
 
     try {
-      // TODO: Implement actual email sending logic here
-      // This would typically call a backend API to send the invitation email
+      // Send document upload invitation email using the mailgun service
+      await mailgunService.sendDocumentInvitationEmail({
+        to: colleagueEmail,
+        businessName: userInfo.businessName || 'their business',
+        inviterName: userInfo.firstName || 'A colleague',
+        uploadUrl: `${window.location.origin}/document-upload`, // You may want to create a specific upload URL
+        message: colleagueMessage
+      });
       
       setInviteSent(true);
       
@@ -419,11 +426,10 @@ const DocumentUpload = () => {
         variant: "default"
       });
       
-      console.log('Sending invite to:', colleagueEmail);
-      console.log('Message:', colleagueMessage);
+      console.log('Document upload invitation sent to:', colleagueEmail);
       
     } catch (error) {
-      console.error('Error sending invite:', error);
+      console.error('Error sending document upload invitation:', error);
       toast({
         title: "Failed to send invitation",
         description: "There was an error sending the invitation. Please try again.",

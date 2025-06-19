@@ -47,33 +47,94 @@ export const useBusinessData = (id: string | undefined, user: any) => {
           );
           
           if (businessError) {
-            console.error('[DEBUG Business ID] Error fetching business profile:', businessError);
-            // If business profile doesn't exist, create a basic business object
-            console.warn('[DEBUG Business ID] Business profile not found, using basic application data');
+            console.error('[DEBUG Business ID] Error fetching business profile:', businessError);          // If business profile doesn't exist, create a basic business object
+          console.warn('[DEBUG Business ID] Business profile not found, using basic application data');
+          
+          // Try to get additional data from user profile
+          let userProfile = null;
+          try {
+            const { data: userData } = await getDocument('users', businessId);
+            userProfile = userData;
+            console.log('[DEBUG User Profile] User profile data:', userProfile);
+          } catch (userError) {
+            console.warn('[DEBUG User Profile] Could not fetch user profile:', userError);
+          }
+          
+          return {
+            application,
+            business: {
+              business_name: `Application #${application.application_number || id?.substring(0, 8)}`,
+              industry_sector: 'Not specified',
+              description: 'Business profile not available',
+              // Include user profile data if available
+              ...(userProfile && {
+                company_size: userProfile.companySize,
+                annual_revenue: userProfile.forecastRevenue || userProfile.annual_revenue,
+                forecast_revenue: userProfile.forecastRevenue,
+                website: userProfile.website,
+                industry_sector: userProfile.industry
+              })
+            },
+            accounting: null,
+            creditScore: null
+          };
+          }
+
+          if (!business) {
+            console.warn('Business profile is null, using basic application data');
+            
+            // Try to get additional data from user profile
+            let userProfile = null;
+            try {
+              const { data: userData } = await getDocument('users', businessId);
+              userProfile = userData;
+              console.log('[DEBUG User Profile Null] User profile data:', userProfile);
+            } catch (userError) {
+              console.warn('[DEBUG User Profile Null] Could not fetch user profile:', userError);
+            }
+            
             return {
               application,
               business: {
                 business_name: `Application #${application.application_number || id?.substring(0, 8)}`,
                 industry_sector: 'Not specified',
-                description: 'Business profile not available'
+                description: 'Business profile not available',
+                // Include user profile data if available
+                ...(userProfile && {
+                  company_size: userProfile.companySize,
+                  annual_revenue: userProfile.forecastRevenue || userProfile.annual_revenue,
+                  forecast_revenue: userProfile.forecastRevenue,
+                  website: userProfile.website,
+                  industry_sector: userProfile.industry
+                })
               },
               accounting: null,
               creditScore: null
             };
           }
 
-          if (!business) {
-            console.warn('Business profile is null, using basic application data');
-            return {
-              application,
-              business: {
-                business_name: `Application #${application.application_number || id?.substring(0, 8)}`,
-                industry_sector: 'Not specified',
-                description: 'Business profile not available'
-              },
-              accounting: null,
-              creditScore: null
-            };
+          // Try to enrich business data with user profile data
+          let userProfile = null;
+          let enrichedBusiness = business;
+          try {
+            const { data: userData } = await getDocument('users', businessId);
+            userProfile = userData;
+            console.log('[DEBUG User Profile Enrich] User profile data:', userProfile);
+            
+            // Merge user profile data if business data is missing certain fields
+            if (userProfile) {
+              enrichedBusiness = {
+                ...business,
+                // Only add from user profile if not already in business profile
+                ...((!business.company_size && userProfile.companySize) && { company_size: userProfile.companySize }),
+                ...((!business.annual_revenue && userProfile.forecastRevenue) && { annual_revenue: userProfile.forecastRevenue }),
+                ...((!business.forecast_revenue && userProfile.forecastRevenue) && { forecast_revenue: userProfile.forecastRevenue }),
+                ...((!business.website && userProfile.website) && { website: userProfile.website }),
+                ...((!business.industry_sector && userProfile.industry) && { industry_sector: userProfile.industry })
+              };
+            }
+          } catch (userError) {
+            console.warn('[DEBUG User Profile Enrich] Could not fetch user profile for enrichment:', userError);
           }
 
           // Get accounting data if connected
@@ -128,7 +189,7 @@ export const useBusinessData = (id: string | undefined, user: any) => {
           
           return {
             application,
-            business,
+            business: enrichedBusiness,
             accounting,
             creditScore: normalizedCreditScore
           };
@@ -183,7 +244,12 @@ export const useBusinessData = (id: string | undefined, user: any) => {
       }
     },
     enabled: !!id && !!user?.uid,
-    retry: 1
+    retry: 1,
+    // Ensure fresh data is always fetched for business data
+    staleTime: 0, // Consider data immediately stale
+    gcTime: 1000 * 60 * 5, // Keep in cache for 5 minutes but refetch
+    refetchOnMount: 'always', // Always refetch when component mounts
+    refetchOnWindowFocus: true, // Refetch when window regains focus
   });
 
   // Check for connections between lender and this application (any status)
@@ -206,6 +272,11 @@ export const useBusinessData = (id: string | undefined, user: any) => {
       return data && data.length > 0 ? data[0] : null;
     },
     enabled: !!id && !!user?.uid,
+    // Ensure fresh connection data
+    staleTime: 0,
+    gcTime: 1000 * 60 * 5,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   });
 
   // Check if lender has made an offer (can see business details)

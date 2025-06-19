@@ -49,13 +49,13 @@ const NavItem = ({ to, icon, children, active = false, isCollapsed = false, subI
   };
 
   return (
-    <div data-tour={dataTour}>
+    <div data-tour={dataTour} className="min-h-[3rem]">
       <Link
         to={hasSubItems ? "#" : to}
         onClick={handleClick}
         className={cn(
-          "flex items-center rounded-lg transition-colors relative group",
-          isCollapsed ? "justify-center py-2 w-full" : "px-4 py-3 gap-3",
+          "flex items-center rounded-lg transition-all duration-300 ease-in-out relative group min-h-[3rem]",
+          isCollapsed ? "justify-center py-2 w-full pl-2" : "px-4 py-3 gap-3 pl-5",
           active 
             ? "font-medium bg-fundhub-orange/10 border-l-4 border-fundhub-orange" 
             : "text-gray-300 hover:text-fundhub-orange hover:bg-slate-800/30"
@@ -64,24 +64,34 @@ const NavItem = ({ to, icon, children, active = false, isCollapsed = false, subI
       >
         <span className={cn(
           active ? "" : "text-gray-400", 
-          isCollapsed && "flex justify-center"
+          isCollapsed && "flex justify-center flex-shrink-0"
         )} style={active ? { color: '#ff8000' } : {}}>{icon}</span>
-        {!isCollapsed && <span className={cn("text-base truncate flex-1")} style={active ? { color: '#ff8000' } : { color: '#d1d5db' }}>{children}</span>}
-        {!isCollapsed && hasSubItems && (
-          <span className={cn(active ? "" : "text-gray-300")} style={active ? { color: '#ff8000' } : {}}>
+        <span className={cn(
+          "text-base truncate flex-1 transition-all duration-300",
+          isCollapsed ? "opacity-0 w-0 overflow-hidden" : "opacity-100"
+        )} style={active ? { color: '#ff8000' } : { color: '#d1d5db' }}>{children}</span>
+        {hasSubItems && (
+          <span className={cn(
+            "transition-all duration-300 flex-shrink-0",
+            active ? "" : "text-gray-300",
+            isCollapsed ? "opacity-0 w-0" : "opacity-100"
+          )} style={active ? { color: '#ff8000' } : {}}>
             {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
           </span>
         )}
         {isCollapsed && (
-          <div className="absolute left-full ml-2 px-2 py-1 bg-slate-800 text-white text-sm rounded-md opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">
+          <div className="absolute left-full ml-2 px-2 py-1 bg-slate-800 text-white text-sm rounded-md opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 transition-opacity duration-200">
             {children}
           </div>
         )}
       </Link>
       
       {/* Sub-items */}
-      {!isCollapsed && hasSubItems && isExpanded && (
-        <div className="ml-8 mt-1 space-y-1">
+      {hasSubItems && isExpanded && (
+        <div className={cn(
+          "overflow-hidden transition-all duration-300",
+          isCollapsed ? "max-h-0 opacity-0" : "max-h-96 opacity-100 ml-8 mt-1 space-y-1"
+        )}>
           {subItems.map((subItem) => {
             const isSubItemActive = location.pathname.startsWith(subItem.to);
             return (
@@ -89,7 +99,7 @@ const NavItem = ({ to, icon, children, active = false, isCollapsed = false, subI
                 key={subItem.to}
                 to={subItem.to}
                 className={cn(
-                  "block px-4 py-2 text-sm transition-colors rounded-md",
+                  "block px-4 py-2 text-sm transition-colors rounded-md min-h-[2.5rem] flex items-center",
                   isSubItemActive 
                     ? "font-medium bg-slate-800/30" 
                     : "text-gray-400 hover:text-fundhub-orange"
@@ -167,7 +177,15 @@ const businessMenuItems: MenuItem[] = [
 //Lender menu items
 const lenderMenuItems = [
   { to: "/lender/dashboard", icon: <BarChart size={22} />, label: "Dashboard" },
-  { to: "/lender/applications", icon: <Briefcase size={22} />, label: "Applications" },
+  { 
+    to: "/lender/applications", 
+    icon: <Briefcase size={22} />, 
+    label: "Applications",
+    subItems: [
+      { to: "/lender/applications", label: "All Applications" },
+      { to: "/lender/matched-applications", label: "Matched Applications" },
+    ]
+  },
   { to: "/messages", icon: <MessageSquare size={22} />, label: "Messages" },
   { to: "/lender/billing", icon: <PoundSterling size={22} />, label: "Billing" },
   { to: "/lender/reporting", icon: <LineChart size={22} />, label: "Reporting" },
@@ -236,13 +254,23 @@ export const Sidebar: React.FC<SidebarProps> = ({ className, role: propRole }) =
 
   // Check if the current path matches a menu item or its sub-items
   const isActive = (item: MenuItem) => {
-    if (location.pathname.startsWith(item.to)) {
+    // Exact match for the main item
+    if (location.pathname === item.to) {
       return true;
     }
+    
+    // For paths with sub-routes, check if it starts with the item path followed by a slash
+    if (location.pathname.startsWith(item.to + '/')) {
+      return true;
+    }
+    
     // Check sub-items
     if (item.subItems) {
-      return item.subItems.some(subItem => location.pathname.startsWith(subItem.to));
+      return item.subItems.some(subItem => {
+        return location.pathname === subItem.to || location.pathname.startsWith(subItem.to + '/');
+      });
     }
+    
     return false;
   };
 
@@ -270,26 +298,32 @@ export const Sidebar: React.FC<SidebarProps> = ({ className, role: propRole }) =
         }}
       ></div>
       <div className={cn(
-        "flex items-center justify-between pt-2 relative z-10",
-        isCollapsed ? "p-1" : "p-4"
+        "flex items-center justify-between pt-2 relative z-10 h-16",
+        isCollapsed ? "px-1" : "px-4"
       )}>
         <div className={cn(
-          "flex items-center gap-3 transition-all duration-300",
+          "flex items-center gap-3 transition-all duration-300 min-h-[2.5rem]",
           isCollapsed ? "w-8" : "w-full"
         )}>
           <div className="flex-shrink-0">
             <ProfileLogo role={role === 'business_owner' ? 'business' : role} isCollapsed={isCollapsed} />
           </div>
-          {!isCollapsed && businessName && (
-            <div className="min-w-0 flex-1">
+          <div className={cn(
+            "min-w-0 flex-1 transition-opacity duration-300",
+            isCollapsed ? "opacity-0 w-0" : "opacity-100"
+          )}>
+            {businessName && (
               <p className="text-white text-sm font-medium truncate">
                 {businessName}
               </p>
-            </div>
-          )}
+            )}
+          </div>
         </div>
         <button 
-          className={cn("rounded-lg", isCollapsed ? "p-1" : "p-2")}
+          className={cn(
+            "rounded-lg transition-opacity duration-300 flex-shrink-0",
+            isCollapsed ? "p-1 opacity-0" : "p-2 opacity-100"
+          )}
           aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           {isCollapsed ? (
@@ -300,7 +334,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ className, role: propRole }) =
         </button>
       </div>
 
-      <nav className={cn("flex-1 mt-4 space-y-2 overflow-y-auto relative z-10", isCollapsed ? "px-0" : "px-2")}>
+      <nav className={cn("flex-1 mt-4 space-y-1 overflow-y-auto relative z-10", isCollapsed ? "px-0" : "px-2")}>
         {menuItems.map((item) => (
           <NavItem
             key={item.to}

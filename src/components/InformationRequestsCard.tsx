@@ -74,6 +74,8 @@ export const InformationRequestsCard: React.FC<InformationRequestsProps> = ({
     queryFn: async () => {
       if (!user?.uid) return [];
 
+      console.log('Fetching information requests for user:', user.uid);
+
       const filters: any[] = [
         { field: 'business_id', operator: '==', value: user.uid }
       ];
@@ -81,6 +83,8 @@ export const InformationRequestsCard: React.FC<InformationRequestsProps> = ({
       if (applicationId) {
         filters.push({ field: 'application_id', operator: '==', value: applicationId });
       }
+
+      console.log('Using filters for information requests:', filters);
 
       const { data, error } = await getDocuments('information_requests', filters, [
         { field: 'created_at', direction: 'desc' }
@@ -90,6 +94,8 @@ export const InformationRequestsCard: React.FC<InformationRequestsProps> = ({
         console.error('Error fetching information requests:', error);
         return [];
       }
+
+      console.log('Fetched information requests:', data);
 
       return data || [];
     },

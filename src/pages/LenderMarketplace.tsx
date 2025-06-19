@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { HorizontalProductFilters, FilterValues } from '@/components/HorizontalProductFilters';
 import { LenderComparisonTable } from '@/components/LenderComparisonTable';
-import LenderConnectionModal from '@/components/LenderConnectionModal';
+import LenderSearchLoading from '@/components/LenderSearchLoading';
 import { getFiltersForProduct, getProductDisplayName } from '@/lib/productFilters';
 import { toast } from 'sonner';
 import { 
@@ -162,8 +162,10 @@ const LenderMarketplace = () => {
   const [connectedLenders, setConnectedLenders] = useState<Set<string>>(new Set());
   const [declinedLenders, setDeclinedLenders] = useState<Set<string>>(new Set());
   const [isConnecting, setIsConnecting] = useState<Set<string>>(new Set());
-  const [connectionModalOpen, setConnectionModalOpen] = useState(false);
-  const [selectedLender, setSelectedLender] = useState<LenderProfile | null>(null);
+  const [showLoading, setShowLoading] = useState(true);
+  const [loadingComplete, setLoadingComplete] = useState(false);
+  const [revealedLenders, setRevealedLenders] = useState<LenderProfile[]>([]);
+  const [allMatchedLenders, setAllMatchedLenders] = useState<LenderProfile[]>([]);
   
   // Fetch application data from URL parameter if not available in navigation state
   const { data: fetchedApplication, isLoading: isLoadingApplication } = useQuery({
@@ -226,7 +228,7 @@ const LenderMarketplace = () => {
     return 'available';
   };
 
-  // Handle connecting with a lender - open modal first
+  // Handle manual connection with a lender - requires user confirmation
   const handleConnectLender = async (lender: LenderProfile) => {
     if (!user || !application) return;
     
@@ -240,14 +242,13 @@ const LenderMarketplace = () => {
       return;
     }
 
-    // Open confirmation modal
-    setSelectedLender(lender);
-    setConnectionModalOpen(true);
+    // User manually chooses to connect - proceed with connection
+    await handleConfirmConnection(lender);
   };
 
-  // Handle actual connection after modal confirmation
-  const handleConfirmConnection = async () => {
-    if (!selectedLender || !user || !application) return;
+  // Handle actual connection after automatic matching
+  const handleConfirmConnection = async (lender: LenderProfile) => {
+    if (!lender || !user || !application) return;
     
     // Check and fix legacy application without application_number
     if (!application.application_number) {
@@ -267,13 +268,12 @@ const LenderMarketplace = () => {
         console.error('Failed to update legacy application:', error);
         // Continue with fallback logic below
       }
-    }
-
-    setIsConnecting(prev => new Set(prev).add(selectedLender.id));
+    }    
+    setIsConnecting(prev => new Set(prev).add(lender.id));
 
     try {
       // Update application with connected lender
-      const updatedConnectedLenders = [...Array.from(connectedLenders), selectedLender.id];
+      const updatedConnectedLenders = [...Array.from(connectedLenders), lender.id];
       
       // Only update the specific fields we need to change
       await updateDocument('applications', application.id, {
@@ -284,7 +284,7 @@ const LenderMarketplace = () => {
       // Create a connection record for the lender dashboard
       const connectionData = {
         application_id: application.id,
-        lender_id: selectedLender.id,
+        lender_id: lender.id,
         business_id: user.uid,
         application_data: {
           application_number: application.application_number || `APP-LEGACY-${application.id.slice(0, 8)}`, // Fallback for legacy applications
@@ -311,23 +311,69 @@ const LenderMarketplace = () => {
         throw new Error('Connection creation returned no data');
       }
 
+      // Generate and send prospect notification email with PDF attachment
+      await sendLenderProspectNotificationEmail(lender, application, user);
+
       // Update local state
-      setConnectedLenders(prev => new Set(prev).add(selectedLender.id));
+      setConnectedLenders(prev => new Set(prev).add(lender.id));
       
-      // Close modal
-      setConnectionModalOpen(false);
-      setSelectedLender(null);
-      
-      toast.success(`Successfully connected with ${selectedLender.lender_name || selectedLender.company_name}! They are now reviewing your application.`);
+      toast.success(`Successfully connected with ${lender.lender_name || lender.company_name}! They have been notified and are now reviewing your application.`);
     } catch (error) {
       console.error('Error connecting with lender:', error);
       toast.error('Failed to connect with lender. Please try again.');
     } finally {
       setIsConnecting(prev => {
         const newSet = new Set(prev);
-        newSet.delete(selectedLender.id);
+        newSet.delete(lender.id);
         return newSet;
       });
+    }
+  };
+
+  // Send lender prospect notification email
+  const sendLenderProspectNotificationEmail = async (lender: LenderProfile, application: Application, user: any) => {
+    try {
+      // Import services
+      const { mailgunService } = await import('@/services/mailgunService');
+      
+      // Check if lender has a valid email
+      if (!lender.email) {
+        console.warn('Lender does not have an email address, skipping notification:', lender.id);
+        return;
+      }
+
+      console.log('📧 Sending lender prospect notification to:', lender.email);
+
+      // Prepare email data
+      const emailData = {
+        lenderName: lender.lender_name || lender.company_name || 'Lender',
+        lenderEmail: lender.email,
+        businessName: application.business_name || 'Business',
+        applicationNumber: application.application_number || `APP-LEGACY-${application.id.slice(0, 8)}`,
+        productType: application.product_type || application.selectedProduct || 'Funding',
+        loanAmount: application.loan_amount,
+        annualRevenue: application.annual_revenue,
+        yearsTrading: application.years_trading,
+        industry: application.industry,
+        connectionUrl: `${window.location.origin}/lender/connections`,
+        businessDetailUrl: `${window.location.origin}/lender/business-details/${application.id}`
+      };
+
+      // Send the notification email
+      const emailResult = await mailgunService.sendLenderProspectNotificationEmail(emailData);
+      
+      if (emailResult.success) {
+        console.log('✅ Lender prospect notification sent successfully:', lender.email);
+        toast.success(`Lender notification sent to ${lender.lender_name || lender.company_name}`);
+      } else {
+        console.error('❌ Failed to send lender prospect notification:', emailResult.error);
+        // Don't show error to user as connection should still be successful
+        console.warn('Connection successful but email notification failed');
+      }
+      
+    } catch (error) {
+      console.error('Error sending lender prospect notification:', error);
+      // Don't throw error as the connection itself was successful
     }
   };
 
@@ -748,8 +794,157 @@ const LenderMarketplace = () => {
     }
   }, [declinedLenders, matchingLenders?.length]);
 
+  // Handle loading completion
+  const handleLoadingComplete = () => {
+    setLoadingComplete(true);
+    setTimeout(() => {
+      setShowLoading(false);
+    }, 300); // Small delay for smooth transition
+  };
+
+  // Show loading animation initially
+  useEffect(() => {
+    // Reset loading state when component mounts or application changes
+    if (application) {
+      setShowLoading(true);
+      setLoadingComplete(false);
+      setRevealedLenders([]);
+      setAllMatchedLenders([]);
+    }
+  }, [application?.id]);
+
+  // Handle lender data when it arrives
+  useEffect(() => {
+    if (matchingLenders && matchingLenders.length > 0 && !loadingComplete) {
+      setAllMatchedLenders(matchingLenders);
+      
+      // Start revealing lenders gradually
+      let currentIndex = 0;
+      const revealInterval = setInterval(() => {
+        if (currentIndex < matchingLenders.length) {
+          setRevealedLenders(prev => [...prev, matchingLenders[currentIndex]]);
+          currentIndex++;
+        } else {
+          clearInterval(revealInterval);
+          handleLoadingComplete();
+        }
+      }, 600); // Reveal a new lender every 600ms
+
+      // Complete loading after all lenders are revealed or after maximum time
+      const maxTime = Math.min(matchingLenders.length * 600 + 1000, 5000); // Max 5 seconds
+      const completeTimer = setTimeout(() => {
+        clearInterval(revealInterval);
+        setRevealedLenders(matchingLenders);
+        handleLoadingComplete();
+      }, maxTime);
+
+      return () => {
+        clearInterval(revealInterval);
+        clearTimeout(completeTimer);
+      };
+    }
+  }, [matchingLenders, loadingComplete]);
+
+  // Auto-complete loading after data is loaded
+  useEffect(() => {
+    if (matchingLenders && !isLoading && !loadingComplete && allMatchedLenders.length === 0) {
+      setAllMatchedLenders(matchingLenders);
+    }
+  }, [matchingLenders, isLoading, loadingComplete, allMatchedLenders.length]);
+
+  // DISABLED: Automatic connection logic - let businesses choose their own lenders
+  // useEffect(() => {
+  //   const handleAutomaticConnections = async () => {
+  //     if (!matchingLenders || !application || !user || isLoading) return;
+  //     
+  //     // Only auto-connect if we have fewer than 5 connections and there are available lenders
+  //     const availableLenders = matchingLenders.filter(lender => 
+  //       !connectedLenders.has(lender.id) && !declinedLenders.has(lender.id)
+  //     );
+  //     
+  //     if (connectedLenders.size >= 5 || availableLenders.length === 0) return;
+  //     
+  //     // Calculate how many more connections we can make
+  //     const connectionsNeeded = Math.min(5 - connectedLenders.size, availableLenders.length);
+  //     
+  //     // Score and rank lenders based on matching criteria
+  //     const scoredLenders = availableLenders.map(lender => {
+  //       let score = 0;
+  //       const productType = (application.product_type || application.selectedProduct)?.toLowerCase().replace(/-/g, '_');
+  //       
+  //       // Get product criteria
+  //       let productCriteria = null;
+  //       if (lender.product_type?.funding_type_criteria?.[productType]) {
+  //         productCriteria = lender.product_type.funding_type_criteria[productType];
+  //       } else if (lender.lending_criteria?.funding_type_criteria?.[productType]) {
+  //         productCriteria = lender.lending_criteria.funding_type_criteria[productType];
+  //       } else if (lender.funding_type_criteria?.[productType]) {
+  //         productCriteria = lender.funding_type_criteria[productType];
+  //       }
+  //       
+  //       if (productCriteria) {
+  //         // Score based on interest rate (lower is better)
+  //         const interestRate = parseFloat(productCriteria.interest_rate_min || '10');
+  //         score += Math.max(0, 100 - interestRate * 10); // Lower rates get higher scores
+  //         
+  //         // Score based on processing speed (faster is better)
+  //         const processingDays = parseInt(productCriteria.processing_time_days || '30');
+  //         score += Math.max(0, 100 - processingDays * 2); // Faster processing gets higher scores
+  //         
+  //         // Score based on loan amount capacity (higher capacity is better for larger loans)
+  //         const maxAmount = parseInt(productCriteria.max_amount || '0');
+  //         if (maxAmount >= application.loan_amount) {
+  //           score += 50; // Bonus for being able to handle the full amount
+  //         }
+  //         
+  //         // Score based on business age requirements (more flexible is better)
+  //         const minBusinessAge = parseInt(productCriteria.min_business_age_months || '0');
+  //         const businessAge = (application.years_trading || 0) * 12;
+  //         if (businessAge >= minBusinessAge) {
+  //           score += 30; // Bonus for meeting business age requirements
+  //         }
+  //       }
+  //       
+  //       // Established year bonus (older lenders might be more reliable)
+  //       if (lender.established_year) {
+  //         const yearsInBusiness = new Date().getFullYear() - lender.established_year;
+  //         score += Math.min(20, yearsInBusiness); // Up to 20 points for experience
+  //       }
+  //       
+  //       return { lender, score };
+  //     });
+  //     
+  //     // Sort by score (highest first) and take the best matches
+  //     const bestMatches = scoredLenders
+  //       .sort((a, b) => b.score - a.score)
+  //       .slice(0, connectionsNeeded)
+  //       .map(item => item.lender);
+  //     
+  //     // Auto-connect with the best matching lenders
+  //     if (bestMatches.length > 0) {
+  //       toast.info(`Automatically connecting with ${bestMatches.length} best matching lender${bestMatches.length > 1 ? 's' : ''}...`);
+  //       
+  //       // Connect with each lender sequentially to avoid overwhelming the system
+  //       for (const lender of bestMatches) {
+  //         try {
+  //           await handleConfirmConnection(lender);
+  //           // Small delay between connections
+  //           await new Promise(resolve => setTimeout(resolve, 500));
+  //         } catch (error) {
+  //           console.error('Error in automatic connection:', error);
+  //         }
+  //       }
+  //     }
+  //   };
+  //   
+  //   // Only run automatic connections once when matching lenders are first loaded
+  //   if (matchingLenders && matchingLenders.length > 0 && connectedLenders.size === 0) {
+  //     handleAutomaticConnections();
+  //   }
+  // }, [matchingLenders, application, user, isLoading, connectedLenders.size, declinedLenders.size]);
+
   // Filter and sort lenders based on search, filters, and sort criteria
-  const filteredBySearch = matchingLenders?.filter(lender => 
+  const filteredBySearch = (showLoading ? revealedLenders : matchingLenders)?.filter(lender => 
     !searchTerm || 
     lender.lender_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     lender.company_name?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -854,105 +1049,87 @@ const LenderMarketplace = () => {
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
         <div className="container px-6 py-8 mx-auto">
           {/* Header */}
-          <div className="relative bg-gradient-to-r from-[#212936] via-[#2a3441] to-[#212936] text-white rounded-2xl p-8 mb-8 shadow-2xl border border-slate-200/20 overflow-hidden">
+          <div className="relative bg-gradient-to-r from-[#212936] via-[#2a3441] to-[#212936] text-white rounded-xl p-4 mb-6 shadow-lg border border-slate-200/20 overflow-hidden">
             <div className="absolute inset-0 opacity-10">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-[#ff8000] rounded-full -translate-y-32 translate-x-32 blur-3xl"></div>
-              <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-400 rounded-full translate-y-24 -translate-x-24 blur-3xl"></div>
+              <div className="absolute top-0 right-0 w-32 h-32 bg-[#ff8000] rounded-full -translate-y-16 translate-x-16 blur-2xl"></div>
+              <div className="absolute bottom-0 left-0 w-24 h-24 bg-blue-400 rounded-full translate-y-12 -translate-x-12 blur-2xl"></div>
             </div>
             
             <div className="relative z-10">
               <Button
                 variant="ghost"
                 onClick={handleBackToApplications}
-                className="text-white hover:bg-white/10 mb-4 -ml-2"
+                className="text-white hover:bg-white/10 mb-3 -ml-2 h-8 px-2"
+                size="sm"
               >
-                <ArrowLeft className="h-4 w-4 mr-2" />
+                <ArrowLeft className="h-3 w-3 mr-1" />
                 Back to Applications
               </Button>
               
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-3 bg-[#ff8000]/20 rounded-xl border border-[#ff8000]/30">
-                  <Target className="h-6 w-6 text-[#ff8000]" />
+              <div className="flex items-center gap-2 mb-3">
+                <div className="p-2 bg-[#ff8000]/20 rounded-lg border border-[#ff8000]/30">
+                  <Target className="h-4 w-4 text-[#ff8000]" />
                 </div>
                 <div>
-                  <h1 className="text-4xl lg:text-5xl font-bold mb-2 tracking-tight">
-                    Matching Lenders
+                  <h1 className="text-2xl font-bold tracking-tight">
+                    Lender Marketplace
                   </h1>
-                  <p className="text-gray-300 text-lg">
-                    Compare lenders for your {application.product_type || application.selectedProduct} application
+                  <p className="text-gray-300 text-sm">
+                    Choose the best lenders for your {application.product_type || application.selectedProduct} application
                   </p>
                 </div>
               </div>
 
-          {/* Application Summary */}
-              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20 mb-4">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div className="flex items-center gap-2">
-                    <PoundSterling className="h-4 w-4 text-[#ff8000]" />
-                    <span className="text-sm">Amount: <strong>{formatCurrency(application.loan_amount)}</strong></span>
+              {/* Compact Application Summary */}
+              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 border border-white/20 mb-3">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                  <div className="flex items-center gap-1">
+                    <PoundSterling className="h-3 w-3 text-[#ff8000]" />
+                    <span>Amount: <strong>{formatCurrency(application.loan_amount)}</strong></span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-blue-400" />
-                    <span className="text-sm">Term: <strong>{application.loan_term_months} months</strong></span>
+                  <div className="flex items-center gap-1">
+                    <Calendar className="h-3 w-3 text-blue-400" />
+                    <span>Term: <strong>{application.loan_term_months}m</strong></span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Building2 className="h-4 w-4 text-green-400" />
-                    <span className="text-sm">Purpose: <strong>{application.purpose}</strong></span>
+                  <div className="flex items-center gap-1">
+                    <Building2 className="h-3 w-3 text-green-400" />
+                    <span>Purpose: <strong>{application.purpose}</strong></span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Trophy className="h-4 w-4 text-amber-400" />
-                    <span className="text-sm">Product: <strong>{getProductDisplayName(productType || '')}</strong></span>
+                  <div className="flex items-center gap-1">
+                    <Trophy className="h-3 w-3 text-amber-400" />
+                    <span>Product: <strong>{getProductDisplayName(productType || '')}</strong></span>
                   </div>
                 </div>
               </div>
 
-              {/* Offers and Connections Status */}
+              {/* Compact Status */}
               {(existingOffers && existingOffers.length > 0) || connectedLenders.size > 0 ? (
-                <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
-                  <div className="flex items-center gap-4 mb-3">
-                    <h3 className="text-white font-semibold">Current Status</h3>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-white/10 backdrop-blur-sm rounded-lg p-2 border border-white/20">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs">
                     {existingOffers && existingOffers.length > 0 && (
-                      <div className="flex items-center gap-2">
-                        <Star className="h-4 w-4 text-emerald-400" />
-                        <span className="text-sm">
-                          <strong>{existingOffers.filter(offer => ['pending', 'negotiating'].includes(offer.status?.toLowerCase())).length}</strong> active offers
-                        </span>
+                      <div className="flex items-center gap-1">
+                        <Star className="h-3 w-3 text-emerald-400" />
+                        <span><strong>{existingOffers.filter(offer => ['pending', 'negotiating'].includes(offer.status?.toLowerCase())).length}</strong> active offers</span>
                       </div>
                     )}
                     {connectedLenders.size > 0 && (
-                      <div className="flex items-center gap-2">
-                        <Users className="h-4 w-4 text-blue-400" />
-                        <span className="text-sm">
-                          <strong>{connectedLenders.size}</strong> lender{connectedLenders.size !== 1 ? 's' : ''} connected
-                        </span>
+                      <div className="flex items-center gap-1">
+                        <Users className="h-3 w-3 text-blue-400" />
+                        <span><strong>{connectedLenders.size}</strong> connected</span>
                       </div>
                     )}
-                    <div className="flex items-center gap-2">
-                      <Target className="h-4 w-4 text-[#ff8000]" />
-                      <span className="text-sm">
-                        <strong>{5 - connectedLenders.size}</strong> more connections available
-                      </span>
+                    <div className="flex items-center gap-1">
+                      <Target className="h-3 w-3 text-[#ff8000]" />
+                      <span><strong>{5 - connectedLenders.size}</strong> more available</span>
                     </div>
                   </div>
-                  {existingOffers && existingOffers.some(offer => offer.status?.toLowerCase() === 'declined') && (
-                    <div className="mt-3 p-3 bg-amber-500/20 rounded-lg border border-amber-400/30">
-                      <div className="flex items-center gap-2">
-                        <AlertCircle className="h-4 w-4 text-amber-300" />
-                        <span className="text-sm text-amber-200">
-                          Some offers were declined - you can still connect with other lenders below
-                        </span>
-                      </div>
-                    </div>
-                  )}
                 </div>
               ) : (
-                <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
-                  <div className="flex items-center gap-2">
-                    <Target className="h-4 w-4 text-[#ff8000]" />
-                    <span className="text-sm text-white/90">
-                      Connect with up to <strong>5 lenders</strong> to receive competitive offers for your application
+                <div className="bg-white/10 backdrop-blur-sm rounded-lg p-2 border border-white/20">
+                  <div className="flex items-center gap-1 text-xs">
+                    <Target className="h-3 w-3 text-[#ff8000]" />
+                    <span className="text-white/90">
+                      Connect with up to <strong>5 best-matched lenders</strong>
                     </span>
                   </div>
                 </div>
@@ -961,9 +1138,9 @@ const LenderMarketplace = () => {
           </div>
 
           {/* Main Content - Full Width Layout */}
-          <div className="space-y-6">
+          <div className="space-y-4">
             {/* Combined Search, Sort, and Product-Specific Filters */}
-            <div className="flex flex-col lg:flex-row gap-4">
+            <div className="flex flex-col lg:flex-row gap-3">
               <div className="flex-1">
                 <HorizontalProductFilters
                   filters={availableFilters}
@@ -975,14 +1152,14 @@ const LenderMarketplace = () => {
                   sortBy={sortBy}
                   onSortChange={setSortBy}
                   lendersCount={processedLenders.length}
+                  connectedLendersCount={connectedLenders.size}
                 />
               </div>
-              
             </div>
 
             {/* Lender Comparison Table */}
             <div className="w-full">
-              {isLoading ? (
+              {isLoading && revealedLenders.length === 0 ? (
                 <div className="bg-white rounded-xl shadow-lg p-8">
                   <div className="animate-pulse space-y-6">
                     <div className="h-8 bg-gray-200 rounded w-1/3"></div>
@@ -1002,7 +1179,7 @@ const LenderMarketplace = () => {
                     </div>
                   </div>
                 </div>
-              ) : processedLenders.length === 0 ? (
+              ) : processedLenders.length === 0 && !showLoading ? (
                 <div className="bg-white rounded-xl shadow-lg p-12 text-center">
                   <Building2 className="h-16 w-16 text-gray-300 mx-auto mb-4" />
                   <h3 className="text-xl font-semibold text-gray-900 mb-2">
@@ -1010,12 +1187,12 @@ const LenderMarketplace = () => {
                   </h3>
                   <p className="text-gray-600 mb-4">
                     {declinedLenders.size > 0 
-                      ? `You have declined ${declinedLenders.size} lender${declinedLenders.size > 1 ? 's' : ''}. ${
+                      ? `You have marked ${declinedLenders.size} lender${declinedLenders.size > 1 ? 's' : ''} as not interested. ${
                           connectedLenders.size > 0 
                             ? `You are connected with ${connectedLenders.size} lender${connectedLenders.size > 1 ? 's' : ''}.`
                             : 'No connections made yet.'
                         }`
-                      : `We couldn't find any lenders that match your ${productType} requirements. New lenders are automatically added to this list as they become available.`
+                      : `Our matching system couldn't find lenders that match your ${productType} requirements. New lenders are evaluated and added as they become available.`
                     }
                   </p>
                   <div className="flex flex-col items-center gap-3">
@@ -1063,18 +1240,16 @@ const LenderMarketplace = () => {
           )}
         </div>
 
-        {/* Lender Connection Modal */}
-        <LenderConnectionModal
-          isOpen={connectionModalOpen}
-          onClose={() => {
-            setConnectionModalOpen(false);
-            setSelectedLender(null);
-          }}
-          onConfirm={handleConfirmConnection}
-          lender={selectedLender}
-          isConnecting={selectedLender ? isConnecting.has(selectedLender.id) : false}
-          connectedLendersCount={connectedLenders.size}
-        />
+        {/* Loading Overlay */}
+        {showLoading && (
+          <LenderSearchLoading 
+            applicationAmount={application.loan_amount}
+            productType={getProductDisplayName(productType || '')}
+            onComplete={handleLoadingComplete}
+            foundLendersCount={revealedLenders.length}
+            isOverlay={true}
+          />
+        )}
       </div>
     </PageLayout>
   );

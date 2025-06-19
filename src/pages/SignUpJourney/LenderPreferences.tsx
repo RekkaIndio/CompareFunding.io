@@ -16,7 +16,9 @@ import {
   X,
   Plus,
   Shield,
-  Check
+  Check,
+  Search,
+  Building2
 } from 'lucide-react';
 
 // Import lender logos
@@ -32,8 +34,21 @@ interface LenderToAvoid {
   reason?: string;
 }
 
+interface LenderWithLogo {
+  id: string;
+  name: string;
+  logo: string;
+}
+
+interface LenderInList {
+  id: string;
+  name: string;
+  category: string;
+  hasLogo?: boolean;
+}
+
 // Available lenders with their logos
-const availableLenders = [
+const availableLenders: LenderWithLogo[] = [
   { id: 'barclays', name: 'Barclays', logo: barclyaysLogo },
   { id: 'hsbc', name: 'HSBC', logo: hsbcLogo },
   { id: 'lloyds', name: 'Lloyds Banking Group', logo: lloydsLogo },
@@ -41,6 +56,99 @@ const availableLenders = [
   { id: 'natwest', name: 'NatWest Group', logo: natwestLogo },
   { id: 'santander', name: 'Santander', logo: santanderLogo },
 ];
+
+// Comprehensive list of lenders (including those with logos and many others)
+const allLenders: LenderInList[] = [
+  // Major Banks (with logos)
+  { id: 'barclays', name: 'Barclays', category: 'Major Bank', hasLogo: true },
+  { id: 'hsbc', name: 'HSBC', category: 'Major Bank', hasLogo: true },
+  { id: 'lloyds', name: 'Lloyds Banking Group', category: 'Major Bank', hasLogo: true },
+  { id: 'metro', name: 'Metro Bank', category: 'Major Bank', hasLogo: true },
+  { id: 'natwest', name: 'NatWest Group', category: 'Major Bank', hasLogo: true },
+  { id: 'santander', name: 'Santander', category: 'Major Bank', hasLogo: true },
+  
+  // Other Major Banks
+  { id: 'nationwide', name: 'Nationwide Building Society', category: 'Building Society' },
+  { id: 'tesco', name: 'Tesco Bank', category: 'Retail Bank' },
+  { id: 'firstdirect', name: 'first direct', category: 'Digital Bank' },
+  { id: 'halifax', name: 'Halifax', category: 'Major Bank' },
+  { id: 'bankofscotland', name: 'Bank of Scotland', category: 'Major Bank' },
+  
+  // Challenger Banks
+  { id: 'monzo', name: 'Monzo', category: 'Challenger Bank' },
+  { id: 'starling', name: 'Starling Bank', category: 'Challenger Bank' },
+  { id: 'revolut', name: 'Revolut', category: 'Challenger Bank' },
+  { id: 'atom', name: 'Atom Bank', category: 'Challenger Bank' },
+  { id: 'marcus', name: 'Marcus by Goldman Sachs', category: 'Digital Bank' },
+  { id: 'chase', name: 'Chase UK', category: 'Challenger Bank' },
+  { id: 'virgin', name: 'Virgin Money', category: 'Challenger Bank' },
+  { id: 'oaknorth', name: 'OakNorth Bank', category: 'Challenger Bank' },
+  { id: 'aldermore', name: 'Aldermore Bank', category: 'Challenger Bank' },
+  { id: 'shawbrook', name: 'Shawbrook Bank', category: 'Challenger Bank' },
+  
+  // Alternative Lenders
+  { id: 'funding_circle', name: 'Funding Circle', category: 'P2P Lending' },
+  { id: 'iwoca', name: 'iwoca', category: 'Alternative Lender' },
+  { id: 'capitalstackcast', name: 'CapitalStackCast', category: 'Alternative Lender' },
+  { id: 'lending_crowd', name: 'Lending Crowd', category: 'P2P Lending' },
+  { id: 'funding_options', name: 'Funding Options', category: 'Marketplace' },
+  { id: 'business_finance_compared', name: 'Business Finance Compared', category: 'Marketplace' },
+  { id: 'fleximize', name: 'Fleximize', category: 'Alternative Lender' },
+  { id: 'liberis', name: 'Liberis', category: 'Alternative Lender' },
+  { id: 'kabbage', name: 'Kabbage', category: 'Alternative Lender' },
+  { id: 'lending_works', name: 'Lending Works', category: 'P2P Lending' },
+  { id: 'zopa', name: 'Zopa', category: 'P2P Lending' },
+  { id: 'ratesetter', name: 'RateSetter', category: 'P2P Lending' },
+  { id: 'assetz_capital', name: 'Assetz Capital', category: 'P2P Lending' },
+  { id: 'folk2folk', name: 'Folk2Folk', category: 'P2P Lending' },
+  { id: 'rebuilding_society', name: 'The Rebuilding Society', category: 'P2P Lending' },
+  
+  // Asset Finance & Equipment Finance
+  { id: 'close_leasing', name: 'Close Brothers Asset Finance', category: 'Asset Finance' },
+  { id: 'aldermore_asset', name: 'Aldermore Asset Finance', category: 'Asset Finance' },
+  { id: 'hitachi_capital', name: 'Hitachi Capital', category: 'Asset Finance' },
+  { id: 'lombard', name: 'Lombard', category: 'Asset Finance' },
+  { id: 'hsbc_asset', name: 'HSBC Asset Finance', category: 'Asset Finance' },
+  { id: 'santander_asset', name: 'Santander Asset Finance', category: 'Asset Finance' },
+  
+  // Invoice Finance
+  { id: 'marketinvoice', name: 'MarketInvoice', category: 'Invoice Finance' },
+  { id: 'lloyds_invoice', name: 'Lloyds Invoice Finance', category: 'Invoice Finance' },
+  { id: 'hsbc_invoice', name: 'HSBC Invoice Finance', category: 'Invoice Finance' },
+  { id: 'santander_invoice', name: 'Santander Invoice Finance', category: 'Invoice Finance' },
+  { id: 'ultimate_finance', name: 'Ultimate Finance', category: 'Invoice Finance' },
+  { id: 'bibby_financial', name: 'Bibby Financial Services', category: 'Invoice Finance' },
+  
+  // Property & Development Finance
+  { id: 'precise_mortgages', name: 'Precise Mortgages', category: 'Property Finance' },
+  { id: 'paragon_bank', name: 'Paragon Bank', category: 'Property Finance' },
+  { id: 'kent_reliance', name: 'Kent Reliance', category: 'Property Finance' },
+  { id: 'together_money', name: 'Together Money', category: 'Property Finance' },
+  { id: 'specialist_lending', name: 'Specialist Lending', category: 'Property Finance' },
+  
+  // Trade Finance
+  { id: 'export_finance', name: 'UK Export Finance', category: 'Trade Finance' },
+  { id: 'trade_finance_global', name: 'Trade Finance Global', category: 'Trade Finance' },
+  
+  // Government Schemes
+  { id: 'british_business_bank', name: 'British Business Bank', category: 'Government' },
+  { id: 'recovery_loan_scheme', name: 'Recovery Loan Scheme', category: 'Government' },
+  { id: 'bounce_back_loans', name: 'Bounce Back Loan Scheme', category: 'Government' },
+  { id: 'start_up_loans', name: 'Start Up Loans', category: 'Government' },
+  
+  // Credit Unions
+  { id: 'credit_union_london', name: 'London Mutual Credit Union', category: 'Credit Union' },
+  { id: 'credit_union_manchester', name: 'Manchester Credit Union', category: 'Credit Union' },
+  { id: 'credit_union_glasgow', name: 'Glasgow Credit Union', category: 'Credit Union' },
+  
+  // Other Financial Institutions
+  { id: 'amc_bank', name: 'AMC Bank', category: 'Specialist Bank' },
+  { id: 'recognise_bank', name: 'Recognise Bank', category: 'Specialist Bank' },
+  { id: 'secure_trust', name: 'Secure Trust Bank', category: 'Specialist Bank' },
+  { id: 'utb', name: 'United Trust Bank', category: 'Specialist Bank' },
+  { id: 'cynergy_bank', name: 'Cynergy Bank', category: 'Specialist Bank' },
+  { id: 'cambridge_mercantile', name: 'Cambridge Mercantile', category: 'Specialist Lender' },
+].sort((a, b) => a.name.localeCompare(b.name)); // Sort alphabetically
 
 const LenderPreferences = () => {
   const navigate = useNavigate();
@@ -53,6 +161,9 @@ const LenderPreferences = () => {
   const [shouldAvoidLenders, setShouldAvoidLenders] = useState<string>('');
   const [selectedLendersToAvoid, setSelectedLendersToAvoid] = useState<string[]>([]);
   const [lenderReasons, setLenderReasons] = useState<Record<string, string>>({});
+  
+  // Search state for lender list
+  const [lenderSearchTerm, setLenderSearchTerm] = useState<string>('');
 
   // Navigation steps
   const steps = [
@@ -80,6 +191,7 @@ const LenderPreferences = () => {
           setShouldAvoidLenders(parsedData.shouldAvoidLenders || '');
           setSelectedLendersToAvoid(parsedData.selectedLendersToAvoid || []);
           setLenderReasons(parsedData.lenderReasons || {});
+          setLenderSearchTerm(parsedData.lenderSearchTerm || '');
         } catch (error) {
           console.error('Error parsing saved lender preferences form data:', error);
         }
@@ -97,13 +209,14 @@ const LenderPreferences = () => {
     const formData = {
       shouldAvoidLenders,
       selectedLendersToAvoid,
-      lenderReasons
+      lenderReasons,
+      lenderSearchTerm
     };
     
     if (currentSession && (shouldAvoidLenders !== '' || selectedLendersToAvoid.length > 0)) {
       sessionStorage.setItem('lenderPreferencesFormData', JSON.stringify(formData));
     }
-  }, [shouldAvoidLenders, selectedLendersToAvoid, lenderReasons]);
+  }, [shouldAvoidLenders, selectedLendersToAvoid, lenderReasons, lenderSearchTerm]);
 
   const handlePrevious = () => {
     navigate('/signup-journey/document-upload', { state: userInfo });
@@ -118,7 +231,8 @@ const LenderPreferences = () => {
     try {
       // Format lenders to avoid with only name and reason (no File objects)
       const lendersToAvoidData = selectedLendersToAvoid.map(lenderId => {
-        const lender = availableLenders.find(l => l.id === lenderId);
+        const lender = availableLenders.find(l => l.id === lenderId) || 
+                      allLenders.find(l => l.id === lenderId);
         return {
           name: lender?.name || '',
           reason: lenderReasons[lenderId] || ''
@@ -225,6 +339,15 @@ const LenderPreferences = () => {
     });
   };
 
+  // Filter lenders based on search term
+  const filteredLenders = allLenders.filter(lender => 
+    lender.name.toLowerCase().includes(lenderSearchTerm.toLowerCase()) ||
+    lender.category.toLowerCase().includes(lenderSearchTerm.toLowerCase())
+  );
+
+  // Get categories for grouping
+  const categories = [...new Set(allLenders.map(lender => lender.category))].sort();
+
   // Update lender reason
   const updateLenderReason = (lenderId: string, reason: string) => {
     setLenderReasons(prev => ({
@@ -314,103 +437,221 @@ const LenderPreferences = () => {
               </RadioGroup>
 
               {shouldAvoidLenders === 'yes' && (
-                <div className="mt-6 space-y-6">
-                  <div className="p-6 sm:p-8 bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-200 rounded-xl sm:rounded-2xl">
-                    <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
-                        <AlertTriangle className="h-6 w-6 text-amber-600" />
-                      </div>
-                      <div>
-                        <h4 className="text-lg font-bold text-[#2a3441] mb-2">Select Lenders to Avoid</h4>
-                        <p className="text-sm sm:text-base text-amber-700 mb-4">
-                          Choose the lenders you'd prefer us not to approach on your behalf. This information is kept strictly confidential.
-                        </p>
+                  <div className="mt-6 space-y-6">
+                    <div className="p-6 sm:p-8 bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-200 rounded-xl sm:rounded-2xl">
+                      <div className="flex items-start gap-4">
+                        <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
+                          <AlertTriangle className="h-6 w-6 text-amber-600" />
+                        </div>
+                        <div>
+                          <h4 className="text-lg font-bold text-[#2a3441] mb-2">Select Lenders to Avoid</h4>
+                          <p className="text-sm sm:text-base text-amber-700 mb-4">
+                            Choose the lenders you'd prefer us not to approach on your behalf. This information is kept strictly confidential.
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Lender Selection Grid */}
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
-                    {availableLenders.map((lender) => {
-                      const isSelected = selectedLendersToAvoid.includes(lender.id);
-                      return (
-                        <div
-                          key={lender.id}
-                          onClick={() => toggleLenderSelection(lender.id)}
-                          className={`relative p-4 sm:p-6 border-2 rounded-xl sm:rounded-2xl cursor-pointer transition-all duration-300 hover:shadow-lg group ${
-                            isSelected 
-                              ? 'border-red-500 bg-red-50 shadow-lg' 
-                              : 'border-gray-200 bg-white hover:border-gray-300'
-                          }`}
-                        >
-                          {/* Selection indicator */}
-                          {isSelected && (
-                            <div className="absolute top-2 right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
-                              <Check className="h-4 w-4 text-white" />
-                            </div>
-                          )}
-                          
-                          {/* Lender logo */}
-                          <div className="flex flex-col items-center text-center">
-                            <div className="w-16 h-16 sm:w-20 sm:h-20 mb-3 flex items-center justify-center">
-                              <img 
-                                src={lender.logo} 
-                                alt={`${lender.name} logo`}
-                                className="max-w-full max-h-full object-contain"
-                              />
-                            </div>
-                            <h5 className="font-semibold text-sm sm:text-base text-[#2a3441] leading-tight">
-                              {lender.name}
-                            </h5>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Reasons for selected lenders */}
-                  {selectedLendersToAvoid.length > 0 && (
+                    {/* Major Lenders with Logos */}
                     <div className="space-y-4">
-                      <h4 className="text-lg font-bold text-[#2a3441]">Additional Information (Optional)</h4>
-                      <p className="text-sm text-gray-600 mb-4">
-                        You can provide reasons for avoiding these lenders to help us better understand your preferences.
-                      </p>
+                      <h4 className="text-lg font-bold text-[#2a3441] flex items-center gap-2">
+                        <Building2 className="h-5 w-5" />
+                        Major Lenders
+                      </h4>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
+                        {availableLenders.map((lender) => {
+                          const isSelected = selectedLendersToAvoid.includes(lender.id);
+                          return (
+                            <div
+                              key={lender.id}
+                              onClick={() => toggleLenderSelection(lender.id)}
+                              className={`relative p-4 sm:p-6 border-2 rounded-xl sm:rounded-2xl cursor-pointer transition-all duration-300 hover:shadow-lg group ${
+                                isSelected 
+                                  ? 'border-red-500 bg-red-50 shadow-lg' 
+                                  : 'border-gray-200 bg-white hover:border-gray-300'
+                              }`}
+                            >
+                              {/* Selection indicator */}
+                              {isSelected && (
+                                <div className="absolute top-2 right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
+                                  <Check className="h-4 w-4 text-white" />
+                                </div>
+                              )}
+                              
+                              {/* Lender logo */}
+                              <div className="flex flex-col items-center text-center">
+                                <div className="w-16 h-16 sm:w-20 sm:h-20 mb-3 flex items-center justify-center">
+                                  <img 
+                                    src={lender.logo} 
+                                    alt={`${lender.name} logo`}
+                                    className="max-w-full max-h-full object-contain"
+                                  />
+                                </div>
+                                <h5 className="font-semibold text-sm sm:text-base text-[#2a3441] leading-tight">
+                                  {lender.name}
+                                </h5>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* All Lenders List */}
+                    <div className="space-y-4">
+                      <h4 className="text-lg font-bold text-[#2a3441] flex items-center gap-2">
+                        <Search className="h-5 w-5" />
+                        All Lenders
+                      </h4>
                       
-                      {selectedLendersToAvoid.map((lenderId) => {
-                        const lender = availableLenders.find(l => l.id === lenderId);
-                        if (!lender) return null;
+                      {/* Search Input */}
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <Input
+                          type="text"
+                          placeholder="Search lenders by name or category..."
+                          value={lenderSearchTerm}
+                          onChange={(e) => setLenderSearchTerm(e.target.value)}
+                          className="pl-10 bg-white border-2 border-gray-200 focus:border-[#ff8000] focus:ring-2 focus:ring-[#ff8000]/20 text-[#2a3441] rounded-lg sm:rounded-xl"
+                        />
+                      </div>
+
+                      {/* Lenders List */}
+                      <div className="bg-white border-2 border-gray-200 rounded-xl sm:rounded-2xl max-h-96 overflow-y-auto">
+                        <div className="p-4 space-y-2">
+                          {filteredLenders.length === 0 ? (
+                            <div className="text-center py-8 text-gray-500">
+                              <Search className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                              <p>No lenders found matching your search.</p>
+                            </div>
+                          ) : (
+                            filteredLenders.map((lender) => {
+                              const isSelected = selectedLendersToAvoid.includes(lender.id);
+                              return (
+                                <div
+                                  key={lender.id}
+                                  onClick={() => toggleLenderSelection(lender.id)}
+                                  className={`flex items-center justify-between p-3 sm:p-4 rounded-lg cursor-pointer transition-all duration-200 group ${
+                                    isSelected 
+                                      ? 'bg-red-50 border-2 border-red-200 shadow-sm' 
+                                      : 'hover:bg-gray-50 border-2 border-transparent'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
+                                      isSelected 
+                                        ? 'bg-red-500 border-red-500' 
+                                        : 'border-gray-300 group-hover:border-red-300'
+                                    }`}>
+                                      {isSelected && <Check className="h-4 w-4 text-white" />}
+                                    </div>
+                                    <div>
+                                      <h6 className="font-medium text-[#2a3441] text-sm sm:text-base">
+                                        {lender.name}
+                                        {lender.hasLogo && (
+                                          <span className="ml-2 text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded-full">
+                                            Featured
+                                          </span>
+                                        )}
+                                      </h6>
+                                      <p className="text-xs sm:text-sm text-gray-500">{lender.category}</p>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Summary of selections */}
+                    {selectedLendersToAvoid.length > 0 && (
+                      <div className="p-4 sm:p-6 bg-red-50 border-2 border-red-200 rounded-xl sm:rounded-2xl">
+                        <h5 className="font-semibold text-[#2a3441] mb-2">
+                          Selected Lenders to Avoid ({selectedLendersToAvoid.length})
+                        </h5>
+                        <div className="flex flex-wrap gap-2">
+                          {selectedLendersToAvoid.map((lenderId) => {
+                            const lender = allLenders.find(l => l.id === lenderId);
+                            if (!lender) return null;
+                            
+                            return (
+                              <span
+                                key={lenderId}
+                                className="inline-flex items-center gap-1 px-3 py-1 bg-red-100 text-red-800 text-sm rounded-full"
+                              >
+                                {lender.name}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleLenderSelection(lenderId);
+                                  }}
+                                  className="ml-1 hover:bg-red-200 rounded-full p-0.5"
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Reasons for selected lenders */}
+                    {selectedLendersToAvoid.length > 0 && (
+                      <div className="space-y-4">
+                        <h4 className="text-lg font-bold text-[#2a3441]">Additional Information (Optional)</h4>
+                        <p className="text-sm text-gray-600 mb-4">
+                          You can provide reasons for avoiding these lenders to help us better understand your preferences.
+                        </p>
                         
-                        return (
-                          <div key={lenderId} className="p-4 sm:p-6 bg-white border-2 border-gray-200 rounded-xl sm:rounded-2xl">
-                            <div className="flex items-center gap-3 mb-4">
-                              <div className="w-10 h-10 flex items-center justify-center">
-                                <img 
-                                  src={lender.logo} 
-                                  alt={`${lender.name} logo`}
-                                  className="max-w-full max-h-full object-contain"
+                        {selectedLendersToAvoid.map((lenderId) => {
+                          const lenderFromList = allLenders.find(l => l.id === lenderId);
+                          const lenderWithLogo = availableLenders.find(l => l.id === lenderId);
+                          
+                          if (!lenderFromList) return null;
+                          
+                          return (
+                            <div key={lenderId} className="p-4 sm:p-6 bg-white border-2 border-gray-200 rounded-xl sm:rounded-2xl">
+                              <div className="flex items-center gap-3 mb-4">
+                                {lenderWithLogo ? (
+                                  <div className="w-10 h-10 flex items-center justify-center">
+                                    <img 
+                                      src={lenderWithLogo.logo} 
+                                      alt={`${lenderFromList.name} logo`}
+                                      className="max-w-full max-h-full object-contain"
+                                    />
+                                  </div>
+                                ) : (
+                                  <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                                    <Building2 className="h-5 w-5 text-gray-400" />
+                                  </div>
+                                )}
+                                <div>
+                                  <h5 className="font-semibold text-[#2a3441]">{lenderFromList.name}</h5>
+                                  <p className="text-xs text-gray-500">{lenderFromList.category}</p>
+                                </div>
+                              </div>
+                              
+                              <div className="space-y-2">
+                                <Label htmlFor={`reason-${lenderId}`} className="text-sm sm:text-base font-medium text-[#2a3441]">
+                                  Reason for avoiding (Optional)
+                                </Label>
+                                <Textarea
+                                  id={`reason-${lenderId}`}
+                                  value={lenderReasons[lenderId] || ''}
+                                  onChange={(e) => updateLenderReason(lenderId, e.target.value)}
+                                  placeholder="e.g., Previous poor experience, existing relationship conflicts, etc."
+                                  className="min-h-[80px] bg-white border-2 border-gray-200 focus:border-[#ff8000] focus:ring-2 focus:ring-[#ff8000]/20 text-[#2a3441] rounded-lg sm:rounded-xl resize-none transition-all"
                                 />
                               </div>
-                              <h5 className="font-semibold text-[#2a3441]">{lender.name}</h5>
                             </div>
-                            
-                            <div className="space-y-2">
-                              <Label htmlFor={`reason-${lenderId}`} className="text-sm sm:text-base font-medium text-[#2a3441]">
-                                Reason for avoiding (Optional)
-                              </Label>
-                              <Textarea
-                                id={`reason-${lenderId}`}
-                                value={lenderReasons[lenderId] || ''}
-                                onChange={(e) => updateLenderReason(lenderId, e.target.value)}
-                                placeholder="e.g., Previous poor experience, existing relationship conflicts, etc."
-                                className="min-h-[80px] bg-white border-2 border-gray-200 focus:border-[#ff8000] focus:ring-2 focus:ring-[#ff8000]/20 text-[#2a3441] rounded-lg sm:rounded-xl resize-none transition-all"
-                              />
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
               )}
             </CardContent>
           </Card>
