@@ -18,6 +18,14 @@ const MailgunTest = () => {
     text: '',
     html: ''
   });
+  const [templateTest, setTemplateTest] = useState({
+    type: 'welcome',
+    to: '',
+    firstName: 'John',
+    role: 'business' as 'business' | 'lender',
+    businessName: 'Test Business Ltd',
+    lenderName: 'Test Lender'
+  });
   const [lastResult, setLastResult] = useState<any>(null);
 
   // Get Mailgun configuration status
@@ -73,6 +81,88 @@ const MailgunTest = () => {
     } catch (error) {
       console.error('Error:', error);
       toast.error('An error occurred while sending the email');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleTemplateTest = async () => {
+    setIsLoading(true);
+    try {
+      let result;
+      
+      switch (templateTest.type) {
+        case 'welcome':
+          result = await mailgunService.sendWelcomeEmail({
+            to: templateTest.to,
+            firstName: templateTest.firstName,
+            role: templateTest.role
+          });
+          break;
+          
+        case 'application_submitted':
+          result = await mailgunService.sendApplicationSubmittedEmail({
+            to: templateTest.to,
+            firstName: templateTest.firstName,
+            businessName: templateTest.businessName,
+            applicationNumber: 'APP-12345',
+            loanAmount: 50000
+          });
+          break;
+          
+        case 'offer_received':
+          result = await mailgunService.sendOfferReceivedEmail({
+            to: templateTest.to,
+            firstName: templateTest.firstName,
+            businessName: templateTest.businessName,
+            lenderName: templateTest.lenderName,
+            offerAmount: 45000,
+            interestRate: 8.5,
+            termMonths: 24
+          });
+          break;
+          
+        case 'document_invitation':
+          result = await mailgunService.sendDocumentInvitationEmail({
+            to: templateTest.to,
+            colleagueName: templateTest.firstName,
+            businessName: templateTest.businessName,
+            inviterName: 'Test User',
+            uploadUrl: 'https://comparefunding.io/upload/documents',
+            message: 'Please help me upload the required financial documents for our funding application.'
+          });
+          break;
+          
+        case 'lender_invitation':
+          result = await mailgunService.sendLenderInvitationEmail({
+            to: templateTest.to,
+            firstName: templateTest.firstName,
+            lastName: 'Smith',
+            organizationName: templateTest.lenderName,
+            inviterName: 'Test Manager',
+            role: 'analyst',
+            acceptUrl: 'https://comparefunding.io/accept-invitation'
+          });
+          break;
+          
+        default:
+          throw new Error('Unknown template type');
+      }
+      
+      setLastResult(result);
+      
+      if (result.success) {
+        toast.success(`${templateTest.type.replace('_', ' ')} email sent successfully!`);
+      } else {
+        if (result.helpMessage) {
+          toast.error(result.helpMessage);
+        } else {
+          toast.error(`Failed to send ${templateTest.type.replace('_', ' ')} email`);
+        }
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error('An error occurred while sending the template email');
     } finally {
       setIsLoading(false);
     }
@@ -200,6 +290,105 @@ const MailgunTest = () => {
                 className="w-full"
               >
                 {isLoading ? 'Sending...' : 'Send Custom Email'}
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Email Template Testing */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Email Template Testing</CardTitle>
+              <CardDescription>
+                Test the different email templates used throughout the application
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="templateType">Template Type</Label>
+                <select
+                  id="templateType"
+                  value={templateTest.type}
+                  onChange={(e) => setTemplateTest(prev => ({ ...prev, type: e.target.value }))}
+                  className="w-full p-2 border rounded-md"
+                >
+                  <option value="welcome">Welcome Email</option>
+                  <option value="application_submitted">Application Submitted</option>
+                  <option value="offer_received">Offer Received</option>
+                  <option value="document_invitation">Document Upload Invitation</option>
+                  <option value="lender_invitation">Lender Team Invitation</option>
+                </select>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="templateTo">To Email</Label>
+                  <Input
+                    id="templateTo"
+                    type="email"
+                    value={templateTest.to}
+                    onChange={(e) => setTemplateTest(prev => ({ ...prev, to: e.target.value }))}
+                    placeholder="recipient@example.com"
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="templateFirstName">First Name</Label>
+                  <Input
+                    id="templateFirstName"
+                    value={templateTest.firstName}
+                    onChange={(e) => setTemplateTest(prev => ({ ...prev, firstName: e.target.value }))}
+                    placeholder="John"
+                  />
+                </div>
+              </div>
+              
+              {templateTest.type === 'welcome' && (
+                <div>
+                  <Label htmlFor="templateRole">User Role</Label>
+                  <select
+                    id="templateRole"
+                    value={templateTest.role}
+                    onChange={(e) => setTemplateTest(prev => ({ ...prev, role: e.target.value as 'business' | 'lender' }))}
+                    className="w-full p-2 border rounded-md"
+                  >
+                    <option value="business">Business</option>
+                    <option value="lender">Lender</option>
+                  </select>
+                </div>
+              )}
+              
+              {(templateTest.type === 'application_submitted' || 
+                templateTest.type === 'offer_received' || 
+                templateTest.type === 'document_invitation') && (
+                <div>
+                  <Label htmlFor="templateBusinessName">Business Name</Label>
+                  <Input
+                    id="templateBusinessName"
+                    value={templateTest.businessName}
+                    onChange={(e) => setTemplateTest(prev => ({ ...prev, businessName: e.target.value }))}
+                    placeholder="Test Business Ltd"
+                  />
+                </div>
+              )}
+              
+              {(templateTest.type === 'offer_received' || templateTest.type === 'lender_invitation') && (
+                <div>
+                  <Label htmlFor="templateLenderName">Lender/Organization Name</Label>
+                  <Input
+                    id="templateLenderName"
+                    value={templateTest.lenderName}
+                    onChange={(e) => setTemplateTest(prev => ({ ...prev, lenderName: e.target.value }))}
+                    placeholder="Test Lender"
+                  />
+                </div>
+              )}
+              
+              <Button 
+                onClick={handleTemplateTest}
+                disabled={isLoading || !status.configured || !templateTest.to}
+                className="w-full"
+              >
+                {isLoading ? 'Sending...' : `Send ${templateTest.type.replace('_', ' ')} Email`}
               </Button>
             </CardContent>
           </Card>

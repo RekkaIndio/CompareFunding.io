@@ -23,6 +23,7 @@ import SSOButtons from '@/components/SSOButtons';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { createDocument, updateDocument } from '@/firebase';
+import mailgunService from '@/services/mailgunService';
 import { toast } from 'sonner';
 import '../../styles/animations.css';
 
@@ -212,7 +213,35 @@ const EmailPasswordPage = () => {
         // Don't fail the signup if profile save fails
       }
 
+      // Send welcome email via Mailgun
+      try {
+        await mailgunService.sendWelcomeEmail({
+          to: email,
+          firstName: firstName,
+          role: 'business',
+          loginUrl: 'https://comparefunding.io/login'
+        });
+      } catch (emailError) {
+        console.error('Error sending welcome email:', emailError);
+        // Don't fail the signup if email sending fails
+      }
+
       toast.success('Account created successfully!');
+      
+      // Send welcome email
+      try {
+        await mailgunService.sendWelcomeEmail({
+          to: email,
+          firstName: firstName,
+          role: 'business',
+          loginUrl: 'https://comparefunding.io/login'
+        });
+        console.log('Welcome email sent successfully');
+      } catch (emailError) {
+        console.error('Failed to send welcome email:', emailError);
+        // Don't fail the signup if email sending fails
+      }
+      
       navigate('/signup-journey/business-details', { 
         state: { 
           userId: data.user.uid,

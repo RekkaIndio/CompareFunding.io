@@ -133,7 +133,7 @@ export const ActionCard: React.FC<ActionCardProps> = ({
               {conversation && onNavigateToMessages && (
                 <Button 
                   onClick={onNavigateToMessages}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  className="bg-[#ff8000] hover:bg-blue-700 text-white"
                 >
                   <MessageCircle className="mr-2 h-4 w-4" />
                   Message Lender

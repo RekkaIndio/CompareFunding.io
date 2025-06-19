@@ -107,10 +107,10 @@ export const LoanDetailsCard: React.FC<LoanDetailsCardProps> = ({ offer, convers
           <div className="mt-6">
             <Button 
               onClick={onNavigateToMessages} 
-              className="w-full flex items-center justify-center bg-[#0056b3] text-white rounded-lg py-3 hover:bg-[#004494] transition-all duration-200"
+              className="w-full flex items-center justify-center bg-[#ff8000] text-white rounded-lg py-3 hover:bg-[#e76b00] transition-all duration-200"
             >
               <MessageCircle className="w-5 h-5 mr-2" />
-              View Conversation
+              Message lender
             </Button>
           </div>
         )}

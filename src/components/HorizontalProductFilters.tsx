@@ -27,6 +27,7 @@ type HorizontalProductFiltersProps = {
   sortBy: string;
   onSortChange: (value: string) => void;
   lendersCount: number;
+  connectedLendersCount?: number;
 };
 
 export const HorizontalProductFilters: React.FC<HorizontalProductFiltersProps> = ({
@@ -38,7 +39,8 @@ export const HorizontalProductFilters: React.FC<HorizontalProductFiltersProps> =
   onSearchChange,
   sortBy,
   onSortChange,
-  lendersCount
+  lendersCount,
+  connectedLendersCount = 0
 }) => {
   const hasActiveFilters = Object.keys(values).some(key => {
     const value = values[key];
@@ -234,15 +236,23 @@ export const HorizontalProductFilters: React.FC<HorizontalProductFiltersProps> =
             </Button>
           )}
         </div>
-      </div>
-
-      {/* Filters Section */}
-      {filters.length > 0 && (
-        <>
-          <div className="flex items-center gap-2 mb-3">
-            <Filter className="h-4 w-4 text-white" />
-            <h3 className="font-semibold text-white">Filters</h3>
-          </div>
+      </div>          {/* Filters Section */}
+          {filters.length > 0 && (
+            <>
+              <div className="flex items-center gap-2 mb-3">
+                <Filter className="h-4 w-4 text-white" />
+                <h3 className="font-semibold text-white">Filters</h3>
+                {connectedLendersCount > 0 && (
+                  <div className="ml-4 bg-white/10 backdrop-blur-sm rounded-lg px-3 py-1 border border-white/20">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                      <span className="text-xs text-white font-medium">
+                        Auto-Connected: {connectedLendersCount}/5
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
           
           <div className="flex flex-wrap gap-2">
             {filters.map(filter => renderFilterButton(filter))}

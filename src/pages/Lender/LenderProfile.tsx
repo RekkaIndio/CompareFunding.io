@@ -289,7 +289,7 @@ const LenderProfile = () => {
     }
   }, [profile]);
 
-  // Function to fetch website logo
+  // Function to fetch website logo (CORS-free approach)
   const fetchWebsiteLogo = async (websiteUrl: string) => {
     if (!websiteUrl) return;
     
@@ -327,85 +327,60 @@ const LenderProfile = () => {
         const logo = getDefaultLogoForService(domain);
         if (logo) {
           setFormData(prev => ({ ...prev, logo_url: logo }));
+          toast.success('Logo set for hosting service');
           return;
         }
       }
 
-      // Try multiple favicon sources in order of preference
-      const faviconSources = [
+      // Instead of trying to test images (which causes CORS issues),
+      // let's just construct the most common favicon URLs and let the browser handle it
+      const commonFaviconUrls = [
         `https://${domain}/favicon.ico`,
         `https://${domain}/favicon.png`,
-        `https://${domain}/apple-touch-icon.png`,
-        `https://www.google.com/s2/favicons?domain=${domain}&sz=64`,
-        `https://icons.duckduckgo.com/ip3/${domain}.ico`,
-        `https://api.faviconkit.com/${domain}/64`
+        `https://${domain}/apple-touch-icon.png`
       ];
 
-      // Test each favicon source
-      for (const faviconUrl of faviconSources) {
-        try {
-          const isValid = await testImageUrl(faviconUrl);
-          if (isValid) {
-            setFormData(prev => ({ ...prev, logo_url: faviconUrl }));
-            console.log(`Successfully fetched logo from: ${faviconUrl}`);
-            return;
+      // For most websites, favicon.ico is the standard
+      // Let's just set it and let the browser handle the loading
+      const primaryFaviconUrl = `https://${domain}/favicon.ico`;
+      
+      // Set the logo URL directly - the browser will handle loading it when displaying
+      setFormData(prev => ({ ...prev, logo_url: primaryFaviconUrl }));
+      
+      // Show user feedback
+      toast.success('Logo URL set! If it doesn\'t appear, we\'ll generate a custom one.');
+      
+      // Optional: Set a fallback after a delay to check if the logo loaded
+      setTimeout(() => {
+        // Check if we still have the same logo URL and if it failed to load
+        const logoElement = document.querySelector('img[alt="Company Logo"]') as HTMLImageElement;
+        if (logoElement && logoElement.src === primaryFaviconUrl) {
+          // If the image failed to load, the browser might show a broken image
+          // We can check the naturalWidth property
+          if (logoElement.naturalWidth === 0) {
+            // Image failed to load, generate a letter logo
+            if (formData.company_name) {
+              const letterLogo = generateLetterLogo(formData.company_name);
+              setFormData(prev => ({ ...prev, logo_url: letterLogo }));
+              toast.info('Generated a custom logo as fallback');
+            }
           }
-        } catch (e) {
-          // Continue to next source
-          continue;
         }
-      }
-
-      // If all favicon sources fail, generate a letter-based logo
-      console.warn(`No valid favicon found for ${domain}, generating letter logo`);
-      if (formData.company_name) {
-        const letterLogo = generateLetterLogo(formData.company_name);
-        setFormData(prev => ({ ...prev, logo_url: letterLogo }));
-      } else {
-        toast.error('Could not fetch logo for this website');
-      }
+      }, 3000); // Check after 3 seconds
       
     } catch (error) {
-      console.error('Error fetching logo:', error);
+      console.error('Error setting logo URL:', error);
       // Fallback to generated logo
       if (formData.company_name) {
         const letterLogo = generateLetterLogo(formData.company_name);
         setFormData(prev => ({ ...prev, logo_url: letterLogo }));
-        toast.info('Using generated logo as fallback');
+        toast.info('Generated a custom logo');
       } else {
-        toast.error('Failed to fetch logo');
+        toast.error('Please enter a company name to generate a logo');
       }
     }
   };
 
-  // Helper function to test if an image URL is valid
-  const testImageUrl = (url: string): Promise<boolean> => {
-    return new Promise((resolve) => {
-      const img = new window.Image();
-      img.onload = () => {
-        // Additional check to ensure it's not a generic/default favicon
-        if (img.width > 0 && img.height > 0) {
-          resolve(true);
-        } else {
-          resolve(false);
-        }
-      };
-      img.onerror = () => resolve(false);
-      
-      // Set a timeout to avoid hanging
-      const timeout = setTimeout(() => {
-        resolve(false);
-      }, 5000);
-      
-      img.onload = () => {
-        clearTimeout(timeout);
-        resolve(img.width > 0 && img.height > 0);
-      };
-      
-      img.src = url;
-    });
-  };
-  
   // Function to save the logo URL and extract colors
   const saveLogo = async (logoUrl: string) => {
     if (!user?.uid) return;
@@ -1052,9 +1027,16 @@ const LenderProfile = () => {
                           onError={(e) => {
                             console.warn('Logo failed to load:', formData.logo_url);
                             // Generate fallback logo if the current one fails to load
-                            if (formData.company_name) {
+                            if (formData.company_name && !formData.logo_url.startsWith('data:')) {
                               const fallbackLogo = generateLetterLogo(formData.company_name, true);
                               setFormData(prev => ({ ...prev, logo_url: fallbackLogo }));
+                              toast.info('Logo failed to load, generated custom fallback');
+                            }
+                          }}
+                          onLoad={() => {
+                            // If this is a favicon URL and it loaded successfully, show success message
+                            if (formData.logo_url.includes('/favicon.') && !formData.logo_url.startsWith('data:')) {
+                              console.log('Favicon loaded successfully');
                             }
                           }}
                         />

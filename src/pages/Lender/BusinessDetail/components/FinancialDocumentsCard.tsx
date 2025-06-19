@@ -5,7 +5,6 @@ import { FinancialData } from '../types';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useEffect } from 'react';
-import FinancialsTable from '@/pages/Business/Documents/FinancialsTable';
 
 interface FinancialDocumentsCardProps {
   financialData: FinancialData | undefined;
@@ -127,7 +126,7 @@ export const FinancialDocumentsCard: React.FC<FinancialDocumentsCardProps> = ({
             </Alert>
           </div>
         ) : (
-          <div className="space-y-6 flex-1 overflow-hidden">
+          <div className="space-y-4 flex-1">
             <Alert variant="default" className="bg-green-50 border-green-100 text-green-800 mb-4">
               <CheckCircle2 className="h-4 w-4" />
               <AlertDescription>
@@ -135,8 +134,8 @@ export const FinancialDocumentsCard: React.FC<FinancialDocumentsCardProps> = ({
               </AlertDescription>
             </Alert>
             
-            {/* Display financial data in structured tables */}
-            <div className="overflow-y-auto max-h-96">
+            {/* Display download links for available documents */}
+            <div className="space-y-3">
               {Object.entries(financialData).map(([key, document]) => {
                 if (!document) return null;
                 
@@ -147,50 +146,42 @@ export const FinancialDocumentsCard: React.FC<FinancialDocumentsCardProps> = ({
                 if (!documentUrl && !hasData) return null;
                 
                 return (
-                  <div key={key} className="space-y-4 mb-6">
-                    {/* Document Header with Download Button */}
-                    <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-                      <div className="flex items-center">
-                        <FileText className="h-5 w-5 text-[#ff8000] mr-3" />
-                        <div>
-                          <p className="font-medium text-slate-900">{getDocumentTypeName(key)}</p>
-                          <p className="text-xs text-slate-500">
-                            {document?.documentName || document?.fileName || 'Financial document'}
-                          </p>
-                        </div>
+                  <div key={key} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-200 hover:bg-slate-100 transition-colors">
+                    <div className="flex items-center">
+                      <FileText className="h-5 w-5 text-[#ff8000] mr-3" />
+                      <div>
+                        <p className="font-medium text-slate-900">{getDocumentTypeName(key)}</p>
+                        <p className="text-xs text-slate-500">
+                          {document?.documentName || document?.fileName || 'combinepdf.pdf'}
+                        </p>
                       </div>
-                      {documentUrl && (
-                        <a 
-                          href={documentUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="no-underline"
-                          download
-                        >
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            className="flex items-center gap-1 text-blue-600 border-blue-200 hover:bg-blue-50"
-                          >
-                            <DownloadCloud className="h-4 w-4" />
-                            <span>Download</span>
-                          </Button>
-                        </a>
-                      )}
                     </div>
-                    
-                    {/* Display financial data table if available */}
-                    {hasData ? (
-                      <div className="bg-white rounded-lg border border-slate-200">
-                        <FinancialsTable 
-                          data={document.data}
-                          title={getDocumentTypeName(key)}
-                        />
-                      </div>
+                    {documentUrl ? (
+                      <a 
+                        href={documentUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="no-underline"
+                        download
+                      >
+                        <Button 
+                          size="sm" 
+                          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+                        >
+                          <DownloadCloud className="h-4 w-4" />
+                          <span>Download</span>
+                        </Button>
+                      </a>
                     ) : (
-                      <div className="bg-slate-50 rounded-lg p-4 text-center text-slate-500 text-sm">
-                        Document uploaded but data processing is still in progress
-                      </div>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        disabled
+                        className="flex items-center gap-2 text-slate-400"
+                      >
+                        <DownloadCloud className="h-4 w-4" />
+                        <span>Processing...</span>
+                      </Button>
                     )}
                   </div>
                 );

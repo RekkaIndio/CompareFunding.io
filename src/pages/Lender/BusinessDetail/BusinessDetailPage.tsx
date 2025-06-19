@@ -54,7 +54,7 @@ const BusinessDetailPage = () => {
     getDisplayName,
   } = useBusinessData(id, user);
 
-  const { financialData } = useFinancialData(id, applicationData);
+  const { financialData, refetchFinancialData, isLoadingFinancialData } = useFinancialData(id, applicationData);
 
   // Update document title based on match status
   useEffect(() => {
@@ -160,6 +160,8 @@ const BusinessDetailPage = () => {
             <FinancialDataTabs 
               financialData={financialData}
               isLenderMatched={canSeeBusinessDetails()}
+              onRefresh={refetchFinancialData}
+              isLoading={isLoadingFinancialData}
             />
 
             {/* Bottom Section - Funding Request and Documents (side by side) */}

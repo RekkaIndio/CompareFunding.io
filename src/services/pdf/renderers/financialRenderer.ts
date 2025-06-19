@@ -22,10 +22,16 @@ const TABLE_STYLES = {
   headerFontSize: 10,
   titleFontSize: 14,
   padding: 8,
-  minColumnWidth: 80,
+  minColumnWidth: 40,
   maxColumnWidth: 200,
-  currencyColumnWidth: 120,
-  descriptionColumnWidth: 180
+  currencyColumnWidth: 80,
+  descriptionColumnWidth: 150
+};
+
+// Page dimensions
+const PAGE_DIMENSIONS = {
+  portrait: { width: 595.276, height: 841.890 },
+  landscape: { width: 841.890, height: 595.276 }
 };
 
 /**
@@ -85,22 +91,30 @@ export function renderFinancialData(
     // Skip if no actual data
     if (!documentData || !hasValidData(documentData)) continue;
 
-    // Create new page for each document after the first one
-    if (docIndex > 0) {
-      currentPage = pdfDoc.addPage([595.276, 841.890]);
-      currentY = 780;
+    // Determine if this document needs landscape orientation
+    const needsLandscape = shouldUseLandscapeMode(documentData);
+    
+    // Create new page with appropriate orientation
+    if (docIndex > 0 || needsLandscape) {
+      const dimensions = needsLandscape ? PAGE_DIMENSIONS.landscape : PAGE_DIMENSIONS.portrait;
+      currentPage = pdfDoc.addPage([dimensions.width, dimensions.height]);
+      currentY = needsLandscape ? 520 : 780;
     }
+
+    // Update width based on page orientation
+    const pageWidth = needsLandscape ? PAGE_DIMENSIONS.landscape.width : PAGE_DIMENSIONS.portrait.width;
 
     // Render the document with full data tables
     const result = renderFinancialDocument(
       currentPage, 
       currentY, 
-      width, 
+      pageWidth, 
       docKey, 
       documentData, 
       fonts, 
       colors, 
-      pdfDoc
+      pdfDoc,
+      needsLandscape
     );
     
     currentPage = result.page;
@@ -143,6 +157,64 @@ function hasValidData(documentData: any): boolean {
 }
 
 /**
+ * Determine if a document should be rendered in landscape mode
+ */
+function shouldUseLandscapeMode(documentData: any): boolean {
+  if (!documentData.data) return false;
+  
+  const data = documentData.data;
+  
+  // Check for aged reports with many columns (typically have many time periods)
+  if (data.suppliers || data.customers || data.agedPayables || data.agedReceivables) {
+    return true; // Aged reports typically have many columns
+  }
+  
+  // Check if document has multiple financial sections (P&L + Balance Sheet)
+  const hasMultipleSections = [
+    data.profitAndLoss,
+    data.balanceSheet,
+    data.trialBalance
+  ].filter(Boolean).length > 1;
+  
+  if (hasMultipleSections) {
+    return true; // Use landscape for documents with multiple sections
+  }
+  
+  // Check line items for many columns
+  if (data.lineItems && Array.isArray(data.lineItems) && data.lineItems.length > 0) {
+    const firstItem = data.lineItems[0];
+    const columnCount = Object.keys(firstItem).length;
+    return columnCount > 6; // Use landscape if more than 6 columns
+  }
+  
+  // Check accounts for trial balance
+  if (data.accounts && Array.isArray(data.accounts) && data.accounts.length > 0) {
+    const firstAccount = data.accounts[0];
+    const columnCount = Object.keys(firstAccount).length;
+    return columnCount > 4; // Trial balance usually has fewer columns
+  }
+  
+  // Check nested structures for column count
+  if (data.profitAndLoss?.lineItems) {
+    const firstItem = data.profitAndLoss.lineItems[0];
+    if (firstItem) {
+      const columnCount = Object.keys(firstItem).length;
+      return columnCount > 6;
+    }
+  }
+  
+  if (data.balanceSheet?.lineItems) {
+    const firstItem = data.balanceSheet.lineItems[0];
+    if (firstItem) {
+      const columnCount = Object.keys(firstItem).length;
+      return columnCount > 6;
+    }
+  }
+  
+  return false;
+}
+
+/**
  * Render a single financial document with complete data tables
  */
 function renderFinancialDocument(
@@ -153,7 +225,8 @@ function renderFinancialDocument(
   documentData: any,
   fonts: any,
   colors: any,
-  pdfDoc: PDFDocument
+  pdfDoc: PDFDocument,
+  isLandscape: boolean = false
 ): RenderResult {
   let currentY = yPosition;
   let currentPage = page;
@@ -171,10 +244,14 @@ function renderFinancialDocument(
   });
   currentY -= 25;
 
-  // Document metadata
-  if (documentData.createdAt) {
-    const dateStr = new Date(documentData.createdAt).toLocaleDateString('en-GB');
-    currentPage.drawText(`Last updated: ${dateStr}`, {
+  // Document metadata - improved date handling
+  const displayDate = getFormattedDate(documentData);
+  
+  // Debug logging to understand date format (can be removed later)
+  
+  
+  if (displayDate) {
+    currentPage.drawText(`Last updated: ${displayDate}`, {
       x: 50,
       y: currentY,
       size: 9,
@@ -184,33 +261,150 @@ function renderFinancialDocument(
     currentY -= 20;
   }
 
-  // Render based on document structure
+  // Enhanced rendering to handle multiple financial tables within a single document
+  // First, check if this document contains multiple financial sections
+  const hasMultipleSections = [
+    data.profitAndLoss,
+    data.balanceSheet,
+    data.trialBalance,
+    data.agedPayables || data.suppliers,
+    data.agedReceivables || data.customers
+  ].filter(Boolean).length > 1;
+
+  let sectionCount = 0;
+  const addSpacingBetweenSections = () => {
+    if (sectionCount > 0) {
+      currentY -= 30; // Add spacing between sections
+      if (currentY < 150) {
+        // Start new page if running out of space
+        const dimensions = isLandscape ? PAGE_DIMENSIONS.landscape : PAGE_DIMENSIONS.portrait;
+        currentPage = pdfDoc.addPage([dimensions.width, dimensions.height]);
+        currentY = isLandscape ? 520 : 780;
+      }
+    }
+    sectionCount++;
+  };
+
+  // Render Profit & Loss if present
   if (data.profitAndLoss) {
-    const result = renderProfitAndLoss(currentPage, currentY, width, data.profitAndLoss, fonts, colors, pdfDoc);
+    addSpacingBetweenSections();
+    
+    // Add section title if multiple sections exist
+    if (hasMultipleSections) {
+      currentPage.drawText('Profit & Loss Statement', {
+        x: 50,
+        y: currentY,
+        size: 12,
+        font: fonts.helveticaBold,
+        color: colors.primaryColor,
+      });
+      currentY -= 20;
+    }
+    
+    const result = renderProfitAndLoss(currentPage, currentY, width, data.profitAndLoss, fonts, colors, pdfDoc, isLandscape);
     currentPage = result.page;
     currentY = result.yPosition;
-  } else if (data.balanceSheet) {
-    const result = renderBalanceSheet(currentPage, currentY, width, data.balanceSheet, fonts, colors, pdfDoc);
+  }
+
+  // Render Balance Sheet if present
+  if (data.balanceSheet) {
+    addSpacingBetweenSections();
+    
+    // Add section title if multiple sections exist
+    if (hasMultipleSections) {
+      currentPage.drawText('Balance Sheet', {
+        x: 50,
+        y: currentY,
+        size: 12,
+        font: fonts.helveticaBold,
+        color: colors.primaryColor,
+      });
+      currentY -= 20;
+    }
+    
+    const result = renderBalanceSheet(currentPage, currentY, width, data.balanceSheet, fonts, colors, pdfDoc, isLandscape);
     currentPage = result.page;
     currentY = result.yPosition;
-  } else if (data.trialBalance) {
-    const result = renderTrialBalance(currentPage, currentY, width, data.trialBalance, fonts, colors, pdfDoc);
+  }
+
+  // Render Trial Balance if present
+  if (data.trialBalance) {
+    addSpacingBetweenSections();
+    
+    // Add section title if multiple sections exist
+    if (hasMultipleSections) {
+      currentPage.drawText('Trial Balance', {
+        x: 50,
+        y: currentY,
+        size: 12,
+        font: fonts.helveticaBold,
+        color: colors.primaryColor,
+      });
+      currentY -= 20;
+    }
+    
+    const result = renderTrialBalance(currentPage, currentY, width, data.trialBalance, fonts, colors, pdfDoc, isLandscape);
     currentPage = result.page;
     currentY = result.yPosition;
-  } else if (data.agedPayables || data.agedReceivables || data.suppliers || data.customers) {
-    const result = renderAgedReport(currentPage, currentY, width, data, documentName, fonts, colors, pdfDoc);
+  }
+
+  // Render Aged Payables if present
+  if (data.agedPayables || data.suppliers) {
+    addSpacingBetweenSections();
+    
+    // Add section title if multiple sections exist
+    if (hasMultipleSections) {
+      currentPage.drawText('Aged Payables', {
+        x: 50,
+        y: currentY,
+        size: 12,
+        font: fonts.helveticaBold,
+        color: colors.primaryColor,
+      });
+      currentY -= 20;
+    }
+    
+    const agedData = data.agedPayables || { suppliers: data.suppliers };
+    const result = renderAgedReport(currentPage, currentY, width, agedData, 'Aged Payables', fonts, colors, pdfDoc, isLandscape);
     currentPage = result.page;
     currentY = result.yPosition;
-  } else if (data.lineItems && Array.isArray(data.lineItems)) {
-    // Generic line items structure
-    const result = renderLineItemsTable(currentPage, currentY, width, data, fonts, colors, pdfDoc);
+  }
+
+  // Render Aged Receivables if present
+  if (data.agedReceivables || data.customers) {
+    addSpacingBetweenSections();
+    
+    // Add section title if multiple sections exist
+    if (hasMultipleSections) {
+      currentPage.drawText('Aged Receivables', {
+        x: 50,
+        y: currentY,
+        size: 12,
+        font: fonts.helveticaBold,
+        color: colors.primaryColor,
+      });
+      currentY -= 20;
+    }
+    
+    const agedData = data.agedReceivables || { customers: data.customers };
+    const result = renderAgedReport(currentPage, currentY, width, agedData, 'Aged Receivables', fonts, colors, pdfDoc, isLandscape);
     currentPage = result.page;
     currentY = result.yPosition;
-  } else {
-    // Fallback for other data structures
-    const result = renderGenericFinancialData(currentPage, currentY, width, data, fonts, colors, pdfDoc);
-    currentPage = result.page;
-    currentY = result.yPosition;
+  }
+
+  // If no structured sections were found, fall back to generic rendering
+  if (sectionCount === 0) {
+    if (data.lineItems && Array.isArray(data.lineItems)) {
+      // Generic line items structure
+      const result = renderLineItemsTable(currentPage, currentY, width, data, fonts, colors, pdfDoc, isLandscape);
+      currentPage = result.page;
+      currentY = result.yPosition;
+    } else {
+      // Fallback for other data structures
+      const result = renderGenericFinancialData(currentPage, currentY, width, data, fonts, colors, pdfDoc, isLandscape);
+      currentPage = result.page;
+      currentY = result.yPosition;
+    }
   }
 
   return { page: currentPage, yPosition: currentY };
@@ -226,7 +420,8 @@ function renderProfitAndLoss(
   data: any,
   fonts: any,
   colors: any,
-  pdfDoc: PDFDocument
+  pdfDoc: PDFDocument,
+  isLandscape: boolean = false
 ): RenderResult {
   let currentY = yPosition;
   let currentPage = page;
@@ -255,7 +450,7 @@ function renderProfitAndLoss(
   }
 
   if (data.lineItems && Array.isArray(data.lineItems)) {
-    const result = renderFinancialTable(currentPage, currentY, width, data, fonts, colors, pdfDoc);
+    const result = renderFinancialTable(currentPage, currentY, width, data, fonts, colors, pdfDoc, isLandscape);
     currentPage = result.page;
     currentY = result.yPosition;
   }
@@ -273,9 +468,10 @@ function renderBalanceSheet(
   data: any,
   fonts: any,
   colors: any,
-  pdfDoc: PDFDocument
+  pdfDoc: PDFDocument,
+  isLandscape: boolean = false
 ): RenderResult {
-  return renderProfitAndLoss(page, yPosition, width, data, fonts, colors, pdfDoc);
+  return renderProfitAndLoss(page, yPosition, width, data, fonts, colors, pdfDoc, isLandscape);
 }
 
 /**
@@ -288,7 +484,8 @@ function renderTrialBalance(
   data: any,
   fonts: any,
   colors: any,
-  pdfDoc: PDFDocument
+  pdfDoc: PDFDocument,
+  isLandscape: boolean = false
 ): RenderResult {
   let currentY = yPosition;
   let currentPage = page;
@@ -319,7 +516,7 @@ function renderTrialBalance(
   // Render accounts table
   if (data.accounts && Array.isArray(data.accounts)) {
     // Table headers
-    const result = renderTrialBalanceTable(currentPage, currentY, width, data.accounts, fonts, colors, pdfDoc);
+    const result = renderTrialBalanceTable(currentPage, currentY, width, data.accounts, fonts, colors, pdfDoc, isLandscape);
     currentPage = result.page;
     currentY = result.yPosition;
   }
@@ -338,7 +535,8 @@ function renderAgedReport(
   reportTitle: string,
   fonts: any,
   colors: any,
-  pdfDoc: PDFDocument
+  pdfDoc: PDFDocument,
+  isLandscape: boolean = false
 ): RenderResult {
   let currentY = yPosition;
   let currentPage = page;
@@ -370,7 +568,8 @@ function renderAgedReport(
   const itemsKey = data.suppliers ? 'suppliers' : data.customers ? 'customers' : null;
   
   if (itemsKey && Array.isArray(data[itemsKey])) {
-    const result = renderAgedItemsTable(currentPage, currentY, width, data[itemsKey], itemsKey, fonts, colors, pdfDoc);
+    // For aged reports, use a proper table format instead of individual items
+    const result = renderAgedDataTable(currentPage, currentY, width, data[itemsKey], itemsKey, fonts, colors, pdfDoc, isLandscape);
     currentPage = result.page;
     currentY = result.yPosition;
   }
@@ -390,8 +589,9 @@ function renderAgedReport(
     
     Object.entries(data.totals).forEach(([key, value]) => {
       if (currentY < 100) {
-        currentPage = pdfDoc.addPage([595.276, 841.890]);
-        currentY = 750;
+        const dimensions = isLandscape ? PAGE_DIMENSIONS.landscape : PAGE_DIMENSIONS.portrait;
+        currentPage = pdfDoc.addPage([dimensions.width, dimensions.height]);
+        currentY = isLandscape ? 520 : 780;
       }
       
       const displayKey = formatFieldName(key);
@@ -421,6 +621,62 @@ function renderAgedReport(
 }
 
 /**
+ * Render aged data as a proper table (like the web view)
+ */
+function renderAgedDataTable(
+  page: PDFPage,
+  yPosition: number,
+  width: number,
+  items: any[],
+  itemType: string,
+  fonts: any,
+  colors: any,
+  pdfDoc: PDFDocument,
+  isLandscape: boolean = false
+): RenderResult {
+  let currentY = yPosition;
+  let currentPage = page;
+
+  if (!items || items.length === 0) {
+    return { page: currentPage, yPosition: currentY };
+  }
+
+  // Convert aged items to table format
+  const firstItem = items[0];
+  const columns = Object.keys(firstItem).filter(key => 
+    key !== 'supplierName' && key !== 'customerName'
+  );
+
+  // Add the item name column first
+  const itemNameCol = itemType === 'suppliers' ? 'supplierName' : 'customerName';
+  const tableColumns = ['item', ...columns];
+
+  // Prepare table data with proper structure
+  const tableData = items.map(item => {
+    const row: any = {};
+    row.item = item[itemNameCol] || item.supplierName || item.customerName || 'Unknown';
+    
+    // Copy all other fields
+    columns.forEach(col => {
+      row[col] = item[col];
+    });
+    
+    return row;
+  });
+
+  // Create a data structure compatible with renderFinancialTable
+  const agedTableData = {
+    lineItems: tableData,
+    columns: tableColumns
+  };
+
+  // Render as a proper financial table
+  const result = renderFinancialTable(currentPage, currentY, width, agedTableData, fonts, colors, pdfDoc, isLandscape);
+  
+  return { page: result.page, yPosition: result.yPosition };
+}
+
+/**
  * Render generic line items table (P&L, Balance Sheet, etc.)
  */
 function renderFinancialTable(
@@ -430,7 +686,8 @@ function renderFinancialTable(
   data: any,
   fonts: any,
   colors: any,
-  pdfDoc: PDFDocument
+  pdfDoc: PDFDocument,
+  isLandscape: boolean = false
 ): RenderResult {
   let currentY = yPosition;
   let currentPage = page;
@@ -456,12 +713,15 @@ function renderFinancialTable(
     columns = ['item', ...columns];
   }
 
-  // Calculate column widths
-  const tableWidth = width - 100;
-  const columnWidths = calculateDynamicColumnWidths(columns, tableWidth);
+  // Calculate column widths with improved logic for landscape mode
+  const tableWidth = width - 60; // Reduced margins
+  const columnWidths = calculateDynamicColumnWidths(columns, tableWidth, isLandscape);
+
+  // Use smaller fonts for landscape tables with many columns
+  const dynamicFontSize = isLandscape && columns.length > 8 ? 6 : 7;
 
   // Render table headers
-  const headerResult = renderTableHeaders(currentPage, currentY, columns, columnWidths, fonts, colors);
+  const headerResult = renderTableHeaders(currentPage, currentY, columns, columnWidths, fonts, colors, dynamicFontSize);
   currentY = headerResult.yPosition;
 
   // Render rows with pagination
@@ -470,15 +730,16 @@ function renderFinancialTable(
     
     // Check if we need a new page
     if (currentY < 120) {
-      currentPage = pdfDoc.addPage([595.276, 841.890]);
-      currentY = 750;
+      const dimensions = isLandscape ? PAGE_DIMENSIONS.landscape : PAGE_DIMENSIONS.portrait;
+      currentPage = pdfDoc.addPage([dimensions.width, dimensions.height]);
+      currentY = isLandscape ? 480 : 750;
       
       // Re-render headers on new page
-      const newHeaderResult = renderTableHeaders(currentPage, currentY, columns, columnWidths, fonts, colors);
+      const newHeaderResult = renderTableHeaders(currentPage, currentY, columns, columnWidths, fonts, colors, dynamicFontSize);
       currentY = newHeaderResult.yPosition;
     }
 
-    const rowResult = renderTableRow(currentPage, currentY, item, columns, columnWidths, fonts, i);
+    const rowResult = renderTableRow(currentPage, currentY, item, columns, columnWidths, fonts, i, dynamicFontSize);
     currentY = rowResult.yPosition;
   }
 
@@ -495,14 +756,15 @@ function renderTrialBalanceTable(
   accounts: any[],
   fonts: any,
   colors: any,
-  pdfDoc: PDFDocument
+  pdfDoc: PDFDocument,
+  isLandscape: boolean = false
 ): RenderResult {
   let currentY = yPosition;
   let currentPage = page;
 
-  const tableWidth = width - 100;
-  const accountNameWidth = tableWidth * 0.65; // 65% for account name
-  const amountWidth = tableWidth * 0.35; // 35% for amount
+  const tableWidth = width - 60; // Use more page width
+  const accountNameWidth = tableWidth * 0.70; // 70% for account name (increased)
+  const amountWidth = tableWidth * 0.30; // 30% for amount
 
   // Headers
   currentPage.drawRectangle({
@@ -513,10 +775,12 @@ function renderTrialBalanceTable(
     color: rgb(0.2, 0.2, 0.2),
   });
 
+  const fontSize = isLandscape ? 7 : 8;
+
   currentPage.drawText('Account Name', {
     x: 55,
     y: currentY - 8,
-    size: 8,
+    size: fontSize,
     font: fonts.helveticaBold,
     color: rgb(1, 1, 1),
   });
@@ -524,7 +788,7 @@ function renderTrialBalanceTable(
   currentPage.drawText('Debit / Credit', {
     x: 50 + accountNameWidth + amountWidth - 80,
     y: currentY - 8,
-    size: 8,
+    size: fontSize,
     font: fonts.helveticaBold,
     color: rgb(1, 1, 1),
   });
@@ -536,8 +800,9 @@ function renderTrialBalanceTable(
     const account = accounts[i];
     
     if (currentY < 100) {
-      currentPage = pdfDoc.addPage([595.276, 841.890]);
-      currentY = 750;
+      const dimensions = isLandscape ? PAGE_DIMENSIONS.landscape : PAGE_DIMENSIONS.portrait;
+      currentPage = pdfDoc.addPage([dimensions.width, dimensions.height]);
+      currentY = isLandscape ? 520 : 750;
     }
 
     // Alternate row background
@@ -558,8 +823,9 @@ function renderTrialBalanceTable(
       ? `${formatCurrencyValue(debitAmount)} Dr` 
       : `${formatCurrencyValue(creditAmount)} Cr`;
 
-    // Truncate account name if too long
-    const maxAccountChars = Math.floor(accountNameWidth / 5.5);
+    // Improved text truncation - more generous character limit
+    const charWidth = 4; // Approximate character width for size 7 font
+    const maxAccountChars = Math.floor((accountNameWidth - 10) / charWidth);
     let truncatedName = accountName;
     if (accountName.length > maxAccountChars && maxAccountChars > 3) {
       truncatedName = accountName.substring(0, maxAccountChars - 3) + '...';
@@ -568,7 +834,7 @@ function renderTrialBalanceTable(
     currentPage.drawText(truncatedName, {
       x: 55,
       y: currentY - 8,
-      size: 7,
+      size: fontSize - 1,
       font: fonts.helvetica,
       color: rgb(0, 0, 0),
     });
@@ -578,7 +844,7 @@ function renderTrialBalanceTable(
     currentPage.drawText(displayAmount, {
       x: 50 + tableWidth - amountWidth_text - 10,
       y: currentY - 8,
-      size: 7,
+      size: fontSize - 1,
       font: fonts.helvetica,
       color: rgb(0, 0, 0),
     });
@@ -600,7 +866,8 @@ function renderAgedItemsTable(
   itemType: string,
   fonts: any,
   colors: any,
-  pdfDoc: PDFDocument
+  pdfDoc: PDFDocument,
+  isLandscape: boolean = false
 ): RenderResult {
   let currentY = yPosition;
   let currentPage = page;
@@ -618,16 +885,17 @@ function renderAgedItemsTable(
     const item = items[i];
     
     if (currentY < 150) {
-      currentPage = pdfDoc.addPage([595.276, 841.890]);
-      currentY = 750;
+      const dimensions = isLandscape ? PAGE_DIMENSIONS.landscape : PAGE_DIMENSIONS.portrait;
+      currentPage = pdfDoc.addPage([dimensions.width, dimensions.height]);
+      currentY = isLandscape ? 520 : 750;
     }
 
-    // Item name header
+    // Item name header - use wider area
     const itemName = item.supplierName || item.customerName || `Item ${i + 1}`;
     currentPage.drawRectangle({
       x: 50,
       y: currentY - 12,
-      width: width - 100,
+      width: width - 60, // Use more page width
       height: 15,
       color: rgb(0.9, 0.9, 0.9),
     });
@@ -641,12 +909,13 @@ function renderAgedItemsTable(
     });
     currentY -= 20;
 
-    // Item details
+    // Item details - improved layout
     Object.entries(item).forEach(([key, value]) => {
       if (key !== 'supplierName' && key !== 'customerName' && value !== null && value !== undefined) {
         if (currentY < 80) {
-          currentPage = pdfDoc.addPage([595.276, 841.890]);
-          currentY = 750;
+          const dimensions = isLandscape ? PAGE_DIMENSIONS.landscape : PAGE_DIMENSIONS.portrait;
+          currentPage = pdfDoc.addPage([dimensions.width, dimensions.height]);
+          currentY = isLandscape ? 520 : 750;
         }
 
         const displayKey = formatFieldName(key);
@@ -661,7 +930,7 @@ function renderAgedItemsTable(
         });
 
         currentPage.drawText(displayValue, {
-          x: width - 200,
+          x: width - 150, // Better positioning for values
           y: currentY,
           size: 9,
           font: fonts.helvetica,
@@ -688,9 +957,10 @@ function renderLineItemsTable(
   data: any,
   fonts: any,
   colors: any,
-  pdfDoc: PDFDocument
+  pdfDoc: PDFDocument,
+  isLandscape: boolean = false
 ): RenderResult {
-  return renderFinancialTable(page, yPosition, width, data, fonts, colors, pdfDoc);
+  return renderFinancialTable(page, yPosition, width, data, fonts, colors, pdfDoc, isLandscape);
 }
 
 /**
@@ -703,7 +973,8 @@ function renderGenericFinancialData(
   data: any,
   fonts: any,
   colors: any,
-  pdfDoc: PDFDocument
+  pdfDoc: PDFDocument,
+  isLandscape: boolean = false
 ): RenderResult {
   let currentY = yPosition;
   let currentPage = page;
@@ -713,8 +984,9 @@ function renderGenericFinancialData(
     if (shouldSkipField(key) || value === null || value === undefined) return;
 
     if (currentY < 80) {
-      currentPage = pdfDoc.addPage([595.276, 841.890]);
-      currentY = 750;
+      const dimensions = isLandscape ? PAGE_DIMENSIONS.landscape : PAGE_DIMENSIONS.portrait;
+      currentPage = pdfDoc.addPage([dimensions.width, dimensions.height]);
+      currentY = isLandscape ? 520 : 750;
     }
 
     const displayKey = formatFieldName(key);
@@ -751,42 +1023,53 @@ function renderTableHeaders(
   columns: string[],
   columnWidths: number[],
   fonts: any,
-  colors: any
+  colors: any,
+  fontSize: number = 7
 ): RenderResult {
   let currentY = yPosition;
 
   // Header background
+  const totalTableWidth = columnWidths.reduce((sum, width) => sum + width, 0);
   page.drawRectangle({
     x: 50,
     y: currentY - 15,
-    width: columnWidths.reduce((sum, width) => sum + width, 0),
+    width: totalTableWidth,
     height: 20,
     color: rgb(0.2, 0.2, 0.2),
   });
 
-  // Header text
+  // Draw column separators for better visual alignment
+  let separatorX = 50;
+  columnWidths.forEach((width, index) => {
+    if (index > 0) { // Don't draw separator before first column
+      page.drawLine({
+        start: { x: separatorX, y: currentY - 15 },
+        end: { x: separatorX, y: currentY + 5 },
+        thickness: 0.5,
+        color: rgb(0.4, 0.4, 0.4),
+      });
+    }
+    separatorX += width;
+  });
+
+  // Header text - use consistent alignment system
   let xPosition = 50;
   columns.forEach((col, index) => {
     const headerText = formatColumnHeader(col);
     const isFinancialCol = isFinancialColumn(col);
+    const isItemCol = col.toLowerCase() === 'item' || 
+                     col.toLowerCase() === 'description' || 
+                     col.toLowerCase() === 'account';
     
-    // Use very small font for headers to maximize space usage
-    const fontSize = 6;
-    
-    // Calculate text positioning to fit within column bounds
-    let textX = xPosition + 2;
-    if (isFinancialCol) {
-      // Right-align financial column headers
-      const textWidth = headerText.length * (fontSize * 0.6);
-      textX = Math.max(xPosition + 2, xPosition + columnWidths[index] - textWidth - 2);
-    } else if (columnWidths[index] > 50) {
-      // Center align for wider columns
-      const textWidth = headerText.length * (fontSize * 0.6);
-      textX = xPosition + (columnWidths[index] - textWidth) / 2;
-    }
-    
-    // Ensure text doesn't exceed column boundaries
-    textX = Math.max(xPosition + 1, Math.min(textX, xPosition + columnWidths[index] - 10));
+    // Use the same positioning logic as row data for perfect alignment
+    const textX = calculateTextPosition(
+      headerText, 
+      xPosition, 
+      columnWidths[index], 
+      fontSize, 
+      isFinancialCol, 
+      isItemCol
+    );
     
     page.drawText(headerText, {
       x: textX,
@@ -812,7 +1095,8 @@ function renderTableRow(
   columns: string[],
   columnWidths: number[],
   fonts: any,
-  rowIndex: number
+  rowIndex: number,
+  fontSize: number = 7
 ): RenderResult {
   let currentY = yPosition;
 
@@ -822,11 +1106,12 @@ function renderTableRow(
   const isTotalRow = item.isTotal || item.category === 'total';
 
   // Row background
+  const totalTableWidth = columnWidths.reduce((sum, width) => sum + width, 0);
   if (isHeaderRow) {
     page.drawRectangle({
       x: 50,
       y: currentY - 12,
-      width: columnWidths.reduce((sum, width) => sum + width, 0),
+      width: totalTableWidth,
       height: 15,
       color: rgb(0.85, 0.85, 0.85),
     });
@@ -834,7 +1119,7 @@ function renderTableRow(
     page.drawRectangle({
       x: 50,
       y: currentY - 12,
-      width: columnWidths.reduce((sum, width) => sum + width, 0),
+      width: totalTableWidth,
       height: 15,
       color: rgb(0.95, 0.95, 0.95),
     });
@@ -842,13 +1127,27 @@ function renderTableRow(
     page.drawRectangle({
       x: 50,
       y: currentY - 12,
-      width: columnWidths.reduce((sum, width) => sum + width, 0),
+      width: totalTableWidth,
       height: 15,
       color: rgb(0.98, 0.98, 0.98),
     });
   }
 
-  // Render cells
+  // Draw subtle column separators for better readability
+  let separatorX = 50;
+  columnWidths.forEach((width, index) => {
+    if (index > 0) { // Don't draw separator before first column
+      page.drawLine({
+        start: { x: separatorX, y: currentY - 12 },
+        end: { x: separatorX, y: currentY + 3 },
+        thickness: 0.3,
+        color: rgb(0.8, 0.8, 0.8),
+      });
+    }
+    separatorX += width;
+  });
+
+  // Render cells with consistent positioning
   let xPosition = 50;
   columns.forEach((col, colIndex) => {
     let cellValue = getCellValue(item, col);
@@ -857,7 +1156,6 @@ function renderTableRow(
                      col.toLowerCase() === 'description' || 
                      col.toLowerCase() === 'account';
     const font = (isTotalRow || isHeaderRow) ? fonts.helveticaBold : fonts.helvetica;
-    const fontSize = 6; // Very small font to fit more content
 
     // Format financial values
     if (isFinancialCol && typeof cellValue === 'number') {
@@ -869,51 +1167,20 @@ function renderTableRow(
       }
     }
 
-    // More aggressive text truncation based on actual column width
-    const charWidth = fontSize * 0.6; // Approximate character width
-    const maxChars = Math.floor((columnWidths[colIndex] - 4) / charWidth);
-    
-    if (typeof cellValue === 'string' && cellValue.length > maxChars && maxChars > 3) {
-      if (isFinancialCol) {
-        // For financial values, try to keep the number readable
-        if (cellValue.includes('£')) {
-          const numPart = cellValue.replace('£', '').replace(',', '');
-          if (numPart.length > maxChars - 1) {
-            // Convert to thousands if too long
-            const num = parseFloat(numPart);
-            if (!isNaN(num) && num >= 1000) {
-              cellValue = `£${Math.round(num / 1000)}k`;
-            } else {
-              cellValue = cellValue.substring(0, maxChars - 1);
-            }
-          }
-        } else {
-          cellValue = cellValue.substring(0, maxChars - 1);
-        }
-      } else {
-        cellValue = cellValue.substring(0, maxChars - 3) + '...';
-      }
-    }
+    // Smart text truncation with better space utilization
+    const cellText = truncateTextForColumn(cellValue, columnWidths[colIndex], fontSize, isFinancialCol);
 
-    // Position text based on column type
-    let textX = xPosition + 2;
-    if (isFinancialCol) {
-      // Right-align financial data
-      const textWidth = String(cellValue || '').length * charWidth;
-      textX = Math.max(xPosition + 2, xPosition + columnWidths[colIndex] - textWidth - 2);
-    } else if (isItemCol && columnWidths[colIndex] > 40) {
-      // Left-align item columns with padding
-      textX = xPosition + 3;
-    } else {
-      // Center align for other small columns
-      const textWidth = String(cellValue || '').length * charWidth;
-      textX = xPosition + Math.max(2, (columnWidths[colIndex] - textWidth) / 2);
-    }
+    // Use the same positioning logic as headers for perfect alignment
+    const textX = calculateTextPosition(
+      cellText, 
+      xPosition, 
+      columnWidths[colIndex], 
+      fontSize, 
+      isFinancialCol, 
+      isItemCol
+    );
 
-    // Ensure text stays within column bounds
-    textX = Math.max(xPosition + 1, Math.min(textX, xPosition + columnWidths[colIndex] - 2));
-
-    page.drawText(String(cellValue || ''), {
+    page.drawText(String(cellText || ''), {
       x: textX,
       y: currentY - 8,
       size: fontSize,
@@ -928,6 +1195,97 @@ function renderTableRow(
 }
 
 // Utility functions
+
+/**
+ * Calculate consistent text position for both headers and data cells
+ */
+function calculateTextPosition(
+  text: string,
+  columnStartX: number,
+  columnWidth: number,
+  fontSize: number,
+  isFinancialCol: boolean,
+  isItemCol: boolean
+): number {
+  const charWidth = fontSize * 0.6; // More accurate character width
+  const textWidth = text.length * charWidth;
+  const padding = 4; // Consistent padding
+  
+  if (isFinancialCol) {
+    // Right-align financial columns
+    return Math.max(
+      columnStartX + padding, 
+      columnStartX + columnWidth - textWidth - padding
+    );
+  } else if (isItemCol) {
+    // Left-align item/description columns
+    return columnStartX + padding;
+  } else {
+    // Center-align other columns
+    return Math.max(
+      columnStartX + padding,
+      columnStartX + (columnWidth - textWidth) / 2
+    );
+  }
+}
+
+/**
+ * Smart text truncation that preserves meaning
+ */
+function truncateTextForColumn(
+  value: any,
+  columnWidth: number,
+  fontSize: number,
+  isFinancialCol: boolean
+): string {
+  const cellValue = String(value || '');
+  if (!cellValue) return '';
+  
+  const charWidth = fontSize * 0.6;
+  const availableWidth = columnWidth - 8; // Account for padding
+  const maxChars = Math.floor(availableWidth / charWidth);
+  
+  if (cellValue.length <= maxChars) return cellValue;
+  
+  if (isFinancialCol) {
+    // For financial values, preserve currency symbols and use smart abbreviation
+    if (cellValue.includes('£') || cellValue.includes('$') || cellValue.includes('€')) {
+      const currencySymbol = cellValue.charAt(0);
+      const numPart = cellValue.substring(1).replace(/[,\s]/g, '');
+      const num = parseFloat(numPart);
+      
+      if (!isNaN(num)) {
+        if (num >= 1000000) {
+          return `${currencySymbol}${(num / 1000000).toFixed(1)}M`;
+        } else if (num >= 1000) {
+          return `${currencySymbol}${Math.round(num / 1000)}k`;
+        } else if (maxChars >= 6) {
+          return `${currencySymbol}${Math.round(num)}`;
+        }
+      }
+    }
+    // If we can't abbreviate properly, truncate but keep currency symbol
+    return maxChars > 3 ? cellValue.substring(0, maxChars - 1) + '…' : cellValue.substring(0, maxChars);
+  } else {
+    // For text columns, smart truncation at word boundaries when possible
+    if (maxChars > 10) {
+      const words = cellValue.split(' ');
+      let truncated = '';
+      for (const word of words) {
+        if ((truncated + word).length <= maxChars - 3) {
+          truncated += (truncated ? ' ' : '') + word;
+        } else {
+          break;
+        }
+      }
+      if (truncated.length > 0) {
+        return truncated + '...';
+      }
+    }
+    // Fallback to character truncation
+    return maxChars > 3 ? cellValue.substring(0, maxChars - 3) + '...' : cellValue.substring(0, maxChars);
+  }
+}
 
 function formatDocumentName(key: string): string {
   return key.replace(/([A-Z])/g, ' $1')
@@ -948,6 +1306,7 @@ function formatFieldName(key: string): string {
 function formatColumnHeader(colKey: string): string {
   const headerMapping: Record<string, string> = {
     item: 'Item',
+    contact: 'Contact',
     note: 'Nt',
     description: 'Desc',
     account: 'Acct',
@@ -973,7 +1332,11 @@ function formatColumnHeader(colKey: string): string {
     'percentage': '%',
     'percentageoftotal': '%Tot',
     'totalagedpayables': 'TotPay',
-    'totalagedreceivables': 'TotRec'
+    'totalagedreceivables': 'TotRec',
+    // Currency symbols for compact display
+    'gbp': '£',
+    'usd': '$',
+    'eur': '€'
   };
 
   const mapped = headerMapping[colKey.toLowerCase().replace(/\s+/g, '')];
@@ -988,6 +1351,14 @@ function formatColumnHeader(colKey: string): string {
   if (/\d+\s*MONTHS?/i.test(colKey)) {
     const match = colKey.match(/(\d+)\s*MONTHS?/i);
     return match ? `${match[1]}M` : colKey;
+  }
+
+  // Check for currency patterns in column names
+  if (/\b(gbp|usd|eur|pound|dollar|euro)\b/i.test(colKey)) {
+    const currMatch = colKey.match(/\b(gbp|pound)\b/i) ? '£' : 
+                     colKey.match(/\b(usd|dollar)\b/i) ? '$' : 
+                     colKey.match(/\b(eur|euro)\b/i) ? '€' : '£';
+    return currMatch;
   }
 
   // Aggressive abbreviation for any remaining headers
@@ -1009,15 +1380,24 @@ function formatColumnHeader(colKey: string): string {
     .replace(/Total/gi, 'Tot')
     .replace(/Contact/gi, 'Cont')
     .replace(/Month/gi, 'M')
-    .replace(/Days/gi, 'd');
+    .replace(/Days/gi, 'd')
+    .replace(/Over/gi, '>')
+    .replace(/Under/gi, '<')
+    .replace(/Between/gi, '-');
 
-  // Final truncation - be more aggressive
+  // Final truncation - be more aggressive for landscape tables
   if (formatted.length > 8) {
     // Try to find a good break point
     const words = formatted.split(' ');
     if (words.length > 1) {
       // Use first letters of each word
-      formatted = words.map(word => word.charAt(0)).join('');
+      const abbreviated = words.map(word => word.charAt(0)).join('');
+      if (abbreviated.length <= 6) {
+        formatted = abbreviated;
+      } else {
+        // Too many words, use first two words abbreviated
+        formatted = words.slice(0, 2).map(word => word.charAt(0)).join('');
+      }
     } else {
       // Truncate single word
       formatted = formatted.substring(0, 6);
@@ -1082,47 +1462,102 @@ function isFinancialColumn(colKey: string): boolean {
   return financialTerms.some(term => key.includes(term)) || /^20\d{2}$/.test(colKey);
 }
 
-function calculateDynamicColumnWidths(columns: string[], totalWidth: number): number[] {
-  const minWidth = 35; // Further reduced minimum width
-  const maxTableWidth = totalWidth - 120; // More conservative margin
+function calculateDynamicColumnWidths(columns: string[], totalWidth: number, isLandscape: boolean = false): number[] {
+  const minWidth = isLandscape ? 40 : 45; // Slightly larger minimum for better readability
+  const maxTableWidth = totalWidth - 40; // Reduced margins to use more page width
   const widths: number[] = [];
   
-  // First pass: assign base widths
-  columns.forEach(col => {
-    const isItemColumn = col.toLowerCase() === 'item' || 
-                        col.toLowerCase() === 'description' || 
-                        col.toLowerCase() === 'account';
-    const isFinancialCol = isFinancialColumn(col);
-    
-    if (isItemColumn) {
-      // Item columns get more space but limited
-      widths.push(Math.min(120, maxTableWidth * 0.25));
-    } else if (isFinancialCol) {
-      // Financial columns get standard width
-      widths.push(65);
+  // Enhanced column type detection and sizing
+  const columnTypes = columns.map(col => {
+    const lower = col.toLowerCase();
+    if (lower === 'item' || lower === 'description' || lower === 'account' || lower.includes('name')) {
+      return 'item';
+    } else if (isFinancialColumn(col)) {
+      return 'financial';
+    } else if (lower.includes('contact') || lower.includes('note')) {
+      return 'text';
     } else {
-      // Other columns get minimal space
-      widths.push(minWidth);
+      return 'other';
     }
   });
   
-  // Calculate current total
+  // Calculate base widths with more precise sizing
+  columns.forEach((col, index) => {
+    const type = columnTypes[index];
+    
+    switch (type) {
+      case 'item':
+        // Item columns get more space - they contain the most important descriptive text
+        const itemWidth = isLandscape ? 
+          Math.min(140, maxTableWidth * 0.28) : 
+          Math.min(180, maxTableWidth * 0.35);
+        widths.push(itemWidth);
+        break;
+        
+      case 'financial':
+        // Financial columns - optimized for currency display
+        const financialWidth = isLandscape ? 65 : 80;
+        widths.push(financialWidth);
+        break;
+        
+      case 'text':
+        // Text columns - moderate width for descriptions/notes
+        const textWidth = isLandscape ? 50 : 70;
+        widths.push(textWidth);
+        break;
+        
+      default:
+        // Other columns - compact but readable
+        const otherWidth = isLandscape ? 45 : 55;
+        widths.push(otherWidth);
+        break;
+    }
+  });
+  
+  // Calculate current total and adjust if necessary
   let currentTotal = widths.reduce((sum, w) => sum + w, 0);
   
-  // If we exceed available width, scale everything down proportionally
   if (currentTotal > maxTableWidth) {
+    // Scale down proportionally but respect minimum widths
     const scaleFactor = maxTableWidth / currentTotal;
-    widths.forEach((_, index) => {
-      widths[index] = Math.max(minWidth, widths[index] * scaleFactor);
+    widths.forEach((width, index) => {
+      const scaledWidth = width * scaleFactor;
+      widths[index] = Math.max(minWidth, scaledWidth);
+    });
+    
+    // Recalculate after applying minimums
+    currentTotal = widths.reduce((sum, w) => sum + w, 0);
+    
+    // If still too wide, apply equal distribution
+    if (currentTotal > maxTableWidth) {
+      const equalWidth = Math.max(minWidth, maxTableWidth / columns.length);
+      widths.fill(equalWidth);
+    }
+  } else if (currentTotal < maxTableWidth * 0.85) {
+    // If we have significant extra space, distribute it intelligently
+    const extraSpace = maxTableWidth - currentTotal;
+    const totalWeight = widths.reduce((sum, w) => sum + w, 0);
+    
+    widths.forEach((width, index) => {
+      // Give more extra space to item columns, less to financial columns
+      const type = columnTypes[index];
+      let weight = 1;
+      
+      if (type === 'item') weight = 1.5;
+      else if (type === 'financial') weight = 0.8;
+      else if (type === 'text') weight = 1.2;
+      
+      const proportionalIncrease = (width / totalWeight) * extraSpace * weight;
+      widths[index] += proportionalIncrease;
     });
   }
   
-  // Final check: if we still exceed, distribute equally among all columns
-  currentTotal = widths.reduce((sum, w) => sum + w, 0);
-  if (currentTotal > maxTableWidth) {
-    const equalWidth = Math.max(minWidth, maxTableWidth / columns.length);
-    widths.fill(equalWidth);
-  }
+  // Final validation - ensure all widths are reasonable
+  widths.forEach((width, index) => {
+    const type = columnTypes[index];
+    const maxWidth = type === 'item' ? 250 : type === 'financial' ? 100 : 150;
+    widths[index] = Math.min(width, maxWidth);
+  });
   
   return widths;
 }
@@ -1169,18 +1604,110 @@ function shouldSkipField(key: string): boolean {
 }
 
 function formatDate(dateInput: any): string {
-  if (!dateInput) return '';
+  const formattedDate = formatDateValue(dateInput);
+  return formattedDate || '';
+}
+
+/**
+ * Get a properly formatted date from document data with intelligent fallbacks
+ */
+function getFormattedDate(documentData: any): string {
+  // Try multiple date fields and formats
+  const possibleDateFields = [
+    'createdAt',
+    'updatedAt', 
+    'lastUpdated',
+    'dateCreated',
+    'modifiedDate',
+    'created',
+    'updated'
+  ];
+  
+  // Try each date field
+  for (const field of possibleDateFields) {
+    if (documentData[field]) {
+      const formattedDate = formatDateValue(documentData[field]);
+      if (formattedDate) return formattedDate;
+    }
+    
+    // Also check nested data objects
+    if (documentData.data && documentData.data[field]) {
+      const formattedDate = formatDateValue(documentData.data[field]);
+      if (formattedDate) return formattedDate;
+    }
+  }
+  
+  // Check if we can get a date from the current date to match the web interface
+  // which shows "16 Jun 2025" - likely using today's date as fallback
+  const today = new Date();
+  return today.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric'
+  });
+}
+
+/**
+ * Format a date value with multiple format support (same logic as web interface)
+ */
+function formatDateValue(dateValue: any): string | null {
+  if (!dateValue) return null;
   
   try {
-    const date = new Date(dateInput);
-    if (isNaN(date.getTime())) return String(dateInput);
+    let date: Date;
     
+    // Handle different input types - including Firestore timestamps
+    if (dateValue instanceof Date) {
+      date = dateValue;
+    } else if (typeof dateValue === 'string') {
+      // Handle various string formats
+      if (dateValue.includes('T') || dateValue.includes('Z')) {
+        // ISO format
+        date = new Date(dateValue);
+      } else if (dateValue.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        // YYYY-MM-DD format
+        date = new Date(dateValue + 'T00:00:00');
+      } else if (dateValue.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+        // DD/MM/YYYY format
+        const parts = dateValue.split('/');
+        date = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+      } else if (dateValue.match(/^\d{1,2} \w{3} \d{4}$/)) {
+        // "16 Jun 2025" format - already in the desired format!
+        return dateValue;
+      } else {
+        // Try generic parsing
+        date = new Date(dateValue);
+      }
+    } else if (typeof dateValue === 'number') {
+      // Timestamp
+      date = new Date(dateValue);
+    } else if (dateValue && typeof dateValue === 'object' && dateValue.seconds) {
+      // Handle Firestore timestamp - this is likely the issue!
+      date = new Date(dateValue.seconds * 1000);
+      if (dateValue.nanoseconds) {
+        date.setMilliseconds(date.getMilliseconds() + Math.floor(dateValue.nanoseconds / 1000000));
+      }
+    } else if (dateValue && typeof dateValue === 'object' && dateValue.toDate) {
+      // Handle Firestore timestamp object with toDate method
+      date = dateValue.toDate();
+    } else {
+      return null;
+    }
+    
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+      return null;
+    }
+    
+    // Format consistently (matching web interface format)
     return date.toLocaleDateString('en-GB', {
-      day: '2-digit',
+      day: 'numeric',
       month: 'short',
       year: 'numeric'
     });
-  } catch {
-    return String(dateInput);
+    
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return null;
   }
 }

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -70,8 +70,20 @@ const validateUserRole = async (userId: string): Promise<{role: string | null, v
 
 const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
+  const [searchParams] = useSearchParams();
   const { signIn, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
+
+  // Check for password reset success message
+  useEffect(() => {
+    const passwordReset = searchParams.get('passwordReset');
+    if (passwordReset === 'success') {
+      toast.success('Password reset successfully! You can now sign in with your new password.');
+      // Remove the query parameter from URL
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+    }
+  }, [searchParams]);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),

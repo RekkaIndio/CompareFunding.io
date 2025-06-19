@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
   PoundSterling, Calendar, TrendingUp, Target, Clock, BarChart3, 
-  Award, Shield, TrendingDown, MessageSquare, Star 
+  Award, Shield, TrendingDown, Star 
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Offer } from './types';
@@ -22,13 +22,11 @@ import LenderReviewDialog from '@/components/LenderReviewDialog';
 interface IndividualOfferCardProps {
   offer: Offer;
   isHistorical?: boolean;
-  onRespondToOffer: (offer: Offer) => void;
 }
 
 export const IndividualOfferCard: React.FC<IndividualOfferCardProps> = ({ 
   offer, 
-  isHistorical = false, 
-  onRespondToOffer 
+  isHistorical = false
 }) => {
   const statusStyling = getStatusStyling(offer.status);
   const totalCost = calculateTotalCost(offer);
@@ -236,17 +234,6 @@ export const IndividualOfferCard: React.FC<IndividualOfferCardProps> = ({
 
         {/* Enhanced action buttons section */}
         <div className="flex flex-col gap-3 pt-6 border-t border-slate-200">
-          {!isHistorical && ['pending', 'negotiating'].includes(offer.status) && (
-            <Button 
-              size="sm"
-              className="w-full bg-gradient-to-r from-[#ff8000] to-[#ffaa00] hover:from-[#ff9900] hover:to-[#ffbb00] text-white shadow-lg py-3 font-semibold transition-all duration-200 hover:shadow-xl hover:-translate-y-0.5"
-              onClick={() => onRespondToOffer(offer)}
-            >
-              <MessageSquare className="mr-2 h-4 w-4" />
-              Respond to Offer
-            </Button>
-          )}
-          
           <Button 
             asChild
             variant="default" 

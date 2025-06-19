@@ -264,10 +264,71 @@ const BusinessProfile = () => {
         const addressData = data.address || {};
         const tradingAddressData = data.trading_address || {};
 
-        // Extract incorporation date from credit information - check multiple possible locations
-        let incorporationDate = data.incorporation_date || '';
+        // Try to get saved credit report data to extract address and incorporation date information
+        let creditReportAddress = null;
+        let creditReportIncorporationDate = null;
+        try {
+          // Check for credit report data in the credit_score subcollection
+          const creditScoreDoc = await getDocument('businesses', `${user.uid}/credit_score/latest`);
+          
+          if (creditScoreDoc?.data) {
+            // Extract address from raw credit report
+            const rawReport = creditScoreDoc.data.raw_report;
+            
+            // Extract address
+            if (rawReport?.contactInformation?.mainAddress?.simpleValue) {
+              creditReportAddress = rawReport.contactInformation.mainAddress.simpleValue;
+            } else if (rawReport?.companyIdentification?.basicInformation?.contactAddress?.simpleValue) {
+              creditReportAddress = rawReport.companyIdentification.basicInformation.contactAddress.simpleValue;
+            } else if (creditScoreDoc.data.contact_address) {
+              creditReportAddress = creditScoreDoc.data.contact_address;
+            }
+
+            // Extract incorporation date from raw credit report
+            if (rawReport?.companyIdentification?.basicInformation?.companyRegistrationDate) {
+              creditReportIncorporationDate = rawReport.companyIdentification.basicInformation.companyRegistrationDate;
+            } else if (creditScoreDoc.data.incorporation_date) {
+              creditReportIncorporationDate = creditScoreDoc.data.incorporation_date;
+            } else if (creditScoreDoc.data.registration_date) {
+              creditReportIncorporationDate = creditScoreDoc.data.registration_date;
+            }
+          }
+          
+          // If not found in credit_score subcollection, try the main document's credit_info
+          if (!creditReportAddress && data.credit_info?.contact_address) {
+            creditReportAddress = data.credit_info.contact_address;
+          }
+          
+          if (!creditReportIncorporationDate && data.credit_info?.incorporation_date) {
+            creditReportIncorporationDate = data.credit_info.incorporation_date;
+          } else if (!creditReportIncorporationDate && data.credit_info?.registration_date) {
+            creditReportIncorporationDate = data.credit_info.registration_date;
+          }
+        } catch (creditError) {
+          // Silently continue with saved data if credit report data is not available
+        }
+
+        // Parse credit report address if available
+        let parsedCreditAddress = null;
+        if (creditReportAddress) {
+          // Parse the credit report address string
+          // Typical format: "Street Address, City, Postal Code" or variations
+          const addressParts = creditReportAddress.split(',').map(part => part.trim());
+          
+          if (addressParts.length >= 2) {
+            parsedCreditAddress = {
+              line1: addressParts[0] || '',
+              city: addressParts[addressParts.length - 2] || '',
+              postal_code: addressParts[addressParts.length - 1] || '',
+              country: 'United Kingdom'
+            };
+          }
+        }
+
+        // Extract incorporation date - prefer credit report date (most authoritative)
+        let incorporationDate = creditReportIncorporationDate || data.incorporation_date || '';
         
-        // If no direct incorporation date, check credit_info in multiple locations
+        // If still no incorporation date, check credit_info in multiple locations as fallback
         if (!incorporationDate && data.credit_info) {
           incorporationDate = data.credit_info.incorporation_date || 
                             data.credit_info.registration_date || 
@@ -281,6 +342,10 @@ const BusinessProfile = () => {
         setProfileExists(true);
         setProfile(data);
 
+        // Always prefer credit report address if available (it's more authoritative)
+        // Fall back to saved address data if no credit report address
+        const finalAddress = parsedCreditAddress || addressData;
+
         // Update form values with all available data
         form.reset({
           business_name: data.business_name || data.name || '',
@@ -291,17 +356,36 @@ const BusinessProfile = () => {
           website: data.website || '',
           business_email: data.business_email || '',
           business_phone: data.business_phone || '',
-          address_line1: addressData.line1 || addressData.street || '',
-          city: addressData.city || '',
-          postal_code: addressData.postal_code || '',
-          country: addressData.country || 'United Kingdom',
+          address_line1: finalAddress.line1 || finalAddress.street || '',
+          city: finalAddress.city || '',
+          postal_code: finalAddress.postal_code || '',
+          country: finalAddress.country || 'United Kingdom',
           trading_address_different: !!data.trading_address,
           trading_address_line1: tradingAddressData.line1 || '',
           trading_address_city: tradingAddressData.city || '',
           trading_address_postal_code: tradingAddressData.postal_code || '',
           trading_address_country: tradingAddressData.country || 'United Kingdom',
           incorporation_date: incorporationDate
-            ? new Date(incorporationDate).toISOString().split('T')[0]
+            ? (() => {
+                try {
+                  // Handle different date formats from credit reports
+                  let dateToFormat = incorporationDate;
+                  
+                  // If date is in DD/MM/YYYY format (common in UK credit reports), convert to ISO
+                  if (typeof dateToFormat === 'string' && dateToFormat.includes('/')) {
+                    const dateParts = dateToFormat.split('/');
+                    if (dateParts.length === 3) {
+                      // Convert DD/MM/YYYY to YYYY-MM-DD
+                      const [day, month, year] = dateParts;
+                      dateToFormat = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+                    }
+                  }
+                  
+                  return new Date(dateToFormat).toISOString().split('T')[0];
+                } catch (dateError) {
+                  return '';
+                }
+              })()
             : '',
           logo_url: data.logo_url || '',
           vat_number: data.vat_number || '',
@@ -312,15 +396,8 @@ const BusinessProfile = () => {
           mobile: data.mobile || '',
           role: data.role || '',
         });
-
-        console.log('Profile loaded successfully:', {
-          hasCompanyNumber: !!data.company_number,
-          hasIncorporationDate: !!incorporationDate,
-          incorporationDateSource: incorporationDate ? 'found' : 'not found'
-        });
       }
     } catch (err) {
-      console.error('Error fetching profile:', err);
       toast.error('Failed to load business profile');
     } finally {
       setIsLoading(false);
@@ -338,8 +415,6 @@ const BusinessProfile = () => {
     setIsSubmitting(true);
 
     try {
-      console.log('Form values:', values); // Debug log
-
       // Format incorporation date
       const incorporationDate = values.incorporation_date ? new Date(values.incorporation_date).toISOString() : null;
 
@@ -424,14 +499,12 @@ const BusinessProfile = () => {
       });
 
       if (businessProfilesResult.error && businessesResult.error) {
-        console.error('Error saving business profile:', businessProfilesResult.error);
         toast.error('Failed to save business profile');
         return;
       }
 
       toast.success('Business profile saved successfully');
     } catch (err) {
-      console.error('Error saving profile:', err);
       toast.error('Failed to save business profile');
     } finally {
       setIsSubmitting(false);
@@ -454,13 +527,11 @@ const BusinessProfile = () => {
         const url = new URL(domain);
         domain = url.hostname;
       } catch (e) {
-        console.warn('Invalid URL format:', websiteUrl);
         // Try to extract domain manually for simple cases
         domain = websiteUrl.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
       }
       
       if (!domain) {
-        console.warn('Could not extract domain from URL:', websiteUrl);
         return;
       }
 
@@ -497,7 +568,6 @@ const BusinessProfile = () => {
           const isValid = await testImageUrl(faviconUrl);
           if (isValid) {
             form.setValue('logo_url', faviconUrl);
-            console.log(`Successfully fetched logo from: ${faviconUrl}`);
             saveLogo(faviconUrl);
             return;
           }
@@ -508,7 +578,6 @@ const BusinessProfile = () => {
       }
 
       // If all favicon sources fail, generate a letter-based logo
-      console.warn(`No valid favicon found for ${domain}, generating letter logo`);
       if (form.getValues('business_name')) {
         const letterLogo = generateLetterLogo(form.getValues('business_name'));
         form.setValue('logo_url', letterLogo);
@@ -518,7 +587,6 @@ const BusinessProfile = () => {
       }
       
     } catch (error) {
-      console.error('Error fetching logo:', error);
       // Fallback to generated logo
       if (form.getValues('business_name')) {
         const letterLogo = generateLetterLogo(form.getValues('business_name'));
@@ -575,7 +643,6 @@ const BusinessProfile = () => {
       });
 
       if (error) {
-        console.error('Error saving logo:', error);
         toast.error('Failed to save logo');
         return false;
       }
@@ -586,7 +653,6 @@ const BusinessProfile = () => {
       toast.success('Logo and theme colors saved successfully');
       return true;
     } catch (err) {
-      console.error('Exception saving logo:', err);
       toast.error('Failed to save logo');
       return false;
     }
@@ -616,7 +682,6 @@ const BusinessProfile = () => {
       await fetchWebsiteLogo(website);
       // The logo URL is set inside fetchWebsiteLogo and saved via saveLogo.
     } catch (error) {
-      console.error('Error fetching or saving logo:', error);
       toast.error('Failed to fetch or save logo');
     }
   };
@@ -851,7 +916,6 @@ const BusinessProfile = () => {
                             alt="Company Logo"
                             className="max-h-full max-w-full object-contain"
                             onError={(e) => {
-                              console.warn('Logo failed to load:', form.watch('logo_url'));
                               // Generate fallback logo if the current one fails to load
                               const businessName = form.getValues('business_name');
                               if (businessName) {

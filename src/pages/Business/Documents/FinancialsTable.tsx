@@ -165,6 +165,14 @@ const renderDynamicFinancialData = (data: any) => {
     return <p className="text-center text-gray-500 py-8">No financial data available.</p>;
   }
   
+  // Debug logging to help troubleshoot
+  console.log('FinancialsTable - renderDynamicFinancialData received data:', data);
+  console.log('FinancialsTable - data keys:', Object.keys(data));
+  if (data.lineItems) {
+    console.log('FinancialsTable - lineItems sample:', data.lineItems.slice(0, 2));
+    console.log('FinancialsTable - first lineItem keys:', data.lineItems.length > 0 ? Object.keys(data.lineItems[0]) : []);
+  }
+  
   // If lineItems is missing or empty, try to create it from available data
   if (!data.lineItems || !Array.isArray(data.lineItems) || data.lineItems.length === 0) {
     
@@ -309,8 +317,8 @@ const renderDynamicFinancialData = (data: any) => {
     if (nonFinancialColumns.includes(key)) return false;
     
     // Check if it contains year, amount, value, balance, etc.
-    const financialTerms = ['year', 'amount', 'value', 'balance', 'total', 'debit', 'credit', 'current', 'previous'];
-    return financialTerms.some(term => key.includes(term)) || /^20\d{2}$/.test(colKey);
+    const financialTerms = ['year', 'amount', 'value', 'balance', 'total', 'debit', 'credit', 'current', 'previous', 'mar', 'jan', 'q1', 'quarter'];
+    return financialTerms.some(term => key.includes(term)) || /^20\d{2}$/.test(colKey) || /\d{4}/.test(key);
   };
 
   return (
@@ -384,6 +392,11 @@ const renderDynamicFinancialData = (data: any) => {
                   const isValueColumn = isFinancialColumn(colKey);
                   const isItemColumn = colKey.toLowerCase() === 'item';
                   
+                  // Debug logging for the first few items
+                  if (idx < 3) {
+                    console.log(`FinancialsTable - Row ${idx}, Column ${colKey}:`, cellValue, 'isValueColumn:', isValueColumn);
+                  }
+                  
                   // Handle different data access patterns more comprehensively
                   if (colKey.toLowerCase() === 'item') {
                     cellValue = item.item || item.description || item.account || item.name || item.lineItem || item.accountName || '';
@@ -397,29 +410,65 @@ const renderDynamicFinancialData = (data: any) => {
                       colKey.toUpperCase(),
                       colKey.replace(/([A-Z])/g, '_$1').toLowerCase(), // camelCase to snake_case
                       colKey.replace(/_/g, ''), // remove underscores
+                      colKey.replace(/\s+/g, ''), // remove spaces
+                      colKey.replace(/\s+/g, '_'), // replace spaces with underscores
+                      colKey.replace(/[^\w]/g, ''), // remove all non-alphanumeric characters
                     ];
                     
                     for (const key of possibleKeys) {
                       if (item[key] !== undefined && item[key] !== null) {
                         cellValue = item[key];
+                        if (idx < 3) console.log(`FinancialsTable - Found value with key "${key}":`, cellValue);
                         break;
                       }
                     }
                     
                     // If still no value, check for common column name mappings
                     const columnMappings: Record<string, string[]> = {
-                      'currentyear': ['current_year', 'currentYear', 'current', 'thisYear', 'year1'],
-                      'previousyear': ['previous_year', 'previousYear', 'previous', 'lastYear', 'year2'],
+                      'currentyear': ['current_year', 'currentYear', 'current', 'thisYear', 'year1', 'jan-mar2025', 'janmaar2025', 'janmar2025'],
+                      'previousyear': ['previous_year', 'previousYear', 'previous', 'lastYear', 'year2', 'jan-mar2024', 'janmaar2024', 'janmar2024'],
                       'value': ['amount', 'total', 'sum', 'balance'],
                       'note': ['notes', 'reference', 'ref', 'comment']
                     };
                     
-                    const normalizedColKey = colKey.toLowerCase().replace(/[_\s]/g, '');
+                    // Check if the column key matches any period format (like "jan-mar2025")
+                    const normalizedColKey = colKey.toLowerCase().replace(/[^a-z0-9]/g, '');
                     if (columnMappings[normalizedColKey]) {
                       for (const altKey of columnMappings[normalizedColKey]) {
                         if (item[altKey] !== undefined && item[altKey] !== null) {
                           cellValue = item[altKey];
+                          if (idx < 3) console.log(`FinancialsTable - Found value with mapped key "${altKey}":`, cellValue);
                           break;
+                        }
+                      }
+                    }
+                    
+                    // Special handling for period-based columns that might use different formats
+                    if (!cellValue && isValueColumn) {
+                      // Look for any numerical field that might be the financial value
+                      const numericKeys = Object.keys(item).filter(k => {
+                        const val = item[k];
+                        return typeof val === 'number' || (typeof val === 'string' && !isNaN(parseFloat(val.replace(/[^\d.-]/g, ''))));
+                      });
+                      
+                      if (numericKeys.length === 1) {
+                        cellValue = item[numericKeys[0]];
+                        if (idx < 3) console.log(`FinancialsTable - Found single numeric value with key "${numericKeys[0]}":`, cellValue);
+                      } else if (numericKeys.length > 1) {
+                        // Try to find the most likely financial value
+                        for (const numKey of numericKeys) {
+                          if (numKey.toLowerCase().includes('2025') || numKey.toLowerCase().includes('mar') || 
+                              numKey.toLowerCase().includes('current') || numKey.toLowerCase().includes('amount')) {
+                            cellValue = item[numKey];
+                            if (idx < 3) console.log(`FinancialsTable - Found likely financial value with key "${numKey}":`, cellValue);
+                            break;
+                          }
+                        }
+                        
+                        // If still no match, use the first numeric value
+                        if (!cellValue) {
+                          cellValue = item[numericKeys[0]];
+                          if (idx < 3) console.log(`FinancialsTable - Using first numeric value with key "${numericKeys[0]}":`, cellValue);
                         }
                       }
                     }

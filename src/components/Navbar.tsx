@@ -48,7 +48,6 @@ const Navbar = () => {
   const publicNavLinks = [
     { name: 'For Businesses', path: '/for-businesses' },
     { name: 'For Lenders', path: '/for-lenders' },
-    { name: 'How It Works', path: '/how-it-works' },
     { name: 'About Us', path: '/about' },
   ];
   

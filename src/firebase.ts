@@ -15,7 +15,8 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
   signInWithRedirect,
-  getRedirectResult
+  getRedirectResult,
+  sendPasswordResetEmail
 } from "firebase/auth";
 import { 
   getFirestore, 
@@ -180,6 +181,60 @@ const checkIfSignInWithEmailLink = () => {
 
 const getEmailFromStorage = () => {
   return window.localStorage.getItem('emailForSignIn');
+};
+
+// Password Reset functionality
+const sendPasswordReset = async (email: string) => {
+  try {
+    // Configure action code settings for better branding
+    const actionCodeSettings = {
+      // URL you want to redirect back to after password reset
+      url: `${window.location.origin}/login?passwordReset=success`,
+      // This must be true for password reset
+      handleCodeInApp: false,
+    };
+    
+    // Send Firebase's native password reset email
+    await sendPasswordResetEmail(auth, email, actionCodeSettings);
+    
+    // Also send our custom branded email via Mailgun for better UX
+    try {
+      // Dynamic import to avoid circular dependencies
+      const { mailgunService } = await import('./services/mailgunService');
+      
+      if (mailgunService.isConfigured()) {
+        // Get user's name from Firestore if available
+        let firstName = '';
+        try {
+          const userQuery = query(
+            collection(firestore, 'users'),
+            where('email', '==', email)
+          );
+          const userSnapshot = await getDocs(userQuery);
+          if (!userSnapshot.empty) {
+            const userData = userSnapshot.docs[0].data();
+            firstName = userData.firstName || '';
+          }
+        } catch (error) {
+          console.log('Could not fetch user name for password reset email');
+        }
+
+        // Send custom branded email
+        await mailgunService.sendPasswordResetEmail({
+          to: email,
+          firstName: firstName,
+          resetUrl: `${window.location.origin}/reset-password?email=${encodeURIComponent(email)}`,
+          expiryTime: '1 hour'
+        });
+      }
+    } catch (error) {
+      console.log('Custom email failed, but Firebase reset still sent:', error);
+    }
+    
+    return { success: true, error: null };
+  } catch (error: any) {
+    return { success: false, error: { message: error.message } };
+  }
 };
 
 // Helper functions for Firestore database operations
@@ -877,6 +932,7 @@ export {
   signInWithMagicLink,
   checkIfSignInWithEmailLink,
   getEmailFromStorage,
+  sendPasswordReset,
   getDocument,
   getDocuments,
   createDocument,

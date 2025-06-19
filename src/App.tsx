@@ -24,6 +24,8 @@ import Sitemap from "./pages/Sitemap";
 import Applications from "./pages/Applications";
 import Login from "./pages/Login";
 import SignUp from "./pages/SignUp";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import FundingMatches from "./pages/FundingMatches";
 // import BusinessDetailsForm from "./pages/BusinessDetailsForm";
 import BusinessProfile from "./pages/Business/business-profile";
@@ -42,13 +44,14 @@ import LenderDashboard from "./pages/Lender/LenderDashboard";
 import LenderBilling from "./pages/Lender/LenderBilling";
 import LenderReporting from "./pages/Lender/LenderReporting";
 import LenderUsers from "./pages/Lender/LenderUsers";
-import LearnPage from "./pages/Learn";
+import LearnComingSoon from "./pages/LearnComingSoon";
 import HelpPage from "./pages/Help";
 import MatchedApplicationsRedirect from "./pages/MatchedApplications";
 import LenderMatchedApplications from "./pages/Lender/MatchedApplications";
 import Messages from "./pages/Messages";
 import MessagesPage from "./pages/MessagesPage";
 import MailgunTest from "./pages/MailgunTest";
+import LenderNotificationTest from "./pages/LenderNotificationTest";
 import ApplicationDetail from "./pages/Applications/ApplicationDetail";
 import CreateOffer from "./pages/CreateOffer";
 import Settings from "./pages/Settings";
@@ -72,9 +75,9 @@ import LenderPreferences from "./pages/SignUpJourney/LenderPreferences";
 import CashflowPage from "./pages/FundingOptions/Cashflow";
 import AssetFinancePage from "./pages/FundingOptions/AssetFinance";
 
-// Import Integration pages
-import AccountingIntegrationPage from "./pages/Integrations/Accounting";
-import BankingIntegrationPage from "./pages/Integrations/Banking";
+// Import Integration pages (Coming Soon)
+import AccountingIntegrationComingSoon from "./pages/Integrations/AccountingComingSoon";
+import BankingIntegrationComingSoon from "./pages/Integrations/BankingComingSoon";
 
 // Import Account pages
 import BusinessDetailsPage from "./pages/account/BusinessDetails";
@@ -86,10 +89,10 @@ import AdvisorPage from "./pages/account/Advisor";
 import Products from "./pages/Products";
 import FundingNeeds from "./pages/FundingNeeds";
 
-// Import Help pages
-import BusinessInsurancePage from "./pages/help/BusinessInsurance";
-import ForeignExchangePage from "./pages/help/ForeignExchange";
-import RaisingEquityPage from "./pages/help/RaisingEquity";
+// Import Help pages (Coming Soon)
+import BusinessInsuranceComingSoon from "./pages/help/BusinessInsuranceComingSoon";
+import ForeignExchangeComingSoon from "./pages/help/ForeignExchangeComingSoon";
+import RaisingEquityComingSoon from "./pages/help/RaisingEquityComingSoon";
 import SupportFlow from "./pages/SupportFlow";
 import VerifyEmail from "./pages/VerifyEmail";
 
@@ -130,7 +133,10 @@ const App = () => {
                       <Route path="/funding-needs" element={<FundingNeeds />} />
                       <Route path="/login" element={<Login />} />
                       <Route path="/signup" element={<SignUp />} />
+                      <Route path="/forgot-password" element={<ForgotPassword />} />
+                      <Route path="/reset-password" element={<ResetPassword />} />
                       <Route path="/mailgun-test" element={<MailgunTest />} />
+                      <Route path="/lender-notification-test" element={<LenderNotificationTest />} />
                       <Route path="/auth/verify-email" element={<VerifyEmail />} />
                       <Route path="/support-flow" element={<SupportFlow />} />
                       
@@ -162,7 +168,7 @@ const App = () => {
                         <Route path="/applications/:id" element={<ApplicationDetail />} />
                         <Route path="/business/profile" element={<BusinessProfile />} />
                         <Route path="/business/dashboard" element={<BusinessDashboard />} />
-                         <Route path="/business/learn" element={<LearnPage />} />
+                         <Route path="/business/learn" element={<LearnComingSoon />} />
                         {/* <Route path="/business/accounting/connect" element={<AccountingConnect />} /> */}
                         <Route path="/applications/new" element={<NewApplication />} />
                         <Route path="/applications/:id/review" element={<NewApplicationReview />} />
@@ -180,8 +186,8 @@ const App = () => {
                         <Route path="/funding-options/asset-finance" element={<AssetFinancePage />} />
 
                         {/* Integration routes */}
-                        <Route path="/integrations/accounting" element={<AccountingIntegrationPage />} />
-                        <Route path="/integrations/banking" element={<BankingIntegrationPage />} />
+                        <Route path="/integrations/accounting" element={<AccountingIntegrationComingSoon />} />
+                        <Route path="/integrations/banking" element={<BankingIntegrationComingSoon />} />
 
                         {/* Account routes */}
                         <Route path="/account/business-details" element={<BusinessDetailsPage />} />
@@ -193,14 +199,14 @@ const App = () => {
                         <Route path="/credit-score" element={<CreditScorePage />} />
 
                         {/* Learn/Education page for business users */}
-                        <Route path="/learn" element={<LearnPage />} />
+                        <Route path="/learn" element={<LearnComingSoon />} />
                         {/* Help/Support page for business users */}
                         <Route path="/help" element={<HelpPage />} />
 
                         {/* Help sub-pages */}
-                        <Route path="/help/business-insurance" element={<BusinessInsurancePage />} />
-                        <Route path="/help/foreign-exchange" element={<ForeignExchangePage />} />
-                        <Route path="/help/raising-equity" element={<RaisingEquityPage />} />
+                        <Route path="/help/business-insurance" element={<BusinessInsuranceComingSoon />} />
+                        <Route path="/help/foreign-exchange" element={<ForeignExchangeComingSoon />} />
+                        <Route path="/help/raising-equity" element={<RaisingEquityComingSoon />} />
 
                         {/* Lender user routes */}
                         <Route path="/lender/profile" element={<LenderProfile />} />

@@ -342,6 +342,52 @@ export const CreditScoreCard: React.FC<CreditScoreCardProps> = ({ creditScore, h
   
   const incorporationDate = formatDate(incorporationDateValue);
   
+  // Calculate company age
+  const calculateCompanyAge = (dateInput: string | number | Date | undefined) => {
+    if (!dateInput) return 'N/A';
+    
+    try {
+      let date: Date;
+      
+      // Handle Firebase Timestamp objects
+      if (dateInput && typeof dateInput === 'object' && 'seconds' in dateInput) {
+        date = new Date((dateInput as any).seconds * 1000);
+      }
+      // Handle standard Date objects, ISO strings, or timestamps
+      else {
+        date = new Date(dateInput);
+      }
+      
+      // Check if the date is valid
+      if (isNaN(date.getTime())) {
+        return 'N/A';
+      }
+      
+      const now = new Date();
+      const diffTime = Math.abs(now.getTime() - date.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      const diffYears = Math.floor(diffDays / 365);
+      const diffMonths = Math.floor((diffDays % 365) / 30);
+      
+      if (diffYears === 0) {
+        if (diffMonths === 0) {
+          return diffDays === 1 ? '1 day' : `${diffDays} days`;
+        }
+        return diffMonths === 1 ? '1 month' : `${diffMonths} months`;
+      } else if (diffYears === 1 && diffMonths === 0) {
+        return '1 year';
+      } else if (diffMonths === 0) {
+        return `${diffYears} years`;
+      } else {
+        return `${diffYears}y ${diffMonths}m`;
+      }
+    } catch (e) {
+      return 'N/A';
+    }
+  };
+  
+  const companyAge = calculateCompanyAge(incorporationDateValue);
+  
   // Extract company type from multiple possible paths
   let companyTypeValue = null;
   if (creditScore?.details?.company_type) {
@@ -636,16 +682,93 @@ export const CreditScoreCard: React.FC<CreditScoreCardProps> = ({ creditScore, h
                   </p>
                 </div>
 
+                {/* Negative Information */}
+                <div className="bg-[#1a2030] p-3 rounded-md border border-slate-700/50">
+                  <h5 className="text-xs uppercase tracking-wider text-slate-400 mb-1">Negative Information</h5>
+                  <div className="flex items-center gap-2">
+                    {(() => {
+                      // If we have credit score data, we should be able to determine negative info status
+                      if (!creditScore || !creditScore.details) {
+                        return <span className="text-sm text-slate-400 font-medium">Not Available</span>;
+                      }
+
+                      // Extract negative information from multiple possible paths
+                      let negativeInfo = null;
+                      let hasNegativeRecords = false;
+                      
+                      // Check for boolean flags first
+                      if (creditScore?.negative_information !== undefined && creditScore?.negative_information !== null) {
+                        negativeInfo = creditScore.negative_information;
+                      } else if (creditScore?.details?.negative_information !== undefined && creditScore?.details?.negative_information !== null) {
+                        negativeInfo = creditScore.details.negative_information;
+                      } else if (creditScore?.details?.data?.negative_information !== undefined && creditScore?.details?.data?.negative_information !== null) {
+                        negativeInfo = creditScore.details.data.negative_information;
+                      } else if (creditScore?.details?.report?.creditScore?.currentCreditRating?.hasNegativeInformation !== undefined) {
+                        negativeInfo = creditScore.details.report.creditScore.currentCreditRating.hasNegativeInformation;
+                      } else if (creditScore?.details?.raw_data?.report?.creditScore?.currentCreditRating?.hasNegativeInformation !== undefined) {
+                        negativeInfo = creditScore.details.raw_data.report.creditScore.currentCreditRating.hasNegativeInformation;
+                      }
+                      
+                      // Check for specific negative record counts (CCJs, writs, etc.)
+                      const checkNegativeRecords = (data: any): boolean => {
+                        if (!data) return false;
+                        
+                        // Check various negative record fields
+                        const negativeFields = [
+                          'exact_registered', 'number_of_satisfied', 'number_of_exact', 'number_of_writs',
+                          'possible_registered', 'number_of_possible', 'ccjs', 'judgments', 'defaults',
+                          'bankruptcies', 'insolvencies', 'adverse_records'
+                        ];
+                        
+                        for (const field of negativeFields) {
+                          const value = data[field];
+                          if (value && (typeof value === 'number' ? value > 0 : parseInt(value) > 0)) {
+                            return true;
+                          }
+                        }
+                        return false;
+                      };
+                      
+                      // Check for negative records in various data structures
+                      hasNegativeRecords = checkNegativeRecords(creditScore?.details) ||
+                                          checkNegativeRecords(creditScore?.details?.data) ||
+                                          checkNegativeRecords(creditScore?.details?.report) ||
+                                          checkNegativeRecords(creditScore?.details?.raw_data?.report);
+
+                      // Determine final status - if we have credit data, default to "no negative history" unless proven otherwise
+                      if (negativeInfo === true || negativeInfo === 'true' || negativeInfo === 'yes' || hasNegativeRecords) {
+                        return (
+                          <>
+                            <AlertCircle className="w-4 h-4 text-red-400" />
+                            <span className="text-sm text-red-400 font-medium">Yes</span>
+                          </>
+                        );
+                      } else {
+                        // If we have credit score data but no explicit negative indicators, assume clean record
+                        return (
+                          <>
+                            <ShieldCheck className="w-4 h-4 text-green-400" />
+                            <span className="text-sm text-green-400 font-medium">No negative history</span>
+                          </>
+                        );
+                      }
+                    })()}
+                  </div>
+                </div>
+
                 {/* Business Status */}
                 <div className="bg-[#1a2030] p-3 rounded-md border border-slate-700/50">
                   <h5 className="text-xs uppercase tracking-wider text-slate-400 mb-1">Company Status</h5>
                   <p className="text-sm text-white font-medium">{companyStatus}</p>
                 </div>
 
-                {/* Incorporation Date */}
+                {/* Incorporation Date & Age */}
                 <div className="bg-[#1a2030] p-3 rounded-md border border-slate-700/50">
                   <h5 className="text-xs uppercase tracking-wider text-slate-400 mb-1">Incorporation Date</h5>
                   <p className="text-sm text-white font-medium">{incorporationDate}</p>
+                  {companyAge !== 'N/A' && (
+                    <p className="text-xs text-slate-400 mt-1">Age: {companyAge}</p>
+                  )}
                 </div>
 
                 {/* Company Type */}

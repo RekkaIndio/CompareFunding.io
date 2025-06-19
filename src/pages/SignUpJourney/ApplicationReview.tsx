@@ -12,6 +12,7 @@ import { getFirestore, doc, setDoc } from 'firebase/firestore';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { generateApplicationNumber } from '@/lib/applicationUtils';
+import mailgunService from '@/services/mailgunService';
 import { 
   CheckCircle, 
   AlertTriangle,
@@ -412,11 +413,29 @@ const ApplicationReview = () => {
         profileCompletedAt: new Date().toISOString()
       }, { merge: true });
       
+      // This is handled below, removing duplicate call
+
       // Close the modal
       setShowSubmitModal(false);
       
       // Show success message
       toast.success("Your application has been successfully submitted!");
+      
+      // Send application submitted confirmation email
+      try {
+        await mailgunService.sendApplicationSubmittedEmail({
+          to: user.email || '',
+          firstName: userInfo.firstName || user.displayName?.split(' ')[0] || 'Valued Customer',
+          businessName: safeApplicationData.business_name || 'Your Business',
+          applicationNumber: safeApplicationData.application_number,
+          loanAmount: safeApplicationData.loan_amount || 0,
+          dashboardUrl: 'https://comparefunding.io/applications'
+        });
+        console.log('Application submitted email sent successfully');
+      } catch (emailError) {
+        console.error('Failed to send application submitted email:', emailError);
+        // Don't fail the application submission if email sending fails
+      }
       
       // Navigate to the applications page to show the newly created application
       navigate('/applications', { 

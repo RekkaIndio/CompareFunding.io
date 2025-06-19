@@ -137,26 +137,6 @@ export const LenderComparisonTable: React.FC<LenderComparisonTableProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-[#212936] to-[#2a3441] text-white rounded-xl p-6 shadow-lg">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold mb-2">Compare Lenders</h2>
-            <p className="text-gray-300">
-              {lenders.length} lenders match your {application.product_type || application.selectedProduct} requirements
-            </p>
-          </div>
-          <div className="text-right">
-            <div className="bg-white/10 backdrop-blur-sm rounded-lg px-4 py-2 border border-white/20">
-              <div className="text-sm text-gray-300">Connected Lenders</div>
-              <div className="text-2xl font-bold text-white">
-                {connectedLenders.size}/5
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Lender Cards Grid */}
       <div className="grid gap-6">
         {lenders.map((lender) => {
@@ -200,17 +180,19 @@ export const LenderComparisonTable: React.FC<LenderComparisonTableProps> = ({
                       </div>
                     </div>
                   </div>
-                  <Badge 
-                    variant="outline" 
-                    className={`${
-                      processingSpeed.color === 'green' ? 'border-green-200 text-green-700 bg-green-50' :
-                      processingSpeed.color === 'yellow' ? 'border-yellow-200 text-yellow-700 bg-yellow-50' :
-                      'border-red-200 text-red-700 bg-red-50'
-                    }`}
-                  >
-                    <Clock className="h-3 w-3 mr-1" />
-                    {processingSpeed.text}
-                  </Badge>
+                  {productDetails.processing_time_days && (
+                    <Badge 
+                      variant="outline" 
+                      className={`${
+                        processingSpeed.color === 'green' ? 'border-green-200 text-green-700 bg-green-50' :
+                        processingSpeed.color === 'yellow' ? 'border-yellow-200 text-yellow-700 bg-yellow-50' :
+                        'border-red-200 text-red-700 bg-red-50'
+                      }`}
+                    >
+                      <Clock className="h-3 w-3 mr-1" />
+                      {processingSpeed.text}
+                    </Badge>
+                  )}
                 </div>
               </CardHeader>
 
@@ -607,12 +589,12 @@ export const LenderComparisonTable: React.FC<LenderComparisonTableProps> = ({
                       )}
                     </div>
                     
-                    {/* Action Buttons */}
+                    {/* Action Buttons - Streamlined for Automated Matching */}
                     <div className="flex items-center gap-3">
                       {connectedLenders.has(lender.id) ? (
                         <div className="flex items-center gap-2 bg-green-100 text-green-800 px-4 py-2 rounded-lg border border-green-200">
                           <CheckCircle className="h-4 w-4" />
-                          <span className="font-medium">Connected</span>
+                          <span className="font-medium">Connected & Under Review</span>
                         </div>
                       ) : declinedLenders.has(lender.id) ? (
                         <div className="flex items-center gap-2 bg-gray-100 text-gray-600 px-4 py-2 rounded-lg border border-gray-200">
@@ -627,16 +609,16 @@ export const LenderComparisonTable: React.FC<LenderComparisonTableProps> = ({
                           <Button
                             variant="outline"
                             onClick={() => onDeclineLender(lender)}
-                            className="border-gray-300 text-white hover:bg-gray-50 px-6 py-2 rounded-lg font-medium transition-colors"
+                            className="border-gray-300 text-gray-700 hover:bg-gray-50 px-6 py-2 rounded-lg font-medium transition-colors"
                           >
-                            Decline
+                            Not Interested
                           </Button>
                           <Button
                             onClick={() => onConnectLender(lender)}
                             disabled={isConnecting.has(lender.id)}
                             className="bg-[#ff8000] hover:bg-[#e6720e] text-white px-8 py-2 rounded-lg font-medium transition-colors shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                           >
-                            {isConnecting.has(lender.id) ? 'Connecting...' : 'Connect'}
+                            {isConnecting.has(lender.id) ? 'Connecting...' : 'Connect Now'}
                           </Button>
                         </div>
                       )}
