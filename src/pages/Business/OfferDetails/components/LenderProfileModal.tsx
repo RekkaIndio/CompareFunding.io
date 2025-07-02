@@ -6,19 +6,22 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Building2, BadgeCheck, Mail, Phone, Globe, MessageSquare } from 'lucide-react';
 import { getDocument } from '@/firebase';
+import { displayLenderName } from '../utils';
 
 interface LenderProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
   offer: any;
   isLender: boolean;
+  isAccepted?: boolean;
 }
 
 export const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
   isOpen,
   onClose,
   offer,
-  isLender
+  isLender,
+  isAccepted = false
 }) => {
   // Fetch detailed lender profile for modal
   const { data: lenderProfile, isLoading: isLoadingLenderProfile } = useQuery({
@@ -63,7 +66,7 @@ export const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
             Lender Profile
           </DialogTitle>
           <DialogDescription className="text-gray-200 text-sm">
-            Detailed information about {offer?.lender_name || 'this lender'}
+            Detailed information about {displayLenderName(offer?.lender_name)}
           </DialogDescription>
         </DialogHeader>
         
@@ -91,7 +94,7 @@ export const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
                   </div>
                   <div className="flex-1">
                     <h3 className="text-lg font-bold text-[#212936] mb-2">
-                      {lenderProfile.lender_name || lenderProfile.company_name || 'Unnamed Lender'}
+                      {displayLenderName(lenderProfile.lender_name || lenderProfile.company_name)}
                     </h3>
                     {lenderProfile.business_type && (
                       <p className="text-sm text-slate-600 mb-1">{lenderProfile.business_type}</p>
@@ -281,7 +284,7 @@ export const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
               <Building2 className="h-12 w-12 text-slate-400 mx-auto mb-3" />
               <p className="text-slate-600 font-medium mb-1">No detailed profile information available for this lender.</p>
               <p className="text-xs text-slate-500">
-                Basic information about {offer?.lender_name || 'this lender'} is available in the offer details.
+                Basic information about {displayLenderName(offer?.lender_name)} is available in the offer details.
               </p>
             </div>
           </div>
@@ -296,7 +299,7 @@ export const LenderProfileModal: React.FC<LenderProfileModalProps> = ({
           >
             Close
           </Button>
-          {!isLender && lenderProfile && (
+          {!isLender && lenderProfile && isAccepted && (
             <Button 
               className="bg-orange-500 hover:bg-orange-600 text-white shadow-lg hover:shadow-xl transition-all duration-200"
               onClick={() => {

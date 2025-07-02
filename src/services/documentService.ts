@@ -151,18 +151,45 @@ export const getAllSharedDocuments = async (
   applicationId: string
 ): Promise<SharedDocument[]> => {
   try {
-    const q = query(
-      collection(db, 'shared_documents'),
-      where('application_id', '==', applicationId),
-      orderBy('shared_at', 'desc')
-    );
-
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      shared_at: doc.data().shared_at?.toDate() || new Date()
-    })) as SharedDocument[];
+    // First try with sorting, fall back to no sorting if index doesn't exist
+    let q;
+    try {
+      q = query(
+        collection(db, 'shared_documents'),
+        where('application_id', '==', applicationId),
+        orderBy('shared_at', 'desc')
+      );
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map(doc => {
+        const data = doc.data() as any;
+        return {
+          id: doc.id,
+          ...data,
+          shared_at: data.shared_at?.toDate() || new Date()
+        };
+      }) as SharedDocument[];
+    } catch (indexError) {
+      console.warn('Composite index not available, falling back to unsorted query:', indexError);
+      
+      // Fallback query without sorting
+      q = query(
+        collection(db, 'shared_documents'),
+        where('application_id', '==', applicationId)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      const documents = querySnapshot.docs.map(doc => {
+        const data = doc.data() as any;
+        return {
+          id: doc.id,
+          ...data,
+          shared_at: data.shared_at?.toDate() || new Date()
+        };
+      }) as SharedDocument[];
+      
+      // Sort manually in JavaScript
+      return documents.sort((a, b) => new Date(b.shared_at).getTime() - new Date(a.shared_at).getTime());
+    }
   } catch (error) {
     console.error('Error fetching all shared documents:', error);
     return [];

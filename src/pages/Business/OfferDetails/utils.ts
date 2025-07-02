@@ -18,3 +18,14 @@ export const formatRepaymentFrequency = (frequency?: string) => {
     default: return "Monthly";
   }
 };
+
+// Helper to display lender names gracefully
+export const displayLenderName = (lenderName?: string) => {
+  if (!lenderName || 
+      lenderName.trim() === '' || 
+      lenderName === 'Unknown Lender' || 
+      lenderName === 'Unnamed Lender') {
+    return 'Verified Lender';
+  }
+  return lenderName;
+};

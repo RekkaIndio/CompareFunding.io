@@ -734,7 +734,7 @@ const ApplicationReview = () => {
                     Your application is submitted <strong>anonymously</strong> to protect your privacy. Lenders will only see:
                     <ul className="list-disc ml-6 mt-3 space-y-1.5 text-blue-800">
                       <li>Industry sector and business size</li>
-                      <li>Loan amount and purpose</li>
+                      <li>Funding amount and purpose</li>
                       <li>Financial strength indicators</li>
                       <li>Years in operation</li>
                     </ul>
@@ -855,7 +855,7 @@ const ApplicationReview = () => {
                     <CardContent className="space-y-4">
                       <div className="grid grid-cols-2 gap-4">
                         <div className="bg-slate-50/70 rounded-lg p-3 border border-slate-100">
-                          <p className="text-sm text-slate-500">Loan Amount</p>
+                          <p className="text-sm text-slate-500">Funding Amount</p>
                           <p className="font-semibold text-slate-900 text-lg">£{application.loan_amount?.toLocaleString()}</p>
                         </div>
                         <div className="bg-slate-50/70 rounded-lg p-3 border border-slate-100">
@@ -1137,7 +1137,7 @@ const ApplicationReview = () => {
                       <p className="text-xs text-green-700 mb-2 font-medium">(Anonymous Information)</p>
                       <ul className="text-sm text-green-800 space-y-1.5">
                         <li>• Industry sector and business size category</li>
-                        <li>• Loan amount and general purpose</li>
+                        <li>• Funding amount and general purpose</li>
                         <li>• Financial strength indicators and ratios</li>
                         <li>• Years in operation and credit score band</li>
                         <li>• Document verification status</li>

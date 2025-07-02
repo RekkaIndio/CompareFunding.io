@@ -60,6 +60,7 @@ import {
   validateFile, 
   SharedDocument 
 } from '@/services/documentService';
+import { sendMessageNotification } from '@/services/messageNotificationService';
 
 // Custom hook for delayed loading state to prevent flashing
 const useDelayedLoading = (isLoading: boolean, delay: number = 300) => {
@@ -482,6 +483,33 @@ const MessagesPage: React.FC = () => {
         console.error('Error creating message document:', result.error);
         throw new Error(result.error.message);
       }
+
+      // Send email notification asynchronously (don't wait for it to complete)
+      const senderRole = (user.role === 'business' || user.role === 'business_owner') ? 'business' : 'lender';
+      
+      sendMessageNotification({
+        senderId: user.uid,
+        recipientId,
+        senderRole,
+        applicationId: selectedConversation.applicationId,
+        messageContent: content.trim(),
+        messagesUrl: `${window.location.origin}/messages`,
+        applicationData: {
+          application_number: selectedConversation.applicationNumber,
+          purpose: selectedConversation.applicationPurpose,
+          loan_amount: selectedConversation.applicationAmount,
+          business_name: selectedConversation.businessName
+        }
+      }).then((notificationResult) => {
+        if (notificationResult.success) {
+          console.log('✅ Email notification sent successfully');
+        } else {
+          console.warn('⚠️ Email notification failed:', notificationResult.error);
+        }
+      }).catch((error) => {
+        console.warn('⚠️ Email notification error (non-blocking):', error);
+      });
+
       return result.data;
     },
     onSuccess: () => {
@@ -528,11 +556,21 @@ const MessagesPage: React.FC = () => {
   });
 
   // Fetch shared documents for selected conversation
-  const { data: sharedDocuments, refetch: refetchSharedDocuments } = useQuery({
+  const { data: sharedDocuments, refetch: refetchSharedDocuments, error: sharedDocumentsError } = useQuery({
     queryKey: ['sharedDocuments', selectedConversation?.applicationId],
     queryFn: async () => {
       if (!selectedConversation || !user?.uid) return [];
-      return await getAllSharedDocuments(selectedConversation.applicationId);
+      
+      console.log('Fetching shared documents for application:', selectedConversation.applicationId);
+      try {
+        const documents = await getAllSharedDocuments(selectedConversation.applicationId);
+        console.log('Fetched shared documents:', documents);
+        return documents;
+      } catch (error) {
+        console.error('Error fetching shared documents:', error);
+        toast.error('Failed to load shared documents');
+        throw error;
+      }
     },
     enabled: !!selectedConversation && !!user?.uid,
     refetchInterval: 30000,
@@ -577,27 +615,46 @@ const MessagesPage: React.FC = () => {
         ? selectedConversation.lenderId 
         : selectedConversation.businessId;
 
-      const uploadPromises = selectedFiles.map(async (file) => {
-        return await shareDocument(
-          file,
-          selectedConversation.applicationId,
-          selectedConversation.businessId,
-          selectedConversation.lenderId,
-          recipientId,
-          shareDescription || `Shared ${file.name}`,
-          shareCategory || 'Other'
-        );
+      console.log('Starting document share process:', {
+        selectedFiles: selectedFiles.map(f => ({ name: f.name, size: f.size, type: f.type })),
+        applicationId: selectedConversation.applicationId,
+        businessId: selectedConversation.businessId,
+        lenderId: selectedConversation.lenderId,
+        recipientId,
+        userId: user.uid
+      });
+
+      const uploadPromises = selectedFiles.map(async (file, index) => {
+        try {
+          console.log(`Uploading file ${index + 1}/${selectedFiles.length}:`, file.name);
+          const result = await shareDocument(
+            file,
+            selectedConversation.applicationId,
+            selectedConversation.businessId,
+            selectedConversation.lenderId,
+            recipientId,
+            shareDescription || `Shared ${file.name}`,
+            shareCategory || 'Other'
+          );
+          console.log(`Successfully uploaded file ${index + 1}:`, result);
+          return result;
+        } catch (error) {
+          console.error(`Error uploading file ${file.name}:`, error);
+          throw new Error(`Failed to upload ${file.name}: ${error.message}`);
+        }
       });
 
       const sharedDocs = await Promise.all(uploadPromises);
+      console.log('All documents uploaded successfully:', sharedDocs);
 
       // Send a message about the shared documents
       const fileNames = selectedFiles.map(f => f.name).join(', ');
+      const messageContent = `📎 Shared ${selectedFiles.length} document(s): ${fileNames}${shareDescription ? `\n\n${shareDescription}` : ''}`;
       const messageData = {
         application_id: selectedConversation.applicationId,
         sender_id: user.uid,
         recipient_id: recipientId,
-        content: `📎 Shared ${selectedFiles.length} document(s): ${fileNames}${shareDescription ? `\n\n${shareDescription}` : ''}`,
+        content: messageContent,
         sent_at: serverTimestamp(),
         read: false,
         message_type: 'document_upload',
@@ -607,24 +664,63 @@ const MessagesPage: React.FC = () => {
         }
       };
 
-      await createDocument('messages', messageData);
+      try {
+        await createDocument('messages', messageData);
+        console.log('Message about shared documents sent successfully');
+
+        // Send email notification for document sharing
+        const senderRole = (user.role === 'business' || user.role === 'business_owner') ? 'business' : 'lender';
+        
+        sendMessageNotification({
+          senderId: user.uid,
+          recipientId,
+          senderRole,
+          applicationId: selectedConversation.applicationId,
+          messageContent,
+          messagesUrl: `${window.location.origin}/messages`,
+          applicationData: {
+            application_number: selectedConversation.applicationNumber,
+            purpose: selectedConversation.applicationPurpose,
+            loan_amount: selectedConversation.applicationAmount,
+            business_name: selectedConversation.businessName
+          }
+        }).then((notificationResult) => {
+          if (notificationResult.success) {
+            console.log('✅ Document sharing email notification sent successfully');
+          } else {
+            console.warn('⚠️ Document sharing email notification failed:', notificationResult.error);
+          }
+        }).catch((error) => {
+          console.warn('⚠️ Document sharing email notification error (non-blocking):', error);
+        });
+
+      } catch (error) {
+        console.error('Error sending message about shared documents:', error);
+        // Don't throw here as the documents were uploaded successfully
+      }
+
       return sharedDocs;
     },
-    onSuccess: () => {
+    onSuccess: (sharedDocs) => {
+      console.log('Document share mutation succeeded:', sharedDocs);
       setShowDocumentShare(false);
       setSelectedFiles([]);
       setShareDescription('');
       setShareCategory('');
       setIsUploading(false);
+      
+      // Force refresh of shared documents
       refetchMessages();
       refetchSharedDocuments();
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
-      toast.success('Documents shared successfully');
+      queryClient.invalidateQueries({ queryKey: ['sharedDocuments'] });
+      
+      toast.success(`Successfully shared ${sharedDocs.length} document(s)`);
     },
     onError: (error: any) => {
-      console.error('Error sharing documents:', error);
+      console.error('Document share mutation failed:', error);
       setIsUploading(false);
-      toast.error('Failed to share documents');
+      toast.error(`Failed to share documents: ${error.message}`);
     },
   });
   const documentRequestMutation = useMutation({
@@ -668,6 +764,33 @@ const MessagesPage: React.FC = () => {
       };
 
       await createDocument('messages', messageData);
+
+      // Send email notification for document request
+      const senderRole = (user.role === 'business' || user.role === 'business_owner') ? 'business' : 'lender';
+      
+      sendMessageNotification({
+        senderId: user.uid,
+        recipientId,
+        senderRole,
+        applicationId: selectedConversation.applicationId,
+        messageContent: `📄 Document Request: ${requestData.title}\n\n${requestData.message}`,
+        messagesUrl: `${window.location.origin}/messages`,
+        applicationData: {
+          application_number: selectedConversation.applicationNumber,
+          purpose: selectedConversation.applicationPurpose,
+          loan_amount: selectedConversation.applicationAmount,
+          business_name: selectedConversation.businessName
+        }
+      }).then((notificationResult) => {
+        if (notificationResult.success) {
+          console.log('✅ Document request email notification sent successfully');
+        } else {
+          console.warn('⚠️ Document request email notification failed:', notificationResult.error);
+        }
+      }).catch((error) => {
+        console.warn('⚠️ Document request email notification error (non-blocking):', error);
+      });
+
       return result.data;
     },
     onSuccess: () => {
@@ -1114,18 +1237,25 @@ const MessagesPage: React.FC = () => {
                           <span className="text-sm text-slate-600">Purpose:</span>
                           <span className="font-semibold text-[#212936]">{selectedConversation.applicationPurpose}</span>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-sm text-slate-600">Status:</span>
-                          <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">
-                            pending
-                          </Badge>
-                        </div>
                       </div>
                       
                       <Button 
                         variant="outline" 
                         className="w-full mt-4 border-[#ff8000] text-[#ff8000] hover:bg-[#ff8000] hover:text-white"
-                        onClick={() => navigate(`/applications/${selectedConversation.applicationId}`)}
+                        onClick={() => {
+                          if (user?.role === 'lender') {
+                            // For lenders, navigate to business details page
+                            navigate(`/business/${selectedConversation.applicationId}`);
+                          } else {
+                            // For businesses, navigate to specific offer details if available
+                            if (currentOffer?.id) {
+                              navigate(`/offers/${currentOffer.id}`);
+                            } else {
+                              // Fallback to offers page for this application
+                              navigate(`/offers?application=${selectedConversation.applicationId}`);
+                            }
+                          }
+                        }}
                       >
                         View Full Application
                       </Button>
@@ -1146,10 +1276,24 @@ const MessagesPage: React.FC = () => {
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="flex-1 overflow-y-auto">
+                      {sharedDocumentsError && (
+                        <Alert className="mb-4">
+                          <AlertCircle className="h-4 w-4" />
+                          <AlertDescription>
+                            Error loading documents: {sharedDocumentsError.message}
+                          </AlertDescription>
+                        </Alert>
+                      )}
+                      
                       {!sharedDocuments || sharedDocuments.length === 0 ? (
                         <div className="text-center text-slate-500 py-4">
                           <FileText className="h-8 w-8 mx-auto mb-2 text-slate-300" />
                           <p className="text-xs">No documents shared yet</p>
+                          {process.env.NODE_ENV === 'development' && (
+                            <p className="text-xs mt-2 text-slate-400">
+                              Debug: Application ID - {selectedConversation?.applicationId}
+                            </p>
+                          )}
                         </div>
                       ) : (
                         <div className="space-y-2">
@@ -1161,16 +1305,30 @@ const MessagesPage: React.FC = () => {
                                   <span>{(doc.file_size / 1024 / 1024).toFixed(1)} MB</span>
                                   <span>•</span>
                                   <span>{new Date(doc.shared_at).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}</span>
+                                  <span>•</span>
+                                  <span className="capitalize">{doc.status}</span>
                                 </div>
                               </div>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDocumentDownload(doc)}
-                                className="text-[#ff8000] hover:bg-[#ff8000]/10 h-6 w-6 p-0"
-                              >
-                                <Download className="h-3 w-3" />
-                              </Button>
+                              <div className="flex space-x-1">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDocumentDownload(doc)}
+                                  className="text-[#ff8000] hover:bg-[#ff8000]/10 h-6 w-6 p-0"
+                                  title="Download document"
+                                >
+                                  <Download className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => window.open(doc.file_url, '_blank')}
+                                  className="text-blue-600 hover:bg-blue-100 h-6 w-6 p-0"
+                                  title="View document"
+                                >
+                                  <FileText className="h-3 w-3" />
+                                </Button>
+                              </div>
                             </div>
                           ))}
                           {sharedDocuments.length > 3 && (

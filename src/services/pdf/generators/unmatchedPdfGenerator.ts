@@ -434,6 +434,27 @@ export async function generateUnmatchedApplicationPdf(
   });
   leftY -= 25;
 
+  // Helper function to wrap text to multiple lines
+  const wrapText = (text: string, maxWidth: number) => {
+    if (text.length <= maxWidth) return [text];
+    
+    const words = text.split(' ');
+    const lines = [];
+    let currentLine = '';
+    
+    for (const word of words) {
+      if ((currentLine + word).length <= maxWidth) {
+        currentLine += (currentLine ? ' ' : '') + word;
+      } else {
+        if (currentLine) lines.push(currentLine);
+        currentLine = word;
+      }
+    }
+    if (currentLine) lines.push(currentLine);
+    
+    return lines;
+  };
+
   // Business details (anonymized for unmatched)
   const businessDetails = [
     [`Company:`, '[Confidential - Available upon matching]'],
@@ -487,11 +508,10 @@ export async function generateUnmatchedApplicationPdf(
   });
   middleY -= 25;
 
-  // Funding details with proper formatting
+  // Funding details with proper formatting (excluding purpose which will be handled separately)
   const fundingDetails = [
     [`Amount:`, formatCurrency(appData.fundingAmount)],
     [`Term:`, `${appData.loanTerm} months`],
-    [`Purpose:`, appData.loanPurpose.length > 30 ? appData.loanPurpose.substring(0, 30) + '...' : appData.loanPurpose],
     [`Application:`, appData.applicationNumber],
     [`Date:`, formatDate(appData.applicationDate)],
     [`Status:`, appData.status.charAt(0).toUpperCase() + appData.status.slice(1)]
@@ -515,6 +535,30 @@ export async function generateUnmatchedApplicationPdf(
     });
     middleY -= 15;
   });
+
+  // Handle Purpose field with multi-line support
+  page.drawText('Purpose:', {
+    x: middleColumnX,
+    y: middleY,
+    size: 9,
+    font: helveticaBoldFont,
+    color: rgb(0.3, 0.3, 0.3),
+  });
+  
+  // Wrap purpose text to multiple lines if needed (max 40 chars per line)
+  const purposeLines = wrapText(appData.loanPurpose, 40);
+  purposeLines.forEach((line, index) => {
+    page.drawText(line, {
+      x: middleColumnX + 80,
+      y: middleY - (index * 12),
+      size: 9,
+      font: helveticaFont,
+      color: rgb(0, 0, 0),
+    });
+  });
+  
+  // Adjust Y position based on number of purpose lines
+  middleY -= 15 + (purposeLines.length > 1 ? (purposeLines.length - 1) * 12 : 0);
 
   // Financial Summary sub-section
   middleY -= 10;

@@ -285,7 +285,7 @@ const EmailPasswordPage = () => {
   const sidebarProps = {
     title: "Create Your Account",
     description: "Start your funding journey by creating a secure account. We'll help you find the best funding options for your business.",
-    highlight: "Trusted by 10,000+ businesses",
+    highlight: "Secure your business funding",
     tips: [
       "We collect your personal information to personalise your experience",
       "Your role helps us understand your business needs better", 

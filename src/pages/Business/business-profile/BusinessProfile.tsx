@@ -260,20 +260,29 @@ const BusinessProfile = () => {
       }
 
       if (data) {
+        console.log('BusinessProfile: Raw data fetched:', data);
+        
         // Extract address fields from the address object
         const addressData = data.address || {};
         const tradingAddressData = data.trading_address || {};
 
-        // Try to get saved credit report data to extract address and incorporation date information
+        // Try to get saved credit report data to extract address, incorporation date, and company number information
         let creditReportAddress = null;
         let creditReportIncorporationDate = null;
+        let creditReportCompanyNumber = null;
         try {
           // Check for credit report data in the credit_score subcollection
           const creditScoreDoc = await getDocument('businesses', `${user.uid}/credit_score/latest`);
           
           if (creditScoreDoc?.data) {
-            // Extract address from raw credit report
-            const rawReport = creditScoreDoc.data.raw_report;
+            console.log('BusinessProfile: Credit score data found:', creditScoreDoc.data);
+            // Extract address from raw credit report - check both raw_report and raw_data
+            const rawReport = creditScoreDoc.data.raw_report || creditScoreDoc.data.raw_data;
+            console.log('BusinessProfile: Raw credit report:', rawReport);
+            
+            // Also check the main data object for company information
+            const creditData = creditScoreDoc.data.data || creditScoreDoc.data;
+            console.log('BusinessProfile: Credit data object:', creditData);
             
             // Extract address
             if (rawReport?.contactInformation?.mainAddress?.simpleValue) {
@@ -292,6 +301,31 @@ const BusinessProfile = () => {
             } else if (creditScoreDoc.data.registration_date) {
               creditReportIncorporationDate = creditScoreDoc.data.registration_date;
             }
+
+            // Extract company number from raw credit report
+            if (rawReport?.companyIdentification?.basicInformation?.companyRegistrationNumber) {
+              creditReportCompanyNumber = rawReport.companyIdentification.basicInformation.companyRegistrationNumber;
+            } else if (rawReport?.companyIdentification?.basicInformation?.registrationNumber) {
+              creditReportCompanyNumber = rawReport.companyIdentification.basicInformation.registrationNumber;
+            } else if (rawReport?.company?.registrationNumber) {
+              creditReportCompanyNumber = rawReport.company.registrationNumber;
+            } else if (rawReport?.company?.companyNumber) {
+              creditReportCompanyNumber = rawReport.company.companyNumber;
+            } else if (creditData?.company_number) {
+              creditReportCompanyNumber = creditData.company_number;
+            } else if (creditData?.registration_number) {
+              creditReportCompanyNumber = creditData.registration_number;
+            } else if (creditData?.companyNumber) {
+              creditReportCompanyNumber = creditData.companyNumber;
+            } else if (creditData?.registrationNumber) {
+              creditReportCompanyNumber = creditData.registrationNumber;
+            } else if (creditScoreDoc.data.company_number) {
+              creditReportCompanyNumber = creditScoreDoc.data.company_number;
+            } else if (creditScoreDoc.data.registration_number) {
+              creditReportCompanyNumber = creditScoreDoc.data.registration_number;
+            }
+            
+            console.log('BusinessProfile: Extracted company number from credit report:', creditReportCompanyNumber);
           }
           
           // If not found in credit_score subcollection, try the main document's credit_info
@@ -303,6 +337,20 @@ const BusinessProfile = () => {
             creditReportIncorporationDate = data.credit_info.incorporation_date;
           } else if (!creditReportIncorporationDate && data.credit_info?.registration_date) {
             creditReportIncorporationDate = data.credit_info.registration_date;
+          }
+
+          if (!creditReportCompanyNumber && data.credit_info?.company_number) {
+            creditReportCompanyNumber = data.credit_info.company_number;
+          } else if (!creditReportCompanyNumber && data.credit_info?.registration_number) {
+            creditReportCompanyNumber = data.credit_info.registration_number;
+          } else if (!creditReportCompanyNumber && data.credit_info?.details?.company_number) {
+            creditReportCompanyNumber = data.credit_info.details.company_number;
+          } else if (!creditReportCompanyNumber && data.credit_info?.details?.registration_number) {
+            creditReportCompanyNumber = data.credit_info.details.registration_number;
+          } else if (!creditReportCompanyNumber && data.credit_info?.company?.company_number) {
+            creditReportCompanyNumber = data.credit_info.company.company_number;
+          } else if (!creditReportCompanyNumber && data.credit_info?.company?.registration_number) {
+            creditReportCompanyNumber = data.credit_info.company.registration_number;
           }
         } catch (creditError) {
           // Silently continue with saved data if credit report data is not available
@@ -339,6 +387,65 @@ const BusinessProfile = () => {
                             '';
         }
 
+        // Extract company number - prefer credit report number (most authoritative)
+        let companyNumber = creditReportCompanyNumber || data.company_number || '';
+        console.log('BusinessProfile: Company number extraction:', {
+          creditReportCompanyNumber,
+          dataCompanyNumber: data.company_number,
+          finalCompanyNumber: companyNumber
+        });
+        
+        // If still no company number, check credit_info in multiple locations as fallback
+        if (!companyNumber && data.credit_info) {
+          console.log('BusinessProfile: Checking credit_info for company number:', data.credit_info);
+          console.log('BusinessProfile: Credit info details:', data.credit_info.details);
+          
+          const rawCompanyNumber = data.credit_info.company_number || 
+                         data.credit_info.registration_number || 
+                         data.credit_info.companyNumber ||
+                         data.credit_info.registrationNumber ||
+                         data.credit_info.details?.company_number ||
+                         data.credit_info.details?.registration_number ||
+                         data.credit_info.details?.companyNumber ||
+                         data.credit_info.details?.registrationNumber ||
+                         data.credit_info.details?.companyRegistrationNumber ||
+                         data.credit_info.details?.company_reg_number ||
+                         data.credit_info.details?.reg_number ||
+                         data.credit_info.details?.companyNo ||
+                         data.credit_info.details?.company_no ||
+                         data.credit_info.details?.number ||
+                         data.credit_info.details?.companyId ||
+                         data.credit_info.company?.company_number ||
+                         data.credit_info.company?.registration_number ||
+                         data.credit_info.company?.companyNumber ||
+                         data.credit_info.company?.registrationNumber ||
+                         '';
+          
+          // Extract UK company number from formats like "GB-1-13001376" or "GB-13001376"
+          if (rawCompanyNumber && typeof rawCompanyNumber === 'string') {
+            // Remove GB prefix and extract numeric part
+            let extractedNumber = rawCompanyNumber.replace(/^GB-?/i, ''); // Remove GB or GB-
+            
+            // If format is like "1-13001376", take the part after the first dash
+            if (extractedNumber.includes('-')) {
+              const parts = extractedNumber.split('-');
+              if (parts.length >= 2) {
+                extractedNumber = parts[parts.length - 1]; // Take the last part
+              }
+            }
+            
+            // Remove any leading zeros and ensure it's a valid number
+            extractedNumber = extractedNumber.replace(/^0+/, '') || '0';
+            
+            // Validate it's a reasonable UK company number (typically 8 digits, but can vary)
+            if (/^\d{4,8}$/.test(extractedNumber)) {
+              companyNumber = extractedNumber;
+            }
+          }
+          console.log('BusinessProfile: Raw company number found:', rawCompanyNumber);
+          console.log('BusinessProfile: Company number after credit_info check:', companyNumber);
+        }
+
         setProfileExists(true);
         setProfile(data);
 
@@ -347,11 +454,11 @@ const BusinessProfile = () => {
         const finalAddress = parsedCreditAddress || addressData;
 
         // Update form values with all available data
-        form.reset({
+        const formValues = {
           business_name: data.business_name || data.name || '',
           industry_sector: data.industry_sector || data.industry || '',
           company_size: data.company_size || '',
-          company_number: data.company_number || '',
+          company_number: companyNumber,
           description: data.description || data.businessDescription || data.website_summary || '',
           website: data.website || '',
           business_email: data.business_email || '',
@@ -395,7 +502,10 @@ const BusinessProfile = () => {
           personal_email: data.email || data.personal_email || '',
           mobile: data.mobile || '',
           role: data.role || '',
-        });
+        };
+        
+        console.log('BusinessProfile: Form values to be set:', formValues);
+        form.reset(formValues);
       }
     } catch (err) {
       toast.error('Failed to load business profile');

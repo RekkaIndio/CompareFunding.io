@@ -150,7 +150,7 @@ const ApplicationOverview: React.FC<ApplicationOverviewProps> = ({ application, 
           {isEditing ? (
             <>
               <div className="bg-slate-50/70 rounded-lg p-3 border border-slate-100">
-                <Label htmlFor="loan_amount" className="text-sm text-slate-500">Loan Amount</Label>
+                <Label htmlFor="loan_amount" className="text-sm text-slate-500">Funding Amount</Label>
                 <div className="flex items-center mt-1">
                   <PoundSterling className="h-4 w-4 text-[#ff8000] mr-1" />
                   <Input 
@@ -200,7 +200,7 @@ const ApplicationOverview: React.FC<ApplicationOverviewProps> = ({ application, 
           ) : (
             <>
               <div className="bg-slate-50/70 rounded-lg p-3 border border-slate-100">
-                <p className="text-sm text-slate-500">Loan Amount</p>
+                <p className="text-sm text-slate-500">Funding Amount</p>
                 <p className="font-semibold text-slate-900 text-lg flex items-center">
                   <PoundSterling className="h-4 w-4 text-[#ff8000] mr-1" />
                   £{application.loan_amount?.toLocaleString() || 'Not specified'}

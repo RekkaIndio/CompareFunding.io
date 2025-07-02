@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { ArrowLeft } from 'lucide-react';
@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import PageLayout from '@/components/PageLayout';
 import { getDocument, getDocuments, updateDocument, createDocument, serverTimestamp } from '@/firebase';
 import { formatApplicationNumber } from '@/lib/applicationUtils';
-import { formatCurrency, formatRepaymentFrequency } from './components';
+import { formatCurrency, formatRepaymentFrequency, displayLenderName } from './components';
 import { useOfferActions } from '@/pages/Business/OffersList/useOfferActions';
 import { Offer } from '@/pages/Business/OffersList/types';
 import { 
@@ -28,10 +28,12 @@ const OfferDetails = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [declineReason, setDeclineReason] = useState('');
   const [isDeclineDialogOpen, setIsDeclineDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('details');
   const [isLenderProfileModalOpen, setIsLenderProfileModalOpen] = useState(false);
+  const [isActionLoading, setIsActionLoading] = useState(false);
   const isLender = user?.role === 'lender';
   
   // Use the centralized offer actions hook for consistent notification logic
@@ -66,11 +68,14 @@ const OfferDetails = () => {
         }
       }
       
-      // Get lender details if not already in offer
+      // Get lender details if not already in offer or if it's a placeholder name
       let lenderData = null;
-      if (offerData.lender_id && (!offerData.lender_name || offerData.lender_name === 'Unnamed Lender')) {
+      if (offerData.lender_id && (!offerData.lender_name || 
+          offerData.lender_name === 'Unnamed Lender' || 
+          offerData.lender_name === 'Unknown Lender' ||
+          offerData.lender_name.trim() === '')) {
         try {
-          // Try to get from lender_profiles collection
+          // Try to get from lender_profiles collection first
           const { data: lenderProfile } = await getDocument('lender_profiles', offerData.lender_id);
           if (lenderProfile) {
             lenderData = {
@@ -78,13 +83,22 @@ const OfferDetails = () => {
               company_logo: lenderProfile.logo_url || ''
             };
           } else {
-            // Fallback: try to get from users collection
-            const { data: userData } = await getDocument('users', offerData.lender_id);
-            if (userData) {
+            // Try lenders collection
+            const { data: lenderData_alt } = await getDocument('lenders', offerData.lender_id);
+            if (lenderData_alt) {
               lenderData = {
-                lender_name: userData.company_name || userData.name || 'Unnamed Lender',
-                company_logo: userData.logo_url || userData.logo || ''
+                lender_name: lenderData_alt.company_name || lenderData_alt.lender_name || lenderData_alt.name || 'Unnamed Lender',
+                company_logo: lenderData_alt.logo_url || lenderData_alt.company_logo || ''
               };
+            } else {
+              // Fallback: try to get from users collection
+              const { data: userData } = await getDocument('users', offerData.lender_id);
+              if (userData) {
+                lenderData = {
+                  lender_name: userData.company_name || userData.displayName || userData.name || userData.email?.split('@')[0] || 'Unnamed Lender',
+                  company_logo: userData.photoURL || userData.logo_url || userData.logo || ''
+                };
+              }
             }
           }
         } catch (error) {
@@ -147,14 +161,24 @@ const OfferDetails = () => {
   // Wrapper functions to match ActionCard prop signatures
   const handleAcceptOfferWrapper = async () => {
     if (offer) {
-      await handleAcceptOffer(offer);
+      setIsActionLoading(true);
+      try {
+        await handleAcceptOffer(offer);
+      } finally {
+        setIsActionLoading(false);
+      }
     }
   };
 
   const handleDeclineOfferWrapper = async () => {
     if (offer) {
-      await handleDeclineOffer(offer, declineReason);
-      setIsDeclineDialogOpen(false);
+      setIsActionLoading(true);
+      try {
+        await handleDeclineOffer(offer, declineReason);
+        setIsDeclineDialogOpen(false);
+      } finally {
+        setIsActionLoading(false);
+      }
     }
   };
 
@@ -165,6 +189,8 @@ const OfferDetails = () => {
         toast.error('Missing offer ID');
         return;
       }
+      
+      setIsActionLoading(true);
       
       // Update offer status
       const { error } = await updateDocument('offers', id, { 
@@ -191,14 +217,17 @@ const OfferDetails = () => {
       
       toast.success('Offer withdrawn successfully.');
       
-      // Refresh the page after withdrawal
-      setTimeout(() => {
-        window.location.reload();
-      }, 2000);
+      // Invalidate relevant queries to refresh data smoothly
+      queryClient.invalidateQueries({ queryKey: ['offer', id] });
+      queryClient.invalidateQueries({ queryKey: ['offers'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['applications'] });
       
     } catch (err) {
       console.error('Error withdrawing offer:', err);
       toast.error('Failed to withdraw offer');
+    } finally {
+      setIsActionLoading(false);
     }
   };
 
@@ -307,7 +336,7 @@ const OfferDetails = () => {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
               <div>
                 <h1 className="text-3xl font-bold mb-1 text-slate-900">
-                  {isLender ? `Offer to ${businessName}` : `Offer from ${offer.lender_name}`}
+                  {isLender ? `Offer to ${businessName}` : `Offer from ${displayLenderName(offer.lender_name)}`}
                 </h1>
                 <p className="text-slate-800">
                   {isLender 
@@ -342,6 +371,7 @@ const OfferDetails = () => {
                   offer={offer} 
                   conversation={conversation}
                   onNavigateToMessages={() => navigate('/messages', { state: { conversation } })}
+                  isAccepted={isAccepted}
                 />
                 <CostBreakdownCard offer={offer} />
                 {isLender && offer.applications && (
@@ -368,6 +398,7 @@ const OfferDetails = () => {
                   setIsDeclineDialogOpen={setIsDeclineDialogOpen}
                   conversation={conversation}
                   onNavigateToMessages={() => navigate('/messages', { state: { conversation } })}
+                  isLoading={isActionLoading}
                 />
                 
                 <BusinessInfoCard 
@@ -388,6 +419,7 @@ const OfferDetails = () => {
         onClose={() => setIsLenderProfileModalOpen(false)}
         offer={offer}
         isLender={isLender}
+        isAccepted={isAccepted}
       />
     </PageLayout>
   );
