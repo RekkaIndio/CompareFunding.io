@@ -183,7 +183,7 @@ const ForLenders = () => {
                 <div>
                   <h3 className="text-xl font-semibold text-gray-900 mb-3">Create Your Lender Profile</h3>
                   <p className="text-gray-600 leading-relaxed mb-3">
-                    Set up your comprehensive lender profile with your funding products, criteria, and preferences. Define your target market, loan amounts, sectors, and risk appetite.
+                    Set up your comprehensive lender profile with your funding products, criteria, and preferences. Define your target market, funding amounts, sectors, and risk appetite.
                   </p>
                   <ul className="text-gray-600 space-y-1 text-sm">
                     <li>• Configure funding criteria and parameters</li>

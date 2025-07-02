@@ -692,7 +692,7 @@ const Applications = () => {
                           <div className="grid grid-cols-1 gap-3">
                             <div className="bg-gradient-to-br from-slate-50 to-slate-100 p-4 rounded-xl border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5">
                               <div className="flex justify-between items-start mb-2">
-                                <p className="text-sm font-semibold text-slate-600 uppercase tracking-wide">Loan Amount</p>
+                                <p className="text-sm font-semibold text-slate-600 uppercase tracking-wide">Funding Amount</p>
                                 <div className="bg-gradient-to-br from-[#212936] to-[#2c3c53] rounded-full p-1.5 shadow-sm group-hover:shadow-md transition-shadow">
                                   <PoundSterling className="h-4 w-4 text-white" />
                                 </div>

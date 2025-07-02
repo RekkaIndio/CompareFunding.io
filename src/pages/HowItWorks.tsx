@@ -37,7 +37,7 @@ const HowItWorks = () => {
       description: 'Complete your funding application with details about your business, funding needs, and purpose.',
       image: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=800&auto=format&fit=crop&q=80',
       bullets: [
-        'Specify loan amount, term, and purpose',
+        'Specify funding amount, term, and purpose',
         'Add supporting documents',
         'Review and submit'
       ]

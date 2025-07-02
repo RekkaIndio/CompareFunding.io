@@ -7,4 +7,4 @@ export { LenderProfileModal } from './LenderProfileModal';
 export { ApplicationDetailsCard } from './ApplicationDetailsCard';
 
 // Export utils
-export { formatCurrency, formatRepaymentFrequency } from '../utils';
+export { formatCurrency, formatRepaymentFrequency, displayLenderName } from '../utils';

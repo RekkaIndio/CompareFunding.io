@@ -321,6 +321,92 @@ class MailgunService {
   }
 
   /**
+   * Send new message notification to business
+   */
+  async sendNewMessageNotificationBusiness(data: {
+    to: string;
+    businessName: string;
+    businessOwnerName: string;
+    lenderName: string;
+    applicationNumber: string;
+    applicationPurpose: string;
+    applicationAmount: number;
+    messagePreview: string;
+    messagesUrl?: string;
+  }): Promise<any> {
+    try {
+      const template = EmailTemplates.getNewMessageNotificationBusinessEmail({
+        businessName: data.businessName,
+        businessOwnerName: data.businessOwnerName,
+        lenderName: data.lenderName,
+        applicationNumber: data.applicationNumber,
+        applicationPurpose: data.applicationPurpose,
+        applicationAmount: data.applicationAmount,
+        messagePreview: data.messagePreview,
+        messagesUrl: data.messagesUrl
+      });
+
+      const emailData = {
+        from: this.defaultFrom,
+        to: [data.to],
+        subject: template.subject,
+        html: template.html,
+        text: template.text
+      };
+
+      const result = await this.mg.messages.create(this.domain, emailData);
+      console.log("✅ New message notification (business) sent successfully:", result);
+      return { success: true, data: result };
+    } catch (error: any) {
+      console.error("❌ Error sending new message notification (business):", error);
+      return this.handleEmailError(error);
+    }
+  }
+
+  /**
+   * Send new message notification to lender
+   */
+  async sendNewMessageNotificationLender(data: {
+    to: string;
+    lenderName: string;
+    lenderContactName: string;
+    businessName: string;
+    applicationNumber: string;
+    applicationPurpose: string;
+    applicationAmount: number;
+    messagePreview: string;
+    messagesUrl?: string;
+  }): Promise<any> {
+    try {
+      const template = EmailTemplates.getNewMessageNotificationLenderEmail({
+        lenderName: data.lenderName,
+        lenderContactName: data.lenderContactName,
+        businessName: data.businessName,
+        applicationNumber: data.applicationNumber,
+        applicationPurpose: data.applicationPurpose,
+        applicationAmount: data.applicationAmount,
+        messagePreview: data.messagePreview,
+        messagesUrl: data.messagesUrl
+      });
+
+      const emailData = {
+        from: this.defaultFrom,
+        to: [data.to],
+        subject: template.subject,
+        html: template.html,
+        text: template.text
+      };
+
+      const result = await this.mg.messages.create(this.domain, emailData);
+      console.log("✅ New message notification (lender) sent successfully:", result);
+      return { success: true, data: result };
+    } catch (error: any) {
+      console.error("❌ Error sending new message notification (lender):", error);
+      return this.handleEmailError(error);
+    }
+  }
+
+  /**
    * Handle email errors consistently
    */
   private handleEmailError(error: any): any {

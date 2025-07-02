@@ -525,7 +525,7 @@ const LenderDashboard = () => {
                   <CreditCard className="h-6 w-6 text-[#ff8000]" />
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-medium text-slate-600">Total Loan Value</p>
+                  <p className="text-sm font-medium text-slate-600">Total Funding Value</p>
                   <h3 className="text-2xl font-bold text-[#212936]">
                     {allNonDeclinedApplications === undefined ? (
                       <span className="animate-pulse">...</span>
@@ -627,8 +627,8 @@ const LenderDashboard = () => {
                           <CheckCircle className="h-5 w-5 text-white" />
                         </div>
                         <div>
-                          <h2 className="text-lg font-semibold text-white">Active Loans</h2>
-                          <p className="text-sm text-slate-300">Funded applications with ongoing relationships</p>
+                          <h2 className="text-lg font-semibold text-white">Active Funding</h2>
+                          <p className="text-sm text-slate-300">Applications with ongoing relationships</p>
                         </div>
                       </div>
                       <div className="text-right">

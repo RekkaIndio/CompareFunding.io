@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { analyzeFinancialDocument, FinancialDataResult } from "@/services/openai/profitAndLoss";
+import { analyzeDocumentByKey, FinancialDataResult } from "@/services/openai/index";
 import FileExtractor, { ExtractedFile } from "./FileExtractor";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import FinancialsTable from "@/pages/Business/Documents/FinancialsTable";
@@ -157,8 +157,11 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
     try {
       const documentType = DOCUMENT_STEPS.find((s) => s.key === key)?.label || key;
       
-      // Use the new comprehensive analyzer for all financial documents
-      const aiResult = await analyzeFinancialDocument(result.file);
+      // Use the document-specific analyzer based on the document key
+      const aiResult = await analyzeDocumentByKey({
+        file: result.file,
+        documentKey: key
+      });
       
       setAiResults((prev) => ({ ...prev, [key]: aiResult }));
       
@@ -272,8 +275,11 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
               setAiLoading(prev => ({ ...prev, [documentKey]: true }));
               setAiError(prev => ({ ...prev, [documentKey]: null }));
               
-              // Process the document with OpenAI
-              const aiResult = await analyzeFinancialDocument(file);
+              // Process the document with the appropriate analyzer
+              const aiResult = await analyzeDocumentByKey({
+                file: file,
+                documentKey: documentKey
+              });
               
               // Update the document status and add processed data
               await updateDoc(doc(db, "businesses", currentUser.uid, "financials", docSnapshot.id), {

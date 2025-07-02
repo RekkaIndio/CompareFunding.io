@@ -37,7 +37,7 @@ export const LoanDetailsCard = ({ form }: LoanDetailsCardProps) => {
             <FormItem>
               <FormLabel className="text-[#212936] font-semibold text-base flex items-center gap-2">
                 <BadgePoundSterling className="h-4 w-4 text-[#ff8000]" />
-                Loan Amount (£) *
+                Funding Amount (£) *
               </FormLabel>
               <FormControl>
                 <div className="relative group">

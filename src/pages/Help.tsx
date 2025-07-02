@@ -4,7 +4,7 @@ import PageLayout from '@/components/PageLayout';
 const helpResources = [
   {
     title: "Getting Started",
-    description: "New to FundHub? Learn how to set up your account, complete your profile, and start your funding journey.",
+    description: "New to Compare Funding? Learn how to set up your account, complete your profile, and start your funding journey.",
     icon: "🚀",
     links: [
       { label: "How to Create an Account", url: "#" },
@@ -28,7 +28,7 @@ const helpResources = [
     icon: "💬",
     links: [
       { label: "FAQs & Troubleshooting", url: "#" },
-      { label: "Contact Support Team", url: "mailto:support@fundhub.com" },
+      { label: "Contact Support Team", url: "mailto:support@comparefunding.io" },
       { label: "Book a 1:1 Call", url: "#" },
     ],
   },
@@ -87,7 +87,7 @@ const HelpPage: React.FC = () => {
         <div className="mt-16 text-center">
           <h2 className="text-2xl font-bold mb-2 text-fundhub-orange">Still Need Help?</h2>
           <p className="mb-4 text-lg text-slate-300">If you can't find what you're looking for, reach out to our support team for personalized assistance.</p>
-          <a href="mailto:support@fundhub.com" className="inline-block bg-fundhub-blue text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-800 transition">Email Support</a>
+          <a href="mailto:support@comparefunding.io" className="inline-block bg-fundhub-blue text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-800 transition">Email Support</a>
         </div>
       </div>
     </PageLayout>

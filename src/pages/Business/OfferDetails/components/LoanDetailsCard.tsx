@@ -9,9 +9,10 @@ interface LoanDetailsCardProps {
   offer: any;
   conversation?: any;
   onNavigateToMessages?: () => void;
+  isAccepted?: boolean;
 }
 
-export const LoanDetailsCard: React.FC<LoanDetailsCardProps> = ({ offer, conversation, onNavigateToMessages }) => {
+export const LoanDetailsCard: React.FC<LoanDetailsCardProps> = ({ offer, conversation, onNavigateToMessages, isAccepted = false }) => {
   const loanAmount = offer.offered_amount;
   const interestRate = offer.interest_rate;
   const termMonths = offer.offered_term_months;
@@ -102,8 +103,8 @@ export const LoanDetailsCard: React.FC<LoanDetailsCardProps> = ({ offer, convers
           </div>
         )}
 
-        {/* Messaging Section */}
-        {conversation && (
+        {/* Messaging Section - Only show for accepted offers */}
+        {isAccepted && conversation && (
           <div className="mt-6">
             <Button 
               onClick={onNavigateToMessages} 

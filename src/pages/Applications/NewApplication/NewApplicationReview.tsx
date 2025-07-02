@@ -237,7 +237,7 @@ const NewApplicationReview = () => {
               <div className="text-2xl font-bold text-[#212936] mb-1">
                 £{application.loan_amount?.toLocaleString()}
               </div>
-              <div className="text-sm text-slate-600">Loan Amount</div>
+              <div className="text-sm text-slate-600">Funding Amount</div>
             </div>
             
             <div className="bg-white rounded-xl border-2 border-slate-200 p-4 text-center shadow-sm hover:shadow-md transition-all duration-200">

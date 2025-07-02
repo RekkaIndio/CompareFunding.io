@@ -1,5 +1,6 @@
 import { toast } from 'sonner';
 import { updateDocument, createDocument, deleteDocument, serverTimestamp } from '@/firebase';
+import { useQueryClient } from '@tanstack/react-query';
 import { Offer } from './types';
 import { formatCurrency } from './utils';
 import { cleanupDeclinedOffers } from '@/utils/cleanupDeclinedOffers';
@@ -19,6 +20,8 @@ import { cleanupDeclinedOffers } from '@/utils/cleanupDeclinedOffers';
  */
 
 export const useOfferActions = (user: any) => {
+  const queryClient = useQueryClient();
+  
   // Accept offer handler
   const handleAcceptOffer = async (offer: Offer) => {
     try {
@@ -101,10 +104,11 @@ export const useOfferActions = (user: any) => {
       
       toast.success('Offer accepted successfully! The lender has been notified.');
       
-      // Refresh the page after successful acceptance
-      setTimeout(() => {
-        window.location.reload();
-      }, 2000);
+      // Invalidate relevant queries to refresh data smoothly
+      queryClient.invalidateQueries({ queryKey: ['offer'] });
+      queryClient.invalidateQueries({ queryKey: ['offers'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['applications'] });
       
     } catch (err) {
       console.error('Error accepting offer:', err);
@@ -146,10 +150,11 @@ export const useOfferActions = (user: any) => {
       
       toast.success('Offer declined and removed. The lender has been notified.');
       
-      // Refresh the page after successful decline
-      setTimeout(() => {
-        window.location.reload();
-      }, 2000);
+      // Invalidate relevant queries to refresh data smoothly
+      queryClient.invalidateQueries({ queryKey: ['offer'] });
+      queryClient.invalidateQueries({ queryKey: ['offers'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['applications'] });
       
     } catch (err) {
       console.error('Error declining offer:', err);

@@ -56,7 +56,7 @@ const About = () => {
         <div className="max-w-3xl mx-auto text-center">
           <h1 className="text-4xl font-bold mb-6 animate-slide-up">Our Mission</h1>
           <p className="text-xl text-muted-foreground mb-8 animate-slide-up" style={{ animationDelay: '100ms' }}>
-            FundHub is on a mission to transform business funding by removing traditional barriers
+            Compare Funding is on a mission to transform business funding by removing traditional barriers
             and creating transparent, direct connections between businesses and lenders.
           </p>
         </div>
@@ -67,7 +67,7 @@ const About = () => {
           <div>
             <h2 className="text-2xl font-bold mb-6">Our Story</h2>
             <p className="text-muted-foreground mb-4">
-              FundHub was founded in 2023 by a team of fintech and lending experts who recognized a fundamental 
+              Compare Funding was founded in 2025 by a team of financial and lending experts who recognized a fundamental 
               problem in the business funding ecosystem: the traditional broker model was creating unnecessary 
               costs and inefficiencies.
             </p>
@@ -80,7 +80,7 @@ const About = () => {
               commissions, aligning our incentives with quality matches rather than transaction size.
             </p>
             <p className="text-muted-foreground">
-              Today, FundHub is helping thousands of businesses access better funding while enabling lenders 
+              Today, Compare Funding is helping businesses access better funding while enabling lenders 
               to reduce customer acquisition costs and build relationships with qualified businesses.
             </p>
           </div>
