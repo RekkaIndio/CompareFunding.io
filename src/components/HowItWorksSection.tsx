@@ -1,23 +1,27 @@
 
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { User, UploadCloud, CheckCircle } from 'lucide-react';
 
 const HowItWorksSection = () => {
   const steps = [
     {
       number: 1,
       title: 'Tell us about your company and your needs',
-      image: 'https://images.unsplash.com/photo-1611224923853-80b023f02d71?w=400&h=300&fit=crop&auto=format&q=80'
+      image: 'https://images.unsplash.com/photo-1611224923853-80b023f02d71?w=400&h=300&fit=crop&auto=format&q=80',
+      icon: <User className="w-6 h-6 text-orange-500" />
     },
     {
       number: 2,
       title: 'Upload your information to our cloud',
-      image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop&auto=format&q=80'
+      image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop&auto=format&q=80',
+      icon: <UploadCloud className="w-6 h-6 text-orange-500" />
     },
     {
       number: 3,
       title: 'Receive indicative offers of funding',
-      image: 'https://images.unsplash.com/photo-1521791136064-7986c2920216?w=400&h=300&fit=crop&auto=format&q=80'
+      image: 'https://images.unsplash.com/photo-1521791136064-7986c2920216?w=400&h=300&fit=crop&auto=format&q=80',
+      icon: <CheckCircle className="w-6 h-6 text-orange-500" />
     }
   ];
 
@@ -55,9 +59,11 @@ const HowItWorksSection = () => {
                 />
               </div>
               <div className="p-4 sm:p-5 md:p-6">
-                <div className="text-orange-500 font-semibold text-xs sm:text-sm mb-2 sm:mb-3">
-                  Step {step.number}
+                <div className="flex items-center gap-3 mb-2 sm:mb-3">
+                  <div className="bg-orange-50 w-8 h-8 rounded-full flex items-center justify-center">{step.icon}</div>
+                  <div className="text-orange-500 font-semibold text-xs sm:text-sm">Step {step.number}</div>
                 </div>
+                
                 <h3 className="text-base sm:text-lg md:text-xl font-bold text-gray-900 leading-tight">
                   {step.title}
                 </h3>

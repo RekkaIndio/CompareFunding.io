@@ -18,7 +18,7 @@ import {
   query, orderBy, getDocs, where, limit, deleteDoc
 } from 'firebase/firestore';
 import { getFirestore } from 'firebase/firestore';
-import { getAuth } from 'firebase/auth';
+import { auth } from '@/firebase';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { toast } from '@/hooks/use-toast';
 import { Trash2 } from 'lucide-react';
@@ -122,7 +122,6 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
   const [activeTab, setActiveTab] = useState<string>(DOCUMENT_STEPS[0].key);
 
   const db = getFirestore();
-  const auth = getAuth();
   const storage = getStorage();
 
   const handleExtracted = (key: string) => async (result: ExtractedFile) => {
@@ -1072,7 +1071,6 @@ const BusinessDocuments: React.FC = (): JSX.Element => {
   // Handler for deleting a document
   const handleDeleteDocument = async (key: string) => {
     try {
-      const auth = getAuth();
       const user = auth.currentUser;
       
       if (!user) {

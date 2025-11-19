@@ -501,21 +501,7 @@ const BusinessDetailsForm = () => {
           updatedAt: serverTimestamp(),
           active: true
         }, { merge: true });
-
-        // Also save to business_profiles for consistency
-        await setDoc(doc(db, 'business_profiles', user.uid), {
-          business_name: searchTerm,
-          company_number: formData.companyNumber,
-          industry_sector: formData.industry,
-          company_size: formData.companySize,
-          website: formData.website,
-          website_summary: websiteSummary,
-          description: websiteSummary,
-          address: address || {},
-          logo_url: logoUrl,
-          annual_revenue: formData.forecastRevenue,
-          updatedAt: serverTimestamp()
-        }, { merge: true });
+        
       }
 
       // Store company name for credit score auto-population

@@ -7,8 +7,12 @@ interface FooterProps {
   className?: string;
 }
 
+import { useState } from 'react';
+
 const FooterUpdated = ({ className }: FooterProps) => {
   const year = new Date().getFullYear();
+  const [newsletterEmail, setNewsletterEmail] = useState('');
+  const [newsletterThanks, setNewsletterThanks] = useState(false);
   
   return (
     <footer className={cn("bg-slate-900 text-white relative overflow-hidden", className)}>
@@ -50,6 +54,32 @@ const FooterUpdated = ({ className }: FooterProps) => {
                 <MapPin size={16} className="text-orange-400" />
                 <span className="text-slate-300 text-sm">71-75 SHELTON STREET, COVENT GARDEN, LONDON, WC2H 9JQ</span>
               </div>
+            </div>
+
+            {/* Newsletter */}
+            <div className="mt-4">
+              {newsletterThanks ? (
+                <div className="text-sm text-green-400">Thanks — we'll stay in touch!</div>
+              ) : (
+                <form onSubmit={(e) => {
+                  e.preventDefault();
+                  if (newsletterEmail && newsletterEmail.includes('@')) {
+                    setNewsletterThanks(true);
+                    localStorage.setItem('newsletter_email', newsletterEmail);
+                    setNewsletterEmail('');
+                  }
+                }} className="flex gap-2">
+                  <input type="email" aria-label="Newsletter email" value={newsletterEmail} onChange={(e) => setNewsletterEmail(e.target.value)} placeholder="Your email" className="rounded-lg p-2 text-sm" />
+                  <button className="bg-orange-500 hover:bg-orange-600 text-white rounded-lg px-3 py-2 text-sm">Subscribe</button>
+                </form>
+              )}
+            </div>
+
+            {/* Quick CTA */}
+            <div className="mt-3">
+              <Link to="/signup" className="inline-flex items-center justify-center bg-orange-500 hover:bg-orange-600 text-white font-semibold px-4 py-2 rounded-lg">
+                Apply Now
+              </Link>
             </div>
             
             {/* Social Links */}

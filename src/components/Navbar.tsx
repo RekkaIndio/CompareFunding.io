@@ -163,7 +163,8 @@ const Navbar = () => {
       <header 
         className={cn(
           "w-full h-full transition-all duration-300 relative overflow-hidden",
-          "bg-slate-900 text-white",
+          // use transparent background on top of hero, solid when scrolled
+          isScrolled ? 'bg-slate-900 text-white' : 'bg-transparent text-white',
           isScrolled && "shadow-lg backdrop-blur-sm"
         )}
       >
@@ -193,15 +194,14 @@ const Navbar = () => {
         </Link>
         
         {/* Desktop Menu */}
-        <nav className="hidden md:flex items-center space-x-1">
+        <nav className="hidden md:flex items-center space-x-6">
           {navLinks.map((link) => (
             <Link
               key={link.path}
               to={link.path}
               className={cn(
-                "nav-link transition-all duration-300 text-white",
-                isActive(link.path) ? "nav-link-active" : "",
-                isScrolled ? "py-1.5" : "py-2"
+                "text-white/90 hover:text-white transition-colors duration-200 font-medium",
+                isActive(link.path) ? "text-white" : ""
               )}
             >
               {link.name}
@@ -211,6 +211,10 @@ const Navbar = () => {
         
         {/* Desktop CTA Buttons or User Menu */}
         <div className="hidden md:flex items-center space-x-3 text-white">
+          {/* Prominent Compare CTA always visible */}
+          <Link to="/products" className="hidden lg:inline-flex bg-white/10 hover:bg-white/20 text-white border border-white/10 backdrop-blur-sm px-3 py-2 rounded-md font-semibold">
+            Compare
+          </Link>
           {user ? (
             <>
               {/* Notifications Icon */}
@@ -299,11 +303,11 @@ const Navbar = () => {
             </>
           ) : (
             <>
-              <Button variant="outline" size={isScrolled ? "sm" : "default"} asChild>
+              <Button variant="ghost" size={isScrolled ? "sm" : "default"} asChild>
                 <Link to="/login">Log In</Link>
               </Button>
-              <Button size={isScrolled ? "sm" : "default"} className="bg-primary hover:bg-primary/90" asChild>
-                <Link to="/signup">Sign Up</Link>
+              <Button size={isScrolled ? "sm" : "default"} className="bg-orange-500 hover:bg-orange-600 text-white" asChild>
+                <Link to="/signup">Apply</Link>
               </Button>
             </>
           )}

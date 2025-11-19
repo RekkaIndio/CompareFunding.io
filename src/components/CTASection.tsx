@@ -54,7 +54,7 @@ const CTASection = () => {
   };
 
   return (
-    <section className="py-12 md:py-16 lg:py-24 bg-white relative overflow-hidden">
+    <section className="py-12 md:py-16 lg:py-24 bg-gradient-to-br from-gray-50 to-white relative overflow-hidden">
       {/* Background decorative elements - hidden on small screens */}
       <div className="absolute top-0 right-0 w-32 sm:w-48 md:w-64 h-32 sm:h-48 md:h-64 hidden sm:block">
         <div className="absolute top-0 right-0 w-16 sm:w-24 md:w-32 h-16 sm:h-24 md:h-32 bg-fundhub-orange rounded-full -translate-y-1/2"></div>
@@ -67,13 +67,21 @@ const CTASection = () => {
       </div>
 
       <div className="container mx-auto px-4 relative z-10">
-        <div className="max-w-4xl mx-auto">
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-center mb-2">
-            Frequently asked questions
+        <div className="max-w-4xl mx-auto text-center">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold mb-4">
+            Ready to find the right funding for your business?
           </h2>
           <p className="text-center mb-8 md:mb-12 text-gray-600 px-2">
-            Here you will find answers to the most common questions
+            One application — multiple offers. See what fits your business in minutes.
           </p>
+          <div className="flex items-center justify-center gap-4 mb-8">
+            <Button className="bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3 px-6 rounded-lg" asChild>
+              <Link to="/signup">Apply Now</Link>
+            </Button>
+            <Button variant="outline" className="py-3 px-6 rounded-lg" asChild>
+              <Link to="/products">Compare Products</Link>
+            </Button>
+          </div>
 
           <div className="space-y-4 sm:space-y-6 mb-8 sm:mb-12">
             {faqs.map((faq, index) => (

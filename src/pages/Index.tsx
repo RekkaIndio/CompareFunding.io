@@ -4,7 +4,7 @@ import PageLayout from '@/components/PageLayout';
 import HeroSection from '@/components/HeroSection';
 import FeaturesSection from '@/components/FeaturesSection';
 import HowItWorksSection from '@/components/HowItWorksSection';
-import TestimonialsSection from '@/components/TestimonialsSection';
+import MomentumSection from '@/components/MomentumSection';
 import CTASection from '@/components/CTASection';
 
 const Index = () => {
@@ -18,7 +18,7 @@ const Index = () => {
       <HeroSection />
       <FeaturesSection />
       <HowItWorksSection />
-      <TestimonialsSection />
+      <MomentumSection />
       <CTASection />
     </PageLayout>
   );

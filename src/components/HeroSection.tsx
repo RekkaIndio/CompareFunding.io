@@ -1,11 +1,13 @@
-import { Link } from 'react-router-dom';
-import { useNavbar } from '@/contexts/NavbarContext';
+import { Link, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 
 const HeroSection = () => {
   // State to track viewport size for dynamic responsive adjustments
   const [isMobile, setIsMobile] = useState(false);
   const [isTablet, setIsTablet] = useState(false);
+  const [form, setForm] = useState({ name: '', email: '', amount: '' });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const navigate = useNavigate();
 
   // Update state based on window resize
   useEffect(() => {
@@ -40,12 +42,12 @@ const HeroSection = () => {
       {/* Content overlay */}
       <div className="relative z-10 min-h-[90vh] sm:min-h-screen flex items-center py-10 sm:py-0">
         <div className="container mx-auto px-4 sm:px-6">
-          <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center w-full gap-8 lg:gap-0">
+          <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center w-full gap-8 lg:gap-8">
             {/* Enhanced hero content card with professional styling */}
             <div className="w-full lg:max-w-lg">
               <div className="bg-white/95 backdrop-blur-sm rounded-2xl sm:rounded-3xl p-6 sm:p-8 md:p-10 shadow-xl border border-white/20 hover:shadow-2xl transition-all duration-300">
-                <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-[#212936] mb-6 sm:mb-8 leading-tight">
-                  Find The Funding For Your Business
+                <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-[#212936] mb-4 sm:mb-6 leading-tight">
+                  Funding made simple — compare offers from 50+ lenders
                 </h1>
                 
                 {/* Enhanced feature list with professional styling */}
@@ -78,140 +80,97 @@ const HeroSection = () => {
                   </div>
                 </div>
                 
-                {/* Enhanced CTA Options with professional styling */}
-                <div className="space-y-5 mb-6">
-                  <h2 className="text-xl sm:text-2xl font-bold text-[#212936] mb-5">
-                    Know what you're looking for?
+                {/* CTAs + Microform */}
+                <div className="mb-6 sm:mb-8">
+                  <h2 className="text-lg sm:text-xl font-semibold text-[#212936] mb-4">
+                    Get matched to the best options for your business
                   </h2>
-                  
-                  {/* Three professional option cards */}
-                  <div className="space-y-4">
-                    {/* Option 1: Explore All Products */}
-                    <Link 
-                      to="/products"
-                      className="group block bg-gradient-to-br from-blue-50 to-blue-100/80 hover:from-blue-100 hover:to-blue-200/80 border border-blue-200/60 rounded-xl p-5 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 backdrop-blur-sm"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <h3 className="font-bold text-[#212936] text-base mb-2">
-                            Know what you are looking for
-                          </h3>
-                          <p className="text-[#2c3c53]/80 text-sm font-medium">
-                            Explore loans, cashflow finance, asset finance & more
-                          </p>
-                        </div>
-                        <div className="bg-gradient-to-br from-[#212936] to-[#2c3c53] rounded-full p-2 group-hover:scale-110 transition-transform duration-300 shadow-lg">
-                          <svg className="w-4 h-4 text-[#ff8000]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
-                        </div>
-                      </div>
+                  <div className="flex flex-col sm:flex-row gap-3 md:gap-4 items-center">
+                    <Link to="/signup" className="inline-flex items-center justify-center bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3 px-5 rounded-lg transition-shadow shadow-md text-sm">
+                      Apply Now
                     </Link>
-
-                    {/* Option 2: Quick Application */}
-                    <Link 
-                      to="/funding-needs"
-                      className="group block bg-gradient-to-br from-[#ff8000]/10 to-[#ff9500]/10 hover:from-[#ff8000]/20 hover:to-[#ff9500]/20 border border-[#ff8000]/30 rounded-xl p-5 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 backdrop-blur-sm"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <h3 className="font-bold text-[#212936] text-base mb-2">
-                            Have a need
-                          </h3>
-                          <p className="text-[#2c3c53]/80 text-sm font-medium">
-                            Get matched with suitable funding in minutes
-                          </p>
-                        </div>
-                        <div className="bg-gradient-to-br from-[#ff8000] to-[#ff9500] rounded-full p-2 group-hover:scale-110 transition-transform duration-300 shadow-lg">
-                          <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
-                        </div>
-                      </div>
+                    <Link to="/products" className="inline-flex items-center justify-center bg-white border border-gray-200 hover:shadow-md text-[#212936] font-medium py-3 px-4 rounded-lg text-sm">
+                      Compare Products
                     </Link>
-
-                    {/* Option 3: Expert Consultation */}
-                    <Link 
-                      to="/support-flow"
-                      className="group block bg-gradient-to-br from-slate-50 to-slate-100/80 hover:from-slate-100 hover:to-slate-200/80 border border-slate-200/60 rounded-xl p-5 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 backdrop-blur-sm"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <h3 className="font-bold text-[#212936] text-base mb-2">
-                            Need Support
-                          </h3>
-                          <p className="text-[#2c3c53]/80 text-sm font-medium">
-                            Free advice from our funding specialists
-                          </p>
-                        </div>
-                        <div className="bg-gradient-to-br from-[#212936] to-[#2c3c53] rounded-full p-2 group-hover:scale-110 transition-transform duration-300 shadow-lg">
-                          <svg className="w-4 h-4 text-[#ff8000]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
-                        </div>
-                      </div>
+                    <Link to="/support-flow" className="inline-flex items-center justify-center text-[#212936] hover:text-orange-500 font-medium py-3 px-3 rounded-lg text-sm">
+                      Need Advice? Book a call →
                     </Link>
                   </div>
+
+                  <form
+                    className="mt-4"
+                    aria-label="Quick funding form"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      setIsSubmitting(true);
+                      const params = new URLSearchParams({
+                        name: form.name,
+                        email: form.email,
+                        amount: form.amount,
+                        source: 'hero'
+                      }).toString();
+                      // Small delay to indicate submission
+                      setTimeout(() => {
+                        setIsSubmitting(false);
+                        navigate(`/signup?${params}`);
+                      }, 400);
+                    }}
+                  >
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <input aria-label="Full name" placeholder="Full name" className="w-full rounded-lg border border-gray-200 p-2" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                      <input aria-label="Email address" type="email" placeholder="Email" className="w-full rounded-lg border border-gray-200 p-2" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+                      <input aria-label="Funding required" placeholder="Funding amount" className="w-full rounded-lg border border-gray-200 p-2" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
+                    </div>
+                    <div className="flex items-center gap-3 mt-2">
+                      <button type="submit" disabled={isSubmitting} className="bg-blue-900 hover:bg-blue-800 text-white font-semibold py-2 px-4 rounded-lg text-sm">{isSubmitting ? 'Getting offers...' : 'Get indicative offers'}</button>
+                      <button type="button" onClick={() => setForm({ name: '', email: '', amount: '' })} className="text-sm text-gray-600 hover:text-gray-800">Reset</button>
+                    </div>
+                  </form>
                 </div>
                 
-                {/* Enhanced learn more link */}
-                <div className="text-sm">
-                  <span className="text-[#2c3c53]/70 font-medium">Want to learn more about funding options? </span>
-                  <Link to="/learn" className="text-[#ff8000] hover:text-[#ff9500] font-bold transition-colors duration-200">Learn now</Link>
+                {/* Trusted logos */}
+                <div className="mt-6 text-sm">
+                  <span className="text-[#2c3c53]/80 font-medium">Trusted by businesses and lenders.</span>
+                  <div className="flex items-center gap-3 mt-3 flex-wrap">
+                    <img src="/src/assets/lenderlogos/barclyays.png" alt="Barclays" className="h-6 opacity-80" />
+                    <img src="/src/assets/lenderlogos/hsbclogo.png" alt="HSBC" className="h-6 opacity-80" />
+                    <img src="/src/assets/lenderlogos/lloydslogo.png" alt="Lloyds" className="h-6 opacity-80" />
+                    <img src="/src/assets/lenderlogos/natwestlogo.png" alt="NatWest" className="h-6 opacity-80" />
+                    <img src="/src/assets/lenderlogos/santanderlogo.png" alt="Santander" className="h-6 opacity-80" />
+                    <img src="/src/assets/lenderlogos/metro_bank_logo.png" alt="Metro Bank" className="h-6 opacity-80" />
+                  </div>
                 </div>
               </div>
             </div>
             
-            {/* Professional trust indicators */}
-            <div className="space-y-4 lg:mr-8 flex flex-col sm:flex-row lg:flex-col sm:space-x-6 lg:space-x-0">
-              {/* Network Size Indicator */}
-              <div className="bg-white/95 backdrop-blur-sm rounded-xl p-4 sm:p-5 shadow-xl border border-white/20 w-full sm:max-w-[220px] md:max-w-[240px] hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
-                <div className="flex items-center space-x-3 mb-3">
-                  <div className="w-7 h-7 bg-gradient-to-br from-[#ff8000] to-[#ff9500] rounded-lg flex items-center justify-center shadow-lg">
-                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
-                  </div>
-                  <span className="text-[#212936] font-bold text-lg">Lender Network</span>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-[#2c3c53] font-medium">Active Lenders</span>
-                    <span className="text-lg font-bold text-[#ff8000]">50+</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-[#2c3c53] font-medium">Funding Products</span>
-                    <span className="text-lg font-bold text-[#ff8000]">200+</span>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Time Savings Badge */}
-              <div className="bg-white/95 backdrop-blur-sm rounded-xl p-4 sm:p-5 shadow-xl border border-white/20 w-full sm:max-w-[220px] md:max-w-[240px] hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
-                <div className="flex items-center space-x-3 mb-3">
-                  <div className="w-7 h-7 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-lg">
-                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                  <span className="font-bold text-[#212936] text-lg">Save Time</span>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-[#2c3c53] font-medium">vs. Traditional search</span>
-                    <span className="text-lg font-bold text-blue-600">90%</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <svg className="w-3 h-3 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    <span className="text-sm text-[#2c3c53] font-medium">Minutes not weeks</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <svg className="w-3 h-3 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    <span className="text-sm text-[#2c3c53] font-medium">One application, many options</span>
+            {/* Right column: image card + stats */}
+            <div className="flex-1 lg:max-w-[520px] lg:mr-8 sm:mr-0">
+              <div className="rounded-3xl overflow-hidden shadow-2xl border border-white/20 bg-white/80">
+                <div className="relative h-96 lg:h-[420px]">
+                  <img 
+                    src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=1200&auto=format&fit=crop&q=80"
+                    alt="Business owners working together"
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent"></div>
+
+                  <div className="absolute left-6 bottom-6 right-6">
+                    <div className="bg-white/95 rounded-2xl p-4 border border-white/30 shadow-md">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-gray-700">Average response time</p>
+                          <p className="text-xl font-bold text-gray-900">Under 24 hours</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-700">Lenders</p>
+                          <p className="text-xl font-bold text-orange-500">50+</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-700">Products</p>
+                          <p className="text-xl font-bold text-blue-900">200+</p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
