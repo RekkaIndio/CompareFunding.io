@@ -1131,79 +1131,167 @@ const LenderProfile = () => {
             <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200/50 overflow-hidden">
               <div className="bg-slate-800 px-6 py-4">
                 <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-                  <Shield className="h-5 w-5" />
-                  Regulatory & Credentials
+                  <Users className="h-5 w-5" />
+                  Users and Access
                 </h2>
-                <p className="text-sm text-slate-300 mt-1">Licenses, accreditations, and regulatory information</p>
+                <p className="text-sm text-slate-300 mt-1">User information and access permissions</p>
               </div>
               <div className="p-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-semibold mb-2 text-slate-700">
-                      <Shield className="h-4 w-4 inline mr-1" />
-                      Regulatory Licenses
+                    <label className="block text-sm font-semibold mb-2 text-slate-700" htmlFor="primary_contact_name">
+                      Primary Contact Name
                     </label>
-                    <div className="space-y-2">
-                      {['FCA Authorised', 'Consumer Credit License', 'Commercial Finance Association Member', 'Asset Based Finance Association Member'].map((license) => (
-                        <label key={license} className="flex items-center">
-                          <input
-                            type="checkbox"
-                            checked={formData.regulatory_licenses.includes(license)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setFormData(prev => ({
-                                  ...prev,
-                                  regulatory_licenses: [...prev.regulatory_licenses, license]
-                                }));
-                              } else {
-                                setFormData(prev => ({
-                                  ...prev,
-                                  regulatory_licenses: prev.regulatory_licenses.filter(l => l !== license)
-                                }));
-                              }
-                            }}
-                            className="h-4 w-4 rounded border-slate-300 text-[#ff8800] focus:ring-[#ff8800]/30 mr-2"
-                          />
-                          <span className="text-sm text-slate-700">{license}</span>
-                        </label>
-                      ))}
-                    </div>
+                    <input
+                      type="text"
+                      id="primary_contact_name"
+                      className="w-full p-3 bg-white border border-slate-200 rounded-lg text-slate-900 focus:ring-2 focus:ring-[#ff8800]/30 focus:border-[#ff8800] transition duration-200 shadow-sm"
+                      value={formData.primary_contact_name}
+                      onChange={(e) => setFormData({...formData, primary_contact_name: e.target.value})}
+                      placeholder="Enter primary contact name"
+                    />
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-semibold mb-2 text-slate-700">
-                      <Award className="h-4 w-4 inline mr-1" />
-                      Industry Accreditations
+                    <label className="block text-sm font-semibold mb-2 text-slate-700" htmlFor="primary_contact_email">
+                      Primary Contact Email
                     </label>
-                    <div className="space-y-2">
-                      {['ISO 27001', 'Cyber Essentials', 'Better Business Bureau', 'Trustpilot Verified', 'Trade Association Member'].map((accreditation) => (
-                        <label key={accreditation} className="flex items-center">
-                          <input
-                            type="checkbox"
-                            checked={formData.accreditations.includes(accreditation)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setFormData(prev => ({
-                                  ...prev,
-                                  accreditations: [...prev.accreditations, accreditation]
-                                }));
-                              } else {
-                                setFormData(prev => ({
-                                  ...prev,
-                                  accreditations: prev.accreditations.filter(a => a !== accreditation)
-                                }));
-                              }
-                            }}
-                            className="h-4 w-4 rounded border-slate-300 text-[#ff8800] focus:ring-[#ff8800]/30 mr-2"
-                          />
-                          <span className="text-sm text-slate-700">{accreditation}</span>
-                        </label>
-                      ))}
-                    </div>
+                    <input
+                      type="email"
+                      id="primary_contact_email"
+                      className="w-full p-3 bg-white border border-slate-200 rounded-lg text-slate-900 focus:ring-2 focus:ring-[#ff8800]/30 focus:border-[#ff8800] transition duration-200 shadow-sm"
+                      value={formData.primary_contact_email}
+                      onChange={(e) => setFormData({...formData, primary_contact_email: e.target.value})}
+                      placeholder="contact@company.com"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-semibold mb-2 text-slate-700" htmlFor="primary_contact_phone">
+                      Primary Contact Phone
+                    </label>
+                    <input
+                      type="tel"
+                      id="primary_contact_phone"
+                      className="w-full p-3 bg-white border border-slate-200 rounded-lg text-slate-900 focus:ring-2 focus:ring-[#ff8800]/30 focus:border-[#ff8800] transition duration-200 shadow-sm"
+                      value={formData.primary_contact_phone}
+                      onChange={(e) => setFormData({...formData, primary_contact_phone: e.target.value})}
+                      placeholder="+44 20 1234 5678"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-semibold mb-2 text-slate-700" htmlFor="user_role_type">
+                      Role Type
+                    </label>
+                    <select
+                      id="user_role_type"
+                      className="w-full p-3 bg-white border border-slate-200 rounded-lg text-slate-900 focus:ring-2 focus:ring-[#ff8800]/30 focus:border-[#ff8800] transition duration-200 shadow-sm"
+                      value={formData.user_role_type}
+                      onChange={(e) => setFormData({...formData, user_role_type: e.target.value})}
+                    >
+                      <option value="">Select Role Type</option>
+                      <option value="Business Development">Business Development</option>
+                      <option value="Admin">Admin</option>
+                      <option value="Management">Management</option>
+                      <option value="Sales">Sales</option>
+                      <option value="Operations">Operations</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-semibold mb-2 text-slate-700" htmlFor="access_level">
+                      Access Level
+                    </label>
+                    <select
+                      id="access_level"
+                      className="w-full p-3 bg-white border border-slate-200 rounded-lg text-slate-900 focus:ring-2 focus:ring-[#ff8800]/30 focus:border-[#ff8800] transition duration-200 shadow-sm"
+                      value={formData.access_level}
+                      onChange={(e) => setFormData({...formData, access_level: e.target.value})}
+                    >
+                      <option value="">Select Access Level</option>
+                      <option value="Full Access">Full Access</option>
+                      <option value="Product Specific">Product Specific</option>
+                      <option value="Geographic Specific">Geographic Specific</option>
+                      <option value="Limited Access">Limited Access</option>
+                    </select>
                   </div>
                 </div>
               </div>
             </div>
+            
+            {/* Billing Details */}
+            <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200/50 overflow-hidden">
+              <div className="bg-slate-800 px-6 py-4">
+                <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                  <CreditCard className="h-5 w-5" />
+                  Billing Details
+                </h2>
+                <p className="text-sm text-slate-300 mt-1">Billing contact information and company details</p>
+              </div>
+              <div className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-semibold mb-2 text-slate-700" htmlFor="billing_company_name">
+                      Billing Company Name
+                    </label>
+                    <input
+                      type="text"
+                      id="billing_company_name"
+                      className="w-full p-3 bg-white border border-slate-200 rounded-lg text-slate-900 focus:ring-2 focus:ring-[#ff8800]/30 focus:border-[#ff8800] transition duration-200 shadow-sm"
+                      value={formData.billing_company_name}
+                      onChange={(e) => setFormData({...formData, billing_company_name: e.target.value})}
+                      placeholder="Enter billing company name"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-semibold mb-2 text-slate-700" htmlFor="billing_contact_name">
+                      Billing Contact Name
+                    </label>
+                    <input
+                      type="text"
+                      id="billing_contact_name"
+                      className="w-full p-3 bg-white border border-slate-200 rounded-lg text-slate-900 focus:ring-2 focus:ring-[#ff8800]/30 focus:border-[#ff8800] transition duration-200 shadow-sm"
+                      value={formData.billing_contact_name}
+                      onChange={(e) => setFormData({...formData, billing_contact_name: e.target.value})}
+                      placeholder="Enter billing contact name"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-semibold mb-2 text-slate-700" htmlFor="billing_contact_email">
+                      Billing Contact Email
+                    </label>
+                    <input
+                      type="email"
+                      id="billing_contact_email"
+                      className="w-full p-3 bg-white border border-slate-200 rounded-lg text-slate-900 focus:ring-2 focus:ring-[#ff8800]/30 focus:border-[#ff8800] transition duration-200 shadow-sm"
+                      value={formData.billing_contact_email}
+                      onChange={(e) => setFormData({...formData, billing_contact_email: e.target.value})}
+                      placeholder="billing@company.com"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-semibold mb-2 text-slate-700" htmlFor="billing_contact_phone">
+                      Billing Contact Phone
+                    </label>
+                    <input
+                      type="tel"
+                      id="billing_contact_phone"
+                      className="w-full p-3 bg-white border border-slate-200 rounded-lg text-slate-900 focus:ring-2 focus:ring-[#ff8800]/30 focus:border-[#ff8800] transition duration-200 shadow-sm"
+                      value={formData.billing_contact_phone}
+                      onChange={(e) => setFormData({...formData, billing_contact_phone: e.target.value})}
+                      placeholder="+44 20 1234 5678"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+
+            
             
             {/* Branding */}
             <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200/50 overflow-hidden">

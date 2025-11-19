@@ -1,0 +1,854 @@
+import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
+import PageLayout from '@/components/PageLayout';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import CircularProgressBar from "@/components/ui/CircularProgressBar";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { CheckCircle2, Info, AlertCircle, CheckCircle, RefreshCw, Building2, BarChart3, AlertTriangle, Shield } from "lucide-react";
+import { updateDocument, getDocument, createDocument } from '@/services/firebase';
+import { useAuth } from '@/contexts/AuthContext';
+import { getFirestore, doc, collection, setDoc, serverTimestamp } from 'firebase/firestore';
+import { normalizeCreditScoreData, createFinancialsCreditScoreDocument } from '@/lib/creditScoreUtils';
+
+// Import components from the CreditScore folder
+import CompanySearch from './CompanySearch';
+import CompanyList from './CompanyList';
+import CompanyHeader from './CompanyHeader';
+import OverviewTab from './OverviewTab';
+import NegativeInformationTab from './NegativeInformationTab';
+import { RiskFactorsTab } from './RiskFactorsTab';
+import { searchCompanyByNameDirect, getCreditReportDirect } from './api';
+import { getRiskBadgeColor, isNewlyIncorporated } from './utils';
+import { sampleCreditReport, sampleCompany } from './sampleCreditData';
+
+// Define interfaces for better type safety
+interface Company {
+  name: string;
+  connectId?: string;
+  id?: string;
+  address?: {
+    simpleValue?: string;
+  };
+  registrationNumber?: string;
+  status?: string;
+  dateOfLatestAccounts?: string;
+  identification?: {
+    connectId?: string;
+    id?: string;
+  };
+}
+
+interface SearchResults {
+  companies?: Company[];
+}
+
+interface CreditReport {
+  report?: {
+    companyIdentification?: {
+      basicInformation?: {
+        businessName?: string;
+        companyRegistrationNumber?: string;
+        companyRegistrationDate?: string;
+        legalForm?: {
+          description?: string;
+        };
+        companyStatus?: {
+          description?: string;
+        };
+        contactAddress?: {
+          simpleValue?: string;
+        };
+      };
+    };
+    companySummary?: {
+      businessName?: string;
+      companyRegistrationNumber?: string;
+      companyStatus?: {
+        description?: string;
+      };
+      creditRating?: any;
+    };
+    contactInformation?: {
+      mainAddress?: {
+        simpleValue?: string;
+      };
+    };
+    creditScore?: {
+      currentCreditRating?: any;
+      previousCreditRating?: any;
+      latestRatingChangeDate?: string;
+      commentary?: string;
+    };
+    additionalInformation?: {
+      negativeInformation?: any;
+      ccjSummary?: any;
+    };
+    negativeInformation?: any;
+    negativeInfo?: any;
+    adverseInfo?: any;
+    warnings?: any;
+    riskFactors?: any;
+  };
+}
+
+const CreditScorePage: React.FC = () => {
+  const location = useLocation();
+  const { user } = useAuth(); // Get current authenticated user
+  
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
+  const [creditReport, setCreditReport] = useState<CreditReport | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<string>('overview');
+  const [reportSaved, setReportSaved] = useState<boolean>(false);
+  const [isManualReload, setIsManualReload] = useState<boolean>(false);
+  const [isSampleData, setIsSampleData] = useState<boolean>(false);
+  
+  const creditScoreData = creditReport?.report?.creditScore?.currentCreditRating;
+  const companyBasics = creditReport?.report?.companyIdentification?.basicInformation;
+  const registrationDate = companyBasics?.companyRegistrationDate;
+  const companyAgeYears = registrationDate
+    ? new Date().getFullYear() - new Date(registrationDate).getFullYear()
+    : null;
+  const creditLimitValue = creditScoreData?.creditLimit?.value;
+  const riskDescriptor = creditScoreData?.commonDescription || creditScoreData?.providerValue?.value;
+  const summaryMetrics = [
+    {
+      label: 'Credit Score',
+      value: creditScoreData?.providerValue?.value || '—',
+      helper: riskDescriptor || 'Pending analysis'
+    },
+    {
+      label: 'Credit Limit',
+      value: creditLimitValue ? `£${creditLimitValue.toLocaleString()}` : '—',
+      helper: creditLimitValue ? 'Suggested limit' : 'No limit available'
+    },
+    {
+      label: 'Latest Change',
+      value: creditReport?.report?.creditScore?.latestRatingChangeDate
+        ? new Date(creditReport.report.creditScore.latestRatingChangeDate).toLocaleDateString()
+        : '—',
+      helper: 'Rating movement'
+    },
+    {
+      label: 'Company Age',
+      value: companyAgeYears ? `${companyAgeYears} yrs` : '—',
+      helper: companyBasics?.companyRegistrationDate ? 'Since incorporation' : 'No data'
+    }
+  ];
+  
+  // Check if coming from business form with auto-search parameter
+  const isFromBusinessForm = location.search.includes('companyName=') || sessionStorage.getItem('credit_search_company_name') !== null;
+
+  // Function to manually reload the saved report
+  const reloadSavedReport = () => {
+    if (user?.uid) {
+      setIsManualReload(true);
+      setIsLoading(true);
+      // Clear current data
+      setSelectedCompany(null);
+      setCreditReport(null);
+      // Load saved data
+      loadSavedCreditReport().finally(() => {
+        setIsManualReload(false);
+      });
+    }
+  };
+
+  // Function to load sample data for demonstration
+  const loadSampleData = () => {
+    setIsLoading(true);
+    setError(null);
+    setSelectedCompany(null);
+    setCreditReport(null);
+    setReportSaved(false);
+    setIsSampleData(false);
+
+    // Simulate loading delay
+    setTimeout(() => {
+      setSelectedCompany(sampleCompany);
+      setCreditReport(sampleCreditReport);
+      setIsSampleData(true);
+      setIsLoading(false);
+    }, 1000);
+  };
+
+  // Load saved credit report data from the user's profile
+  const loadSavedCreditReport = async () => {
+    if (user?.uid) {
+      try {
+        setIsLoading(true);
+        setIsSampleData(false); // Reset sample data flag
+        
+        // First try to get data from the credit_score subcollection (NEW PATH)
+        const creditScoreDoc = await getDocument('businesses', `${user.uid}/credit_score/latest`);
+        // If that fails, try the financials subcollection (OLD PATH)
+        let financialsDoc = null;
+        if (!creditScoreDoc?.data || Object.keys(creditScoreDoc.data).length === 0) {
+          financialsDoc = await getDocument('businesses', `${user.uid}/financials/credit_score`);
+        }
+
+        // Use whichever document we found
+        const foundDoc = creditScoreDoc?.data && Object.keys(creditScoreDoc.data).length > 0 
+          ? creditScoreDoc 
+          : financialsDoc;
+
+        // If we found data in either location, use that
+        if (foundDoc?.data && Object.keys(foundDoc.data).length > 0) {
+          setReportSaved(true);
+          
+          // Create a company object from the saved data
+          const savedCompany: Company = {
+            name: foundDoc.data.data?.company_name || foundDoc.data.company_name || '',
+            registrationNumber: foundDoc.data.data?.company_number || foundDoc.data.company_number || '',
+            status: foundDoc.data.data?.company_status || foundDoc.data.company_status || '',
+            // If we have a connect ID, save that too for potential future API calls
+            connectId: foundDoc.data.data?.connect_id || foundDoc.data.connect_id
+          };
+          
+          // Create a credit report object from the saved data
+          let savedReport: CreditReport;
+          
+          // First, try to use the raw_data if it exists (this is the original API response)
+          if (foundDoc.data.raw_data) {
+            savedReport = foundDoc.data.raw_data;
+          } else {
+            // Fallback: reconstruct from normalized data
+            savedReport = {
+              report: {
+                companyIdentification: {
+                  basicInformation: {
+                    businessName: savedCompany.name,
+                    companyRegistrationNumber: savedCompany.registrationNumber,
+                    companyRegistrationDate: foundDoc.data.data?.registration_date || foundDoc.data.registration_date || foundDoc.data.data?.incorporation_date,
+                    companyStatus: { 
+                      description: foundDoc.data.data?.status || foundDoc.data.status || foundDoc.data.data?.company_status || foundDoc.data.company_status || ''
+                    },
+                    legalForm: {
+                      description: foundDoc.data.data?.legal_form || foundDoc.data.legal_form || foundDoc.data.data?.company_type || foundDoc.data.company_type || ''
+                    }
+                  }
+                },
+                companySummary: {
+                  businessName: savedCompany.name,
+                  companyRegistrationNumber: savedCompany.registrationNumber,
+                  companyStatus: { 
+                    description: foundDoc.data.data?.status || foundDoc.data.status || '' 
+                  }
+                },
+                creditScore: {
+                  currentCreditRating: {
+                    providerValue: { 
+                      value: foundDoc.data.data?.score || foundDoc.data.score || foundDoc.data.data?.credit_score || foundDoc.data.credit_score
+                    },
+                    commonValue: foundDoc.data.data?.common_value || foundDoc.data.common_value,
+                    commonDescription: foundDoc.data.data?.common_description || foundDoc.data.common_description || foundDoc.data.data?.risk || foundDoc.data.risk,
+                    creditLimit: {
+                      value: foundDoc.data.data?.credit_limit || foundDoc.data.credit_limit
+                    }
+                  },
+                  previousCreditRating: {
+                    commonValue: foundDoc.data.data?.previous_rating || foundDoc.data.previous_rating,
+                    commonDescription: foundDoc.data.data?.previous_rating_description || foundDoc.data.previous_rating_description
+                  },
+                  latestRatingChangeDate: foundDoc.data.data?.latest_rating_change || foundDoc.data.latest_rating_change
+                },
+                additionalInformation: {
+                  negativeInformation: foundDoc.data.data?.negative_information || foundDoc.data.negative_information
+                },
+                contactInformation: {
+                  mainAddress: {
+                    simpleValue: foundDoc.data.data?.contact_address || foundDoc.data.contact_address || 
+                      (foundDoc.data.data?.address || foundDoc.data.address ? 
+                        `${(foundDoc.data.data?.address || foundDoc.data.address)?.street || ''} ${(foundDoc.data.data?.address || foundDoc.data.address)?.house_number || ''}, ${(foundDoc.data.data?.address || foundDoc.data.address)?.city || ''}, ${(foundDoc.data.data?.address || foundDoc.data.address)?.postal_code || ''}` : 
+                        '')
+                  }
+                }
+              }
+            };
+          }
+          
+          // Set the state with the saved data
+          setSelectedCompany(savedCompany);
+          setCreditReport(savedReport);
+          return true;
+        } else {
+          // Fallback to the old method - try to get data from the main business document
+          const userProfile = await getDocument('businesses', user.uid);
+          if (userProfile?.data?.credit_info && Object.keys(userProfile.data.credit_info).length > 0) {
+            setReportSaved(true);
+            
+            // Create a company object from the saved data
+            const savedCompany: Company = {
+              name: userProfile.data.credit_info.company_name || userProfile.data.business_name || '',
+              registrationNumber: userProfile.data.credit_info.company_number || userProfile.data.company_number || '',
+              status: userProfile.data.credit_info.company_status || '',
+              connectId: userProfile.data.credit_info.connect_id
+            };
+            
+            // Create a credit report object from the saved data
+            const savedReport: CreditReport = {
+              report: {
+                companyIdentification: {
+                  basicInformation: {
+                    businessName: savedCompany.name,
+                    companyRegistrationNumber: savedCompany.registrationNumber,
+                    companyRegistrationDate: userProfile.data.credit_info.registration_date || userProfile.data.credit_info.incorporation_date,
+                    companyStatus: { 
+                      description: userProfile.data.credit_info.status || userProfile.data.credit_info.company_status || ''
+                    },
+                    legalForm: {
+                      description: userProfile.data.credit_info.legal_form || userProfile.data.credit_info.company_type || ''
+                    }
+                  }
+                },
+                companySummary: {
+                  businessName: savedCompany.name,
+                  companyRegistrationNumber: savedCompany.registrationNumber,
+                  companyStatus: { 
+                    description: userProfile.data.credit_info.status || '' 
+                  }
+                },
+                creditScore: {
+                  currentCreditRating: {
+                    providerValue: { 
+                      value: userProfile.data.credit_info.credit_score || userProfile.data.credit_info.score
+                    },
+                    commonValue: userProfile.data.credit_info.common_value,
+                    commonDescription: userProfile.data.credit_info.common_description || userProfile.data.credit_info.risk,
+                    creditLimit: {
+                      value: userProfile.data.credit_info.credit_limit
+                    }
+                  }
+                }
+              }
+            };
+            
+            // Set the state with the saved data
+            setSelectedCompany(savedCompany);
+            setCreditReport(savedReport);
+            return true;
+          } else {
+            return false;
+          }
+        }
+      } catch (error) {
+        console.error("❌ Error loading saved credit report:", error);
+        return false;
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    return false;
+  };
+
+  useEffect(() => {
+    const initialize = async () => {
+      // Check for auto-search parameters or stored company name from business form
+      const urlCompanyName = new URLSearchParams(location.search).get('companyName');
+      const storedCompanyName = sessionStorage.getItem('credit_search_company_name');
+      
+      // Try to load saved report first
+      if (user?.uid) {
+        const hasLoadedSavedReport = await loadSavedCreditReport();
+        
+        // If we couldn't load a saved report but have a search parameter, do a fresh search
+        if (!hasLoadedSavedReport && isFromBusinessForm && (urlCompanyName || storedCompanyName)) {
+          const searchTerm = urlCompanyName || storedCompanyName || '';
+          fetchCompanyData(searchTerm);
+          
+          // Clear stored company name to prevent future auto-searches
+          if (storedCompanyName) {
+            sessionStorage.removeItem('credit_search_company_name');
+          }
+        }
+      } else if (isFromBusinessForm && (urlCompanyName || storedCompanyName)) {
+        // If no user but have search parameters, just do the search
+        const searchTerm = urlCompanyName || storedCompanyName || '';
+        fetchCompanyData(searchTerm);
+        
+        if (storedCompanyName) {
+          sessionStorage.removeItem('credit_search_company_name');
+        }
+      }
+    };
+    
+    initialize();
+  }, [location, isFromBusinessForm, user]);
+
+  const fetchCompanyData = async (companyName: string) => {
+    if (!companyName.trim()) return;
+    
+    setIsLoading(true);
+    setError(null);
+    setSelectedCompany(null);
+    setCreditReport(null);
+    
+    try {
+      const results = await searchCompanyByNameDirect(companyName) as SearchResults;
+      
+      // Auto-select first result if there's only one
+      if (results && results.companies && results.companies.length === 1) {
+        handleSelectCompany(results.companies[0]);
+      }
+    } catch (err) {
+      const errorWithMessage = err as { message?: string };
+      setError(errorWithMessage.message || 'An unknown error occurred while searching for companies');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  const fetchCreditReport = async (connectId: string) => {
+    setIsLoading(true);
+    setError(null);
+    setCreditReport(null);
+    setReportSaved(false);
+
+    try {
+
+      const report = await getCreditReportDirect(connectId) as CreditReport;
+
+      // Log full report structure to console for debugging
+
+
+      setCreditReport(report);
+      setIsSampleData(false); // This is real data
+
+      // Check if the request is coming from the BusinessDetailsForm
+      const fromBusinessForm = sessionStorage.getItem('from_business_form') === 'true';
+      
+      // If the user is authenticated and we have a report, save it to the user's profile
+      if (user?.uid && report && report.report) {
+
+        
+        try {
+          // Prepare credit info for saving with more details
+          const creditInfo = {
+            // Credit Score Information
+            credit_score: report.report?.creditScore?.currentCreditRating?.providerValue?.value || null,
+            risk: report.report?.creditScore?.currentCreditRating?.commonDescription || null,
+            common_value: report.report?.creditScore?.currentCreditRating?.commonValue || null,
+            common_description: report.report?.creditScore?.currentCreditRating?.commonDescription || null,
+            credit_limit: report.report?.creditScore?.currentCreditRating?.creditLimit?.value || null,
+            
+            // Rating Change Information
+            latest_rating_change: report.report?.creditScore?.latestRatingChangeDate || null,
+            previous_rating: report.report?.creditScore?.previousCreditRating?.commonValue || null,
+            previous_rating_description: report.report?.creditScore?.previousCreditRating?.commonDescription || null,
+            
+            // Company Basic Information
+            company_name: report.report?.companySummary?.businessName || selectedCompany?.name || '',
+            company_number: report.report?.companySummary?.companyRegistrationNumber || selectedCompany?.registrationNumber || '',
+            company_type: report.report?.companyIdentification?.basicInformation?.legalForm?.description || null,
+            company_status: report.report?.companyIdentification?.basicInformation?.companyStatus?.description || null,
+            registration_date: report.report?.companyIdentification?.basicInformation?.companyRegistrationDate || null,
+            incorporation_date: report.report?.companyIdentification?.basicInformation?.companyRegistrationDate || null,
+            legal_form: report.report?.companyIdentification?.basicInformation?.legalForm?.description || null,
+            
+            // Additional Information
+            negative_information: report.report?.additionalInformation?.negativeInformation || null,
+            contact_address: report.report?.contactInformation?.mainAddress?.simpleValue || null,
+            status: report.report?.companyIdentification?.basicInformation?.companyStatus?.description || null,
+            
+            // Metadata
+            report_date: new Date().toISOString(),
+            connect_id: connectId
+          };
+
+          // Check if the user has a business profile document
+          const userProfile = await getDocument('businesses', user.uid);
+          
+          // Save detailed credit score in the credit_score subcollection
+          await createDocument('businesses', {
+            ...creditInfo,
+            raw_report: report.report || null,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          }, `${user.uid}/credit_score/latest`);
+          
+
+          
+          // Also update the main business document if it exists, but only with basic info
+          if (userProfile && userProfile.data) {
+            // Update the existing profile with minimal credit info
+            await updateDocument('businesses', user.uid, {
+              business_name: creditInfo.company_name,
+              company_number: creditInfo.company_number,
+              credit_score_updated_at: new Date().toISOString()
+            });
+
+          } else {
+            // Create a new business profile document with basic info
+            await createDocument('businesses', {
+              created_at: new Date().toISOString(),
+              last_updated: new Date().toISOString(),
+              business_name: creditInfo.company_name,
+              company_number: creditInfo.company_number,
+              credit_score_updated_at: new Date().toISOString()
+            }, user.uid);
+
+          }
+          
+          // If we came from the business form, clear the flag after saving
+          if (fromBusinessForm) {
+            sessionStorage.removeItem('from_business_form');
+          }
+          
+          // Only save to businesses collection for data consolidation
+          const db = getFirestore();
+          try {
+            // Normalize credit info for consistent structure
+            const normalizedCreditInfo = normalizeCreditScoreData(creditInfo);
+            
+            // First, ensure the business document exists
+            const businessRef = doc(db, "businesses", user.uid);
+            await setDoc(businessRef, {
+              name: creditInfo.company_name,
+              business_name: creditInfo.company_name,
+              company_number: creditInfo.company_number,
+              credit_info: normalizedCreditInfo,
+              updatedAt: serverTimestamp(),
+              active: true
+            }, { merge: true });
+            
+            // Then save detailed credit score to financials subcollection as credit_score document
+            const creditScoreRef = doc(collection(db, "businesses", user.uid, "financials"), "credit_score");
+            await setDoc(creditScoreRef, createFinancialsCreditScoreDocument(
+              creditInfo,
+              creditInfo.company_name,
+              creditInfo.company_number,
+              report.report
+            ));
+
+          } catch (error) {
+            console.error("Error saving to businesses collection:", error);
+          }
+
+          // Indicate that the report was saved successfully
+          setReportSaved(true);
+
+        } catch (saveError) {
+          console.error("Error saving credit report to user profile:", saveError);
+          // Don't show this error to the user, as it's not critical
+        }
+      }
+    } catch (err) {
+      const errorWithMessage = err as { message?: string };
+      setError(errorWithMessage.message || 'An unknown error occurred while fetching the credit report');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSelectCompany = (company: Company) => {
+    // Log the entire company object to inspect its structure
+
+    setSelectedCompany(company);
+
+    // The connectId might be in company.id, or in a nested property
+    // Try to find where connectId might be located
+    const connectId = company.connectId || company.id ||
+      (company.identification?.connectId) ||
+      (company.identification?.id);
+
+    if (connectId) {
+
+      fetchCreditReport(connectId);
+    } else {
+      console.error("Could not find connectId in company object:", company);
+      setError("Selected company does not have a valid connectId. See console for details.");
+    }
+  };
+
+  // Function to render risk rating badge
+  const renderRiskBadge = (riskRating: any) => {
+    if (!riskRating) return null;
+
+    const rating = typeof riskRating === 'string'
+      ? riskRating
+      : riskRating.commonValue || riskRating.providerValue?.value || '';
+    const description = typeof riskRating === 'string'
+      ? ''
+      : riskRating.commonDescription || riskRating.providerDescription || '';
+
+    return (
+      <Badge className={`${getRiskBadgeColor(rating)} py-1 px-2 text-xs font-medium`}>
+        {rating}{description ? ` - ${description}` : ''}
+        {typeof rating === 'string' && ['a', 'b', 'c', 'd', 'e'].includes(rating.toLowerCase()) && (
+          <span className="ml-1 inline-block w-2 h-2 rounded-full" style={{
+            backgroundColor:
+              rating.toLowerCase() === 'a' || rating.toLowerCase() === 'b' || rating.toLowerCase() === 'c' ? '#22c55e' :
+                rating.toLowerCase() === 'd' ? '#ef4444' :
+                  rating.toLowerCase() === 'e' ? '#f97316' : '#9ca3af'
+          }}></span>
+        )}
+      </Badge>
+    );
+  };
+
+  return (
+    <div className="min-h-screen bg-white" data-tour="credit-score-detail">
+      {/* Hero Header */}
+      <section className="bg-gradient-to-b from-slate-900 via-slate-900 to-slate-800 text-white">
+        <div className="w-full px-4 md:px-8 lg:px-12 py-16 sm:py-20">
+          <div className="grid lg:grid-cols-[1fr_320px] gap-12 items-start">
+            <div className="space-y-6">
+              {/* Label */}
+              <div className="inline-flex items-center gap-2.5 px-3 py-1.5 bg-white/10 border border-white/15 rounded-full w-fit">
+                <BarChart3 className="h-3.5 w-3.5 text-[#ff8800]" />
+                <span className="text-xs font-medium uppercase letter tracking-widest">Business Intelligence</span>
+              </div>
+
+              {/* Heading */}
+              <div className="space-y-3">
+                <h1 className="text-4xl md:text-5xl font-bold tracking-tight leading-tight">
+                  Credit Score Report
+                </h1>
+                <p className="text-lg text-slate-300 max-w-2xl leading-relaxed">
+                  Real-time business credit analysis, risk assessment, and financial health indicators.
+                </p>
+              </div>
+
+              {/* Demo Badge */}
+              {isSampleData && (
+                <div className="inline-flex items-center gap-2 px-3.5 py-2 bg-blue-500/20 border border-blue-400/40 rounded-lg text-sm">
+                  <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
+                  <span className="text-blue-100">Sample data · Preview only</span>
+                </div>
+              )}
+            </div>
+
+            {/* Right side card - only show when report is loaded */}
+            {!isLoading && selectedCompany && creditReport && (
+              <div className="lg:pt-4 space-y-3">
+                <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6 space-y-5">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-widest text-slate-300">Company Name</p>
+                    <p className="text-white font-semibold mt-1 text-lg">{selectedCompany.name}</p>
+                  </div>
+                  <div className="border-t border-white/10 pt-5">
+                    <p className="text-xs font-semibold uppercase tracking-widest text-slate-300 mb-3">Score & Status</p>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-slate-300">Risk Rating</span>
+                        {renderRiskBadge(creditScoreData)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* Main Content */}
+      <section className="w-full px-4 md:px-8 lg:px-12 py-12 space-y-8">
+        {/* Error Alert */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-6 flex gap-4">
+            <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <h3 className="font-semibold text-red-900">Unable to load report</h3>
+              <p className="text-sm text-red-800 mt-1">{error}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!isLoading && !selectedCompany && !creditReport && (
+          <div className="border-2 border-dashed border-slate-300 rounded-2xl p-16 text-center space-y-6">
+            <div className="mx-auto w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center">
+              <Building2 className="h-6 w-6 text-slate-400" />
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-2xl font-bold text-slate-900">No report loaded</h2>
+              <p className="text-slate-600 max-w-sm mx-auto">
+                Load our sample dataset or connect a business profile to view a complete credit analysis.
+              </p>
+            </div>
+            <div className="flex gap-3 justify-center flex-wrap">
+              <Button
+                onClick={loadSampleData}
+                className="btn-professional bg-[#ff8800] hover:bg-[#ff9500] text-white font-medium px-6">
+                <Info className="h-4 w-4 mr-2" /> Load Sample
+              </Button>
+              <Button
+                variant="outline"
+                className="border-2 border-slate-300 text-slate-700 font-medium px-6 hover:bg-slate-50">
+                Connect Profile
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Loading State */}
+        {isLoading && (
+          <div className="border border-slate-200 rounded-2xl p-16 text-center space-y-6">
+            <div className="mx-auto w-12 h-12">
+              <div className="relative w-full h-full">
+                <div className="absolute inset-0 border-3 border-slate-200 rounded-full"></div>
+                <div className="absolute inset-0 border-3 border-transparent border-t-[#ff8800] rounded-full animate-spin"></div>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <p className="text-lg font-semibold text-slate-900">
+                {selectedCompany ? 'Compiling report' : 'Loading credit data'}
+              </p>
+              <p className="text-slate-500">
+                {selectedCompany
+                  ? 'Fetching live credit data from the bureau...'
+                  : 'Initializing your credit workspace...'}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Report Content */}
+        {!isLoading && selectedCompany && creditReport && (
+          <div className="space-y-8">
+            {/* KPI Cards */}
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {summaryMetrics.map((metric) => (
+                <div key={metric.label} className="bg-white border border-slate-200 rounded-xl p-5 space-y-2">
+                  <p className="text-xs uppercase font-semibold tracking-widest text-slate-500">{metric.label}</p>
+                  <p className="text-2xl md:text-3xl font-bold text-slate-900">{metric.value}</p>
+                  <p className="text-xs text-slate-500">{metric.helper}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Main Report + Sidebar */}
+            <div className="grid lg:grid-cols-[1fr_340px] gap-6">
+              {/* Report Card */}
+              <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                <CompanyHeader
+                  creditReport={creditReport}
+                  selectedCompany={selectedCompany}
+                  renderRiskBadge={renderRiskBadge}
+                />
+
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                  {/* Tab List */}
+                  <div className="border-b border-slate-200 bg-slate-50 px-6">
+                    <TabsList className="bg-transparent h-auto gap-2 py-4 flex">
+                      <TabsTrigger
+                        value="overview"
+                        className="data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:text-slate-900 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors">
+                        Overview
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="negative"
+                        className="data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:text-slate-900 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors">
+                        Risk Analysis
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="risk"
+                        className="data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:text-slate-900 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors">
+                        Risk Factors
+                      </TabsTrigger>
+                    </TabsList>
+                  </div>
+
+                  {/* Tab Content */}
+                  <div>
+                    <TabsContent value="overview" className="p-0 m-0 tab-content">
+                      <OverviewTab creditReport={creditReport} />
+                    </TabsContent>
+                    <TabsContent value="negative" className="p-0 m-0 tab-content">
+                      <NegativeInformationTab creditReport={creditReport} />
+                    </TabsContent>
+                    <TabsContent value="risk" className="p-0 m-0 tab-content">
+                      <RiskFactorsTab creditReport={creditReport} />
+                    </TabsContent>
+                  </div>
+                </Tabs>
+              </div>
+
+              {/* Sidebar */}
+              <div className="space-y-4">
+                {/* Status Card */}
+                <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-4">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-3">Report Status</p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold text-slate-900">
+                        {reportSaved ? 'Saved to profile' : 'Not saved'}
+                      </span>
+                      {reportSaved && <CheckCircle2 className="h-5 w-5 text-emerald-600" />}
+                    </div>
+                  </div>
+
+                  {user && reportSaved && (
+                    <Button
+                      onClick={reloadSavedReport}
+                      disabled={isLoading || isManualReload}
+                      className="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium"
+                      size="sm">
+                      {isManualReload ? (
+                        <>
+                          <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                          Refreshing...
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="h-4 w-4 mr-2" />
+                          Refresh Report
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </div>
+
+                {/* Sample Data Notice */}
+                {isSampleData && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 space-y-2">
+                    <p className="text-sm font-semibold text-blue-900">Demo Dataset</p>
+                    <p className="text-xs text-blue-800 leading-relaxed">
+                      This is sample data for demonstration. Generate a live report to unlock bureau-backed insights.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </section>
+
+      <style>{`
+        .tab-content {
+          animation: fadeInUp 0.2s ease-out forwards;
+        }
+
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(8px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .btn-professional {
+          transition: all 0.2s ease;
+        }
+
+        .btn-professional:hover:not(:disabled) {
+          transform: translateY(-1px);
+        }
+
+        .letter {
+          letter-spacing: 0.1em;
+        }
+      `}</style>
+    </div>
+  );
+};
+
+export default CreditScorePage;

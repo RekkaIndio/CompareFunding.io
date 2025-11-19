@@ -45,6 +45,7 @@ const TestimonialsSection = () => {
   
   const [activeIndex, setActiveIndex] = useState(0);
   const [activeFilter, setActiveFilter] = useState("all");
+  const [featured, setFeatured] = useState(0);
   
   const filteredTestimonials = activeFilter === "all" 
     ? testimonials 
@@ -58,8 +59,8 @@ const TestimonialsSection = () => {
     <section className="py-12 md:py-16 lg:py-24 bg-white">
       <div className="container mx-auto px-4">
         <div className="text-center mb-8 sm:mb-12">
-          <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold mb-4">
-            We have helped over 20 000 businesses
+          <h2 className="text-2xl sm:text-3xl md:text-5xl font-extrabold mb-4">
+            Trusted by 20,000+ businesses
           </h2>
           <p className="text-base sm:text-lg px-2">
             Apply today and join our community of happy customers!
@@ -93,6 +94,23 @@ const TestimonialsSection = () => {
           </div>
         </div>
         
+        <div className="max-w-4xl mx-auto mb-8">
+          {/* Featured testimonial */}
+          <div className="relative bg-white rounded-2xl p-6 shadow-lg mb-6">
+            <TestimonialCard
+              quote={filteredTestimonials[featured]?.quote}
+              author={filteredTestimonials[featured]?.author}
+              date={filteredTestimonials[featured]?.date}
+              rating={filteredTestimonials[featured]?.rating}
+              source={filteredTestimonials[featured]?.source}
+            />
+            <div className="absolute right-4 top-4 flex gap-2">
+              <button onClick={() => setFeatured((f) => (f === 0 ? filteredTestimonials.length - 1 : f - 1))} className="p-2 rounded-full bg-gray-100 hover:bg-gray-200">◀</button>
+              <button onClick={() => setFeatured((f) => (f === filteredTestimonials.length - 1 ? 0 : f + 1))} className="p-2 rounded-full bg-gray-100 hover:bg-gray-200">▶</button>
+            </div>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 sm:gap-6 overflow-hidden">
           {filteredTestimonials.slice(activeIndex, activeIndex + 5).map((testimonial, index) => (
             <TestimonialCard
