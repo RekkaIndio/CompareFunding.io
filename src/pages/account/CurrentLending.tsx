@@ -25,39 +25,14 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import { getDocument, updateDocument, getDocuments, createDocument } from '../../firebase';
 import { toast } from 'sonner';
+import type { CurrentLoan, CurrentLendingData, SignUpCurrentFunding } from '../../types/funding';
+import { convertSignUpToCurrentLending, formatCurrency, formatDate } from '../../types/funding';
 
 // Override Input, Textarea, and Select components with styles
 const Input = (props) => <BaseInput className="bg-white border border-slate-900 placeholder:text-slate-600" {...props} />;
 const Textarea = (props) => <BaseTextarea className="bg-white border border-slate-900 placeholder:text-slate-600" {...props} />;
 const Select = (props) => <BaseSelect {...props} />;
 const SelectTrigger = (props) => <BaseSelectTrigger className="bg-white border border-slate-900 text-slate-900" {...props} />;
-
-// (The rest of the CurrentLending component remains the same, but all usages of <Input>, <Textarea>, <Select>, and <SelectTrigger> should now use the styled versions.)
-
-// Current Lending Data Types
-interface CurrentLoan {
-  id: string;
-  lender_name: string;
-  loan_type: string;
-  original_amount: number;
-  outstanding_amount: number;
-  interest_rate: number;
-  monthly_payment: number;
-  start_date: string;
-  end_date: string;
-  repayment_frequency: string;
-  status: 'current' | 'paid_off' | 'defaulted';
-  security_type?: string;
-  notes?: string;
-}
-
-interface CurrentLendingData {
-  user_id: string;
-  loans: CurrentLoan[];
-  total_outstanding: number;
-  total_monthly_payments: number;
-  updated_at: string;
-}
 
 const LOAN_TYPES = [
   'Business Term Loan',
@@ -122,32 +97,81 @@ const CurrentLending = () => {
     
     setIsLoading(true);
     try {
-      const { data, error } = await getDocument('current_lending', user.uid);
+      // First, check for existing current_lending data
+      const { data: currentLendingData, error: currentLendingError } = await getDocument('current_lending', user.uid);
       
-      if (error && error.code !== 'not-found') {
-        console.error('Error loading current lending data:', error);
-        toast.error('Failed to load current lending data');
+      if (currentLendingData) {
+        setCurrentLendingData(currentLendingData as CurrentLendingData);
+        setIsLoading(false);
         return;
       }
+
+      // If no current_lending data exists, check for sign-up journey data
+      const { data: userData, error: userError } = await getDocument('users', user.uid);
       
-      if (data) {
-        setCurrentLendingData(data as CurrentLendingData);
-      } else {
-        // Initialize empty data structure
-        const emptyData: CurrentLendingData = {
-          user_id: user.uid,
-          loans: [],
-          total_outstanding: 0,
-          total_monthly_payments: 0,
-          updated_at: new Date().toISOString()
-        };
-        setCurrentLendingData(emptyData);
+      if (userData?.currentFunding) {
+        // Migrate sign-up journey data to current lending format
+        const migratedData = await migrateSignUpDataToCurrentLending(userData.currentFunding);
+        if (migratedData) {
+          setCurrentLendingData(migratedData);
+          setIsLoading(false);
+          return;
+        }
       }
+
+      // Check businesses collection as fallback
+      const { data: businessData, error: businessError } = await getDocument('businesses', user.uid);
+      
+      if (businessData?.currentFunding) {
+        // Migrate sign-up journey data to current lending format
+        const migratedData = await migrateSignUpDataToCurrentLending(businessData.currentFunding);
+        if (migratedData) {
+          setCurrentLendingData(migratedData);
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      // Initialize empty data structure if no data found
+      const emptyData: CurrentLendingData = {
+        user_id: user.uid,
+        loans: [],
+        total_outstanding: 0,
+        total_monthly_payments: 0,
+        updated_at: new Date().toISOString()
+      };
+      setCurrentLendingData(emptyData);
+      
     } catch (error) {
       console.error('Error loading current lending data:', error);
       toast.error('Failed to load current lending data');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Migrate sign-up journey funding data to current lending format
+  const migrateSignUpDataToCurrentLending = async (signUpFundingData: any): Promise<CurrentLendingData | null> => {
+    if (!signUpFundingData || signUpFundingData.hasCurrentFunding !== 'yes' || !signUpFundingData.fundingDetails) {
+      return null;
+    }
+
+    try {
+      const migratedData = convertSignUpToCurrentLending(signUpFundingData as SignUpCurrentFunding, user!.uid);
+      
+      if (!migratedData) {
+        return null;
+      }
+
+      // Save migrated data to current_lending collection
+      await updateDocument('current_lending', user!.uid, migratedData);
+      
+      toast.success(`Successfully migrated ${migratedData.loans.length} funding facility${migratedData.loans.length !== 1 ? 'ies' : ''} from sign-up journey`);
+      return migratedData;
+      
+    } catch (error) {
+      console.error('Error migrating sign-up funding data:', error);
+      return null;
     }
   };
 
@@ -266,15 +290,6 @@ const CurrentLending = () => {
       security_type: 'Unsecured',
       notes: ''
     });
-  };
-
-  const formatCurrency = (amount: number) => {
-    return `£${amount.toLocaleString('en-GB')}`;
-  };
-
-  const formatDate = (dateString: string) => {
-    if (!dateString) return 'Not set';
-    return new Date(dateString).toLocaleDateString('en-GB');
   };
 
   const getStatusStyling = (status: string) => {
@@ -398,15 +413,8 @@ const CurrentLending = () => {
 
           {/* Main Content */}
           <div className="space-y-6">
-            <div className="flex items-center justify-between mb-6">
+            <div className="mb-6">
               <h2 className="text-2xl font-bold text-gray-900">Current Lending Facilities</h2>
-              <Button 
-                onClick={() => setShowAddForm(true)}
-                className="bg-green-600 hover:bg-green-700 text-white"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Facility
-              </Button>
             </div>
 
             {/* Add New Loan Form */}
@@ -825,170 +833,107 @@ const LoanCard: React.FC<LoanCardProps> = ({
       }`}></div>
       
       <CardContent className="p-4 md:p-5">
-        <div className="grid grid-cols-1 lg:grid-cols-[2.5fr,1.5fr] gap-6 items-start">
-          {/* Left Column: Enhanced Loan Info */}
-          <div className="space-y-4">
-            {/* Enhanced loan header with better styling */}
-            <div className="flex items-start gap-4">
-              <div className={`w-16 h-16 rounded-xl flex items-center justify-center shadow-lg ${
-                loan.loan_type.includes('Asset') ? 'bg-gradient-to-br from-purple-100 to-purple-200' :
-                loan.loan_type.includes('Term') ? 'bg-gradient-to-br from-blue-100 to-blue-200' :
-                loan.loan_type.includes('Overdraft') ? 'bg-gradient-to-br from-orange-100 to-orange-200' :
-                'bg-gradient-to-br from-green-100 to-green-200'
-              }`}>
-                <Building2 className={`w-8 h-8 ${
-                  loan.loan_type.includes('Asset') ? 'text-purple-600' :
-                  loan.loan_type.includes('Term') ? 'text-blue-600' :
-                  loan.loan_type.includes('Overdraft') ? 'text-orange-600' :
-                  'text-green-600'
-                }`} />
-              </div>
-              
-              <div className="flex-grow">
-                <div className="flex items-center gap-3 mb-2">
-                  <h3 className="text-xl font-bold text-[#212936]">{loan.loan_type}</h3>
-                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold shadow-sm ${statusStyling.bgClass} ${statusStyling.textClass}`}>
-                    <div className={`w-2 h-2 rounded-full mr-2 ${
-                      loan.status === 'current' ? 'bg-green-500' :
-                      loan.status === 'paid_off' ? 'bg-gray-500' :
-                      'bg-red-500'
-                    }`}></div>
-                    {statusStyling.label}
-                  </span>
-                </div>
-                <p className="text-gray-600 font-medium">{loan.lender_name}</p>
-                <div className="flex items-center gap-4 mt-2">
-                  <span className="text-sm text-gray-500 flex items-center gap-1">
-                    <Calendar className="h-4 w-4" />
-                    {formatDate(loan.start_date)} - {formatDate(loan.end_date)}
-                  </span>
-                  <span className="text-sm text-gray-500">{loan.security_type}</span>
-                </div>
-              </div>
+        <div className="space-y-4">
+          {/* Enhanced loan header with better styling */}
+          <div className="flex items-start gap-4">
+            <div className={`w-16 h-16 rounded-xl flex items-center justify-center shadow-lg ${
+              loan.loan_type.includes('Asset') ? 'bg-gradient-to-br from-purple-100 to-purple-200' :
+              loan.loan_type.includes('Term') ? 'bg-gradient-to-br from-blue-100 to-blue-200' :
+              loan.loan_type.includes('Overdraft') ? 'bg-gradient-to-br from-orange-100 to-orange-200' :
+              'bg-gradient-to-br from-green-100 to-green-200'
+            }`}>
+              <Building2 className={`w-8 h-8 ${
+                loan.loan_type.includes('Asset') ? 'text-purple-600' :
+                loan.loan_type.includes('Term') ? 'text-blue-600' :
+                loan.loan_type.includes('Overdraft') ? 'text-orange-600' :
+                'text-green-600'
+              }`} />
             </div>
             
-            {/* Enhanced loan details in premium card layout */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div className="group bg-gradient-to-br from-slate-50 to-slate-100 p-4 rounded-xl border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5">
-                <div className="flex items-center justify-between mb-2">
-                  <PoundSterling className="h-5 w-5 text-slate-600 group-hover:text-slate-700 transition-colors" />
-                  <TrendingUp className="h-4 w-4 text-green-500" />
-                </div>
-                <p className="text-xs text-slate-600 mb-1 font-medium">Original Amount</p>
-                <p className="text-lg font-bold text-slate-900">{formatCurrency(loan.original_amount)}</p>
+            <div className="flex-grow">
+              <div className="flex items-center gap-3 mb-2">
+                <h3 className="text-xl font-bold text-[#212936]">{loan.loan_type}</h3>
+                <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold shadow-sm ${statusStyling.bgClass} ${statusStyling.textClass}`}>
+                  <div className={`w-2 h-2 rounded-full mr-2 ${
+                    loan.status === 'current' ? 'bg-green-500' :
+                    loan.status === 'paid_off' ? 'bg-gray-500' :
+                    'bg-red-500'
+                  }`}></div>
+                  {statusStyling.label}
+                </span>
               </div>
-              
-              <div className="group bg-gradient-to-br from-slate-50 to-slate-100 p-4 rounded-xl border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5">
-                <div className="flex items-center justify-between mb-2">
-                  <PoundSterling className="h-5 w-5 text-slate-600 group-hover:text-slate-700 transition-colors" />
-                  <AlertTriangle className={`h-4 w-4 ${loan.outstanding_amount > 0 ? 'text-amber-500' : 'text-green-500'}`} />
-                </div>
-                <p className="text-xs text-slate-600 mb-1 font-medium">Outstanding</p>
-                <p className="text-lg font-bold text-slate-900">{formatCurrency(loan.outstanding_amount)}</p>
-              </div>
-              
-              <div className="group bg-gradient-to-br from-slate-50 to-slate-100 p-4 rounded-xl border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5">
-                <div className="flex items-center justify-between mb-2">
-                  <Percent className="h-5 w-5 text-slate-600 group-hover:text-slate-700 transition-colors" />
-                  <TrendingUp className="h-4 w-4 text-blue-500" />
-                </div>
-                <p className="text-xs text-slate-600 mb-1 font-medium">Interest Rate</p>
-                <p className="text-lg font-bold text-slate-900">{loan.interest_rate}%</p>
-              </div>
-              
-              <div className="group bg-gradient-to-br from-slate-50 to-slate-100 p-4 rounded-xl border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5">
-                <div className="flex items-center justify-between mb-2">
-                  <Calendar className="h-5 w-5 text-slate-600 group-hover:text-slate-700 transition-colors" />
-                  <Clock className="h-4 w-4 text-purple-500" />
-                </div>
-                <p className="text-xs text-slate-600 mb-1 font-medium">{loan.repayment_frequency} Payment</p>
-                <p className="text-lg font-bold text-slate-900">{formatCurrency(loan.monthly_payment)}</p>
+              <p className="text-gray-600 font-medium">{loan.lender_name}</p>
+              <div className="flex items-center gap-4 mt-2">
+                <span className="text-sm text-gray-500 flex items-center gap-1">
+                  <Calendar className="h-4 w-4" />
+                  {formatDate(loan.start_date)} - {formatDate(loan.end_date)}
+                </span>
+                <span className="text-sm text-gray-500">{loan.security_type}</span>
               </div>
             </div>
-            
-            {/* Enhanced progress section */}
-            {loan.status === 'current' && loan.original_amount > 0 && (
-              <div className="bg-gradient-to-r from-[#e8f4ff] to-[#f0f9ff] p-4 rounded-xl border border-[#d1e9ff] shadow-sm hover:shadow-md transition-all duration-200">
-                <div className="flex justify-between items-center mb-3">
-                  <span className="text-sm font-medium text-[#1e40af]">Repayment Progress</span>
-                  <span className="text-sm font-bold text-[#1e40af]">
-                    {Math.round(((loan.original_amount - loan.outstanding_amount) / loan.original_amount) * 100)}% Complete
-                  </span>
-                </div>
-                <div className="w-full bg-[#dbeafe] rounded-full h-3 shadow-inner">
-                  <div 
-                    className="h-3 rounded-full bg-gradient-to-r from-[#3b82f6] to-[#1e40af] shadow-sm transition-all duration-500 ease-out"
-                    style={{ 
-                      width: `${Math.min(((loan.original_amount - loan.outstanding_amount) / loan.original_amount) * 100, 100)}%` 
-                    }}
-                  ></div>
-                </div>
-                <div className="flex justify-between items-center mt-2 text-xs text-[#1e40af]/80">
-                  <span>Paid: {formatCurrency(loan.original_amount - loan.outstanding_amount)}</span>
-                  <span>Remaining: {formatCurrency(loan.outstanding_amount)}</span>
-                </div>
-              </div>
-            )}
-            
-            {/* Enhanced notes section */}
-            {loan.notes && (
-              <div className="bg-gradient-to-r from-amber-50 to-yellow-50 p-4 rounded-xl border border-amber-100 shadow-sm hover:shadow-md transition-all duration-200">
-                <div className="flex items-start gap-3">
-                  <FileText className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="text-sm font-medium text-amber-800 mb-1">Notes</p>
-                    <p className="text-sm text-amber-700">{loan.notes}</p>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
           
-          {/* Right Column: Enhanced Action buttons */}
-          <div className="space-y-4">
-            {/* Premium action buttons */}
-            {!isHistorical && (
-              <div className="flex flex-col gap-3">
-                <Button 
-                  onClick={onEdit}
-                  variant="outline" 
-                  size="sm"
-                  className="w-full border-slate-300 text-slate-700 hover:bg-slate-50 transition-all duration-200 py-2 font-medium shadow-sm hover:shadow-md hover:-translate-y-0.5"
-                >
-                  <Edit className="h-4 w-4 mr-2" />
-                  Edit Facility
-                </Button>
-                
-                <Button 
-                  onClick={onDelete}
-                  variant="outline" 
-                  size="sm"
-                  className="w-full border-red-300 text-red-700 hover:bg-red-50 transition-all duration-200 py-2 font-medium shadow-sm hover:shadow-md hover:-translate-y-0.5"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Remove
-                </Button>
+          {/* Enhanced loan details in premium card layout */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="group bg-gradient-to-br from-slate-50 to-slate-100 p-4 rounded-xl border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5">
+              <div className="flex items-center justify-between mb-2">
+                <PoundSterling className="h-5 w-5 text-slate-600 group-hover:text-slate-700 transition-colors" />
+                <TrendingUp className="h-4 w-4 text-green-500" />
               </div>
-            )}
+              <p className="text-xs text-slate-600 mb-1 font-medium">Original Amount</p>
+              <p className="text-lg font-bold text-slate-900">{formatCurrency(loan.original_amount)}</p>
+            </div>
             
-            {/* Enhanced facility summary card */}
-            <div className="bg-gradient-to-b from-white to-slate-50 rounded-xl p-4 border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200">
-              <div className="text-center">
-                <p className="text-xs text-slate-600 mb-1">Total Interest</p>
-                <p className="text-sm font-bold text-slate-900">
-                  {formatCurrency((loan.original_amount * loan.interest_rate * 0.01) || 0)}
-                </p>
-                <div className="mt-3 pt-3 border-t border-slate-200">
-                  <p className="text-xs text-slate-600 mb-1">Security</p>
-                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                    loan.security_type === 'Secured' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                  }`}>
-                    {loan.security_type}
-                  </span>
-                </div>
+            <div className="group bg-gradient-to-br from-slate-50 to-slate-100 p-4 rounded-xl border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5">
+              <div className="flex items-center justify-between mb-2">
+                <PoundSterling className="h-5 w-5 text-slate-600 group-hover:text-slate-700 transition-colors" />
+                <AlertTriangle className={`h-4 w-4 ${loan.outstanding_amount > 0 ? 'text-amber-500' : 'text-green-500'}`} />
               </div>
+              <p className="text-xs text-slate-600 mb-1 font-medium">Outstanding</p>
+              <p className="text-lg font-bold text-slate-900">{formatCurrency(loan.outstanding_amount)}</p>
+            </div>
+            
+            <div className="group bg-gradient-to-br from-slate-50 to-slate-100 p-4 rounded-xl border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5">
+              <div className="flex items-center justify-between mb-2">
+                <Percent className="h-5 w-5 text-slate-600 group-hover:text-slate-700 transition-colors" />
+                <TrendingUp className="h-4 w-4 text-blue-500" />
+              </div>
+              <p className="text-xs text-slate-600 mb-1 font-medium">Interest Rate</p>
+              <p className="text-lg font-bold text-slate-900">{loan.interest_rate}%</p>
+            </div>
+            
+            <div className="group bg-gradient-to-br from-slate-50 to-slate-100 p-4 rounded-xl border border-slate-200 shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5">
+              <div className="flex items-center justify-between mb-2">
+                <Calendar className="h-5 w-5 text-slate-600 group-hover:text-slate-700 transition-colors" />
+                <Clock className="h-4 w-4 text-purple-500" />
+              </div>
+              <p className="text-xs text-slate-600 mb-1 font-medium">{loan.repayment_frequency} Payment</p>
+              <p className="text-lg font-bold text-slate-900">{formatCurrency(loan.monthly_payment)}</p>
             </div>
           </div>
+
+          {/* Action buttons - now properly aligned */}
+          {!isHistorical && (
+            <div className="flex gap-3 pt-4 border-t border-gray-200">
+              <Button 
+                onClick={onEdit}
+                size="sm"
+                className="flex-1 bg-gradient-to-r from-[#ff8800] to-[#ffaa00] hover:from-[#ff9900] hover:to-[#ffbb00] text-white font-semibold shadow-md hover:shadow-lg transition-all duration-200 py-2"
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                Edit Facility
+              </Button>
+              
+              <Button 
+                onClick={onDelete}
+                size="sm"
+                className="flex-1 bg-[#2a3441] hover:bg-[#1f2937] text-white font-semibold shadow-md hover:shadow-lg transition-all duration-200 py-2"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Remove
+              </Button>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

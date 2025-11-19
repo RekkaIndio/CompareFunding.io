@@ -14,15 +14,16 @@ interface ActionCardProps {
   isDeclined: boolean;
   isWithdrawn: boolean;
   isPending: boolean;
-  onAccept: () => void;
-  onDecline: () => void;
-  onWithdraw: () => void;
+  onAccept: () => Promise<void>;
+  onDecline: () => Promise<void>;
+  onWithdraw: () => Promise<void>;
   declineReason: string;
   setDeclineReason: (reason: string) => void;
   isDeclineDialogOpen: boolean;
   setIsDeclineDialogOpen: (open: boolean) => void;
   conversation?: any;
   onNavigateToMessages?: () => void;
+  isLoading?: boolean;
 }
 
 export const ActionCard: React.FC<ActionCardProps> = ({
@@ -41,21 +42,63 @@ export const ActionCard: React.FC<ActionCardProps> = ({
   isDeclineDialogOpen,
   setIsDeclineDialogOpen,
   conversation,
-  onNavigateToMessages
+  onNavigateToMessages,
+  isLoading = false
 }) => {
-  const handleDeclineSubmit = () => {
-    onDecline();
+  const [isAcceptLoading, setIsAcceptLoading] = React.useState(false);
+  const [isDeclineLoading, setIsDeclineLoading] = React.useState(false);
+  const [isWithdrawLoading, setIsWithdrawLoading] = React.useState(false);
+
+  const handleAcceptClick = async () => {
+    setIsAcceptLoading(true);
+    try {
+      await onAccept();
+    } finally {
+      setIsAcceptLoading(false);
+    }
+  };
+
+  const handleDeclineSubmit = async () => {
+    setIsDeclineLoading(true);
+    try {
+      await onDecline();
+      setIsDeclineDialogOpen(false);
+    } finally {
+      setIsDeclineLoading(false);
+    }
+  };
+
+  const handleWithdrawClick = async () => {
+    setIsWithdrawLoading(true);
+    try {
+      await onWithdraw();
+    } finally {
+      setIsWithdrawLoading(false);
+    }
   };
 
   return (
     <>
-      <Card className={`bg-white/95 backdrop-blur-sm border-slate-200/50 shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl ${
+      <Card className={`relative bg-white/95 backdrop-blur-sm border-slate-200/50 shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl ${
         isExpired ? 'border-gray-200' :
         isAccepted ? 'border-green-200' :
         isDeclined ? 'border-red-200' :
         isWithdrawn ? 'border-gray-200' :
         'border-blue-200'
       }`}>
+        {/* Loading overlay */}
+        {(isAcceptLoading || isDeclineLoading || isWithdrawLoading) && (
+          <div className="absolute inset-0 bg-white/80 backdrop-blur-sm rounded-xl z-10 flex items-center justify-center">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#ff8000] mx-auto mb-2"></div>
+              <p className="text-sm text-slate-600 font-medium">
+                {isAcceptLoading ? 'Processing acceptance...' : 
+                 isDeclineLoading ? 'Processing decline...' : 
+                 'Processing withdrawal...'}
+              </p>
+            </div>
+          </div>
+        )}
         <CardHeader className={`${
           isExpired ? 'bg-gray-100' :
           isAccepted ? 'bg-green-50' :
@@ -122,7 +165,7 @@ export const ActionCard: React.FC<ActionCardProps> = ({
               </p>
             </div>
           ) : isAccepted ? (
-            <div className="text-center py-6">
+            <div className="text-center py-6 animate-in fade-in duration-500">
               <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto mb-3" />
               <p className="text-gray-600 mb-4">
                 You accepted this offer for <span className="font-semibold">{formatCurrency(offer.offered_amount)}</span>
@@ -141,7 +184,7 @@ export const ActionCard: React.FC<ActionCardProps> = ({
               )}
             </div>
           ) : isDeclined ? (
-            <div className="text-center py-6">
+            <div className="text-center py-6 animate-in fade-in duration-500">
               <XCircle className="h-12 w-12 text-red-400 mx-auto mb-3" />
               <p className="text-gray-600 mb-4">
                 You declined this offer on {new Date(offer.updated_at).toLocaleDateString('en-GB')}
@@ -151,7 +194,7 @@ export const ActionCard: React.FC<ActionCardProps> = ({
               </p>
             </div>
           ) : isWithdrawn ? (
-            <div className="text-center py-6">
+            <div className="text-center py-6 animate-in fade-in duration-500">
               <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-3" />
               <p className="text-gray-600 mb-4">
                 This offer was withdrawn by the lender
@@ -161,7 +204,7 @@ export const ActionCard: React.FC<ActionCardProps> = ({
               </p>
             </div>
           ) : isPending && isLender ? (
-            <div className="text-center py-6">
+            <div className="text-center py-6 animate-in fade-in duration-500">
               <Clock className="h-12 w-12 text-blue-400 mx-auto mb-3" />
               <p className="text-gray-600 mb-4">
                 Waiting for business response to your offer of <span className="font-semibold">{formatCurrency(offer.offered_amount)}</span>
@@ -169,9 +212,17 @@ export const ActionCard: React.FC<ActionCardProps> = ({
               <Button 
                 variant="outline" 
                 className="mt-4"
-                onClick={onWithdraw}
+                onClick={handleWithdrawClick}
+                disabled={isWithdrawLoading}
               >
-                Withdraw Offer
+                {isWithdrawLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-slate-600 mr-2"></div>
+                    Withdrawing...
+                  </>
+                ) : (
+                  'Withdraw Offer'
+                )}
               </Button>
             </div>
           ) : !isLender ? (
@@ -187,23 +238,34 @@ export const ActionCard: React.FC<ActionCardProps> = ({
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <Button 
-                  className="bg-green-600 hover:bg-green-700 text-white"
-                  onClick={onAccept}
+                  className="bg-gradient-to-r from-[#ff8000] to-[#ffaa00] hover:from-[#ff9900] hover:to-[#ffbb00] text-white font-semibold shadow-lg transition-all duration-200 hover:shadow-xl hover:-translate-y-0.5"
+                  onClick={handleAcceptClick}
+                  disabled={isAcceptLoading}
                 >
-                  <CheckCircle2 className="mr-2 h-4 w-4" />
-                  Accept Offer
+                  {isAcceptLoading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Accepting...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="mr-2 h-4 w-4" />
+                      Accept Offer
+                    </>
+                  )}
                 </Button>
                 <Button 
-                  variant="outline" 
-                  className="border-red-200 text-red-600 hover:bg-red-50"
+                  className="bg-[#212936] hover:bg-[#2a3441] text-white font-semibold"
                   onClick={() => setIsDeclineDialogOpen(true)}
+                  disabled={isAcceptLoading}
                 >
                   <XCircle className="mr-2 h-4 w-4" />
                   Decline Offer
                 </Button>
               </div>
               
-              {conversation && onNavigateToMessages && (
+              {/* Only show Message Lender button for accepted offers */}
+              {isAccepted && conversation && onNavigateToMessages && (
                 <Button 
                   variant="outline"
                   onClick={onNavigateToMessages}
@@ -306,16 +368,27 @@ export const ActionCard: React.FC<ActionCardProps> = ({
             <Button 
               variant="outline" 
               onClick={() => setIsDeclineDialogOpen(false)}
+              disabled={isDeclineLoading}
               className="bg-[#212936] border-[#212936] text-white hover:bg-[#2a3441] hover:border-[#2a3441] flex-1"
             >
               Cancel
             </Button>
             <Button 
               onClick={handleDeclineSubmit}
+              disabled={isDeclineLoading}
               className="bg-gradient-to-r from-[#ff8000] to-[#ffaa00] hover:from-[#ff9900] hover:to-[#ffbb00] text-white font-semibold shadow-lg transition-all duration-200 hover:shadow-xl hover:-translate-y-0.5 flex-1"
             >
-              <XCircle className="mr-2 h-4 w-4" />
-              Decline Offer
+              {isDeclineLoading ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Declining...
+                </>
+              ) : (
+                <>
+                  <XCircle className="mr-2 h-4 w-4" />
+                  Decline Offer
+                </>
+              )}
             </Button>
           </div>
         </DialogContent>

@@ -13,14 +13,8 @@ import SignUpLayout from '@/components/SignUpLayout';
 import { getFirestore, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { toast } from 'sonner';
 import { CreditCard, PlusCircle, MinusCircle, AlertCircle, PoundSterling, Calendar, Building } from 'lucide-react';
-
-interface FundingDetails {
-  provider: string;
-  product: string;
-  terms: string;
-  expiryDate: string;
-  currentBalance: string;
-}
+import type { SignUpFundingDetails, SignUpCurrentFunding } from '@/types/funding';
+import { convertSignUpToCurrentLending, parseAmount, parseInterestRate } from '@/types/funding';
 
 const CurrentFunding = () => {
   const navigate = useNavigate();
@@ -31,13 +25,17 @@ const CurrentFunding = () => {
   
   // Current funding form data
   const [hasCurrentFunding, setHasCurrentFunding] = useState<string>('');
-  const [fundingDetails, setFundingDetails] = useState<FundingDetails[]>([
+  const [fundingDetails, setFundingDetails] = useState<SignUpFundingDetails[]>([
     {
       provider: '',
       product: '',
       terms: '',
       expiryDate: '',
       currentBalance: '',
+      interestRate: '',
+      monthlyPayment: '',
+      securityType: 'Unsecured',
+      notes: '',
     }
   ]);
 
@@ -65,7 +63,22 @@ const CurrentFunding = () => {
         try {
           const parsedData = JSON.parse(savedFormData);
           setHasCurrentFunding(parsedData.hasCurrentFunding || '');
-          setFundingDetails(parsedData.fundingDetails || [{ provider: '', product: '', terms: '', expiryDate: '', currentBalance: '' }]);
+          // Ensure backwards compatibility with old data structure
+          const normalizedFundingDetails = (parsedData.fundingDetails || []).map((detail: any) => ({
+            provider: detail.provider || '',
+            product: detail.product || '',
+            terms: detail.terms || '',
+            expiryDate: detail.expiryDate || '',
+            currentBalance: detail.currentBalance || '',
+            interestRate: detail.interestRate || '',
+            monthlyPayment: detail.monthlyPayment || '',
+            securityType: detail.securityType || 'Unsecured',
+            notes: detail.notes || '',
+          }));
+          setFundingDetails(normalizedFundingDetails.length > 0 ? normalizedFundingDetails : [{ 
+            provider: '', product: '', terms: '', expiryDate: '', currentBalance: '',
+            interestRate: '', monthlyPayment: '', securityType: 'Unsecured', notes: ''
+          }]);
         } catch (error) {
           console.error('Error parsing saved current funding form data:', error);
         }
@@ -116,7 +129,7 @@ const CurrentFunding = () => {
           updatedAt: serverTimestamp()
         };
 
-        // Save to users collection
+        // Save to users collection (for backwards compatibility)
         await setDoc(doc(db, 'users', user.uid), {
           ...userInfo,
           currentFunding: currentFundingData
@@ -126,6 +139,21 @@ const CurrentFunding = () => {
         await setDoc(doc(db, 'businesses', user.uid), {
           currentFunding: currentFundingData
         }, { merge: true });
+
+        // If user has current funding, also save to current_lending collection in the proper format
+        if (hasCurrentFunding === 'yes' && fundingDetails.length > 0) {
+          const signUpFundingData: SignUpCurrentFunding = {
+            hasCurrentFunding: hasCurrentFunding as 'yes',
+            fundingDetails,
+            updatedAt: serverTimestamp()
+          };
+
+          const currentLendingData = convertSignUpToCurrentLending(signUpFundingData, user.uid);
+          
+          if (currentLendingData) {
+            await setDoc(doc(db, 'current_lending', user.uid), currentLendingData, { merge: true });
+          }
+        }
       }
 
       // Navigate to next step with updated data
@@ -204,6 +232,10 @@ const CurrentFunding = () => {
         terms: '',
         expiryDate: '',
         currentBalance: '',
+        interestRate: '',
+        monthlyPayment: '',
+        securityType: 'Unsecured',
+        notes: '',
       }
     ]);
   };
@@ -216,7 +248,7 @@ const CurrentFunding = () => {
   };
 
   // Update funding detail
-  const updateFundingDetail = (index: number, field: keyof FundingDetails, value: string) => {
+  const updateFundingDetail = (index: number, field: keyof SignUpFundingDetails, value: string) => {
     const updated = [...fundingDetails];
     updated[index][field] = value;
     setFundingDetails(updated);
@@ -232,6 +264,10 @@ const CurrentFunding = () => {
         terms: '',
         expiryDate: '',
         currentBalance: '',
+        interestRate: '',
+        monthlyPayment: '',
+        securityType: 'Unsecured',
+        notes: '',
       }]);
     }
   };
@@ -357,14 +393,17 @@ const CurrentFunding = () => {
                     <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
                       <h4 className="font-medium text-amber-800 mb-2">Information Needed:</h4>
                       <ul className="text-sm text-amber-700 space-y-1">
-                        <li>• Current provider</li>
-                        <li>• Current product</li>
-                        <li>• Current terms</li>
-                        <li>• Expiry date</li>
-                        <li>• Current Balance</li>
+                        <li>• Current provider *</li>
+                        <li>• Current product *</li>
+                        <li>• Current terms *</li>
+                        <li>• Expiry date (if applicable)</li>
+                        <li>• Current Balance *</li>
+                        <li>• Interest rate (optional)</li>
+                        <li>• Monthly payment (optional)</li>
+                        <li>• Additional notes (optional)</li>
                       </ul>
                       <p className="text-xs text-amber-600 mt-3 italic">
-                        Repeat for as many different funding arrangements as you have
+                        * Required fields. Repeat for as many different funding arrangements as you have.
                       </p>
                     </div>
 
@@ -449,6 +488,46 @@ const CurrentFunding = () => {
                                 value={detail.currentBalance}
                                 onChange={(e) => updateFundingDetail(index, 'currentBalance', e.target.value)}
                                 placeholder="e.g., £25,000 remaining, £10k outstanding"
+                                className="h-10 sm:h-12 bg-white border-2 border-gray-200 focus:border-[#ff8000] focus:ring-1 focus:ring-[#ff8000] text-[#2a3441] placeholder:text-gray-400 rounded-lg sm:rounded-xl"
+                              />
+                            </div>
+
+                            {/* Additional Optional Fields */}
+                            <div className="space-y-2">
+                              <Label htmlFor={`interest-${index}`} className="text-sm sm:text-base font-medium text-[#2a3441]">
+                                Interest Rate (Optional)
+                              </Label>
+                              <Input
+                                id={`interest-${index}`}
+                                value={detail.interestRate || ''}
+                                onChange={(e) => updateFundingDetail(index, 'interestRate', e.target.value)}
+                                placeholder="e.g., 5.9% APR"
+                                className="h-10 sm:h-12 bg-white border-2 border-gray-200 focus:border-[#ff8000] focus:ring-1 focus:ring-[#ff8000] text-[#2a3441] placeholder:text-gray-400 rounded-lg sm:rounded-xl"
+                              />
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label htmlFor={`monthly-${index}`} className="text-sm sm:text-base font-medium text-[#2a3441]">
+                                Monthly Payment (Optional)
+                              </Label>
+                              <Input
+                                id={`monthly-${index}`}
+                                value={detail.monthlyPayment || ''}
+                                onChange={(e) => updateFundingDetail(index, 'monthlyPayment', e.target.value)}
+                                placeholder="e.g., £1,850"
+                                className="h-10 sm:h-12 bg-white border-2 border-gray-200 focus:border-[#ff8000] focus:ring-1 focus:ring-[#ff8000] text-[#2a3441] placeholder:text-gray-400 rounded-lg sm:rounded-xl"
+                              />
+                            </div>
+
+                            <div className="space-y-2 md:col-span-2">
+                              <Label htmlFor={`notes-${index}`} className="text-sm sm:text-base font-medium text-[#2a3441]">
+                                Additional Notes (Optional)
+                              </Label>
+                              <Input
+                                id={`notes-${index}`}
+                                value={detail.notes || ''}
+                                onChange={(e) => updateFundingDetail(index, 'notes', e.target.value)}
+                                placeholder="Any additional details about this funding arrangement..."
                                 className="h-10 sm:h-12 bg-white border-2 border-gray-200 focus:border-[#ff8000] focus:ring-1 focus:ring-[#ff8000] text-[#2a3441] placeholder:text-gray-400 rounded-lg sm:rounded-xl"
                               />
                             </div>

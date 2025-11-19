@@ -113,17 +113,24 @@ export const useOffersData = () => {
           let lenderLogo = '';
           
           try {
-            // Try to get from lenders collection first
-            const { data: lenderData } = await getDocument('lenders', user.uid);
-            if (lenderData) {
-              lenderName = lenderData.company_name || lenderData.name || 'Your Company';
-              lenderLogo = lenderData.logo_url || lenderData.company_logo || '';
+            // Try to get from lender_profiles collection first
+            const { data: lenderProfileData } = await getDocument('lender_profiles', user.uid);
+            if (lenderProfileData) {
+              lenderName = lenderProfileData.company_name || lenderProfileData.lender_name || 'Your Company';
+              lenderLogo = lenderProfileData.logo_url || lenderProfileData.company_logo || '';
             } else {
-              // Fallback to users collection
-              const { data: userData } = await getDocument('users', user.uid);
-              if (userData) {
-                lenderName = userData.company_name || userData.displayName || 'Your Company';
-                lenderLogo = userData.photoURL || '';
+              // Try lenders collection
+              const { data: lenderData } = await getDocument('lenders', user.uid);
+              if (lenderData) {
+                lenderName = lenderData.company_name || lenderData.lender_name || lenderData.name || 'Your Company';
+                lenderLogo = lenderData.logo_url || lenderData.company_logo || '';
+              } else {
+                // Fallback to users collection
+                const { data: userData } = await getDocument('users', user.uid);
+                if (userData) {
+                  lenderName = userData.company_name || userData.displayName || userData.name || userData.email?.split('@')[0] || 'Your Company';
+                  lenderLogo = userData.photoURL || userData.logo_url || '';
+                }
               }
             }
           } catch (error) {
@@ -232,16 +239,24 @@ export const useOffersData = () => {
                 
                 if (offer.lender_id) {
                   try {
-                    const { data: lenderData } = await getDocument('lenders', offer.lender_id);
-                    if (lenderData) {
-                      lenderName = lenderData.company_name || lenderData.name || lenderName;
-                      lenderLogo = lenderData.logo_url || lenderData.company_logo || lenderLogo;
+                    // Try lender_profiles collection first
+                    const { data: lenderProfileData } = await getDocument('lender_profiles', offer.lender_id);
+                    if (lenderProfileData) {
+                      lenderName = lenderProfileData.company_name || lenderProfileData.lender_name || lenderName;
+                      lenderLogo = lenderProfileData.logo_url || lenderProfileData.company_logo || lenderLogo;
                     } else {
-                      // Fallback to users collection
-                      const { data: userData } = await getDocument('users', offer.lender_id);
-                      if (userData) {
-                        lenderName = userData.company_name || userData.displayName || lenderName;
-                        lenderLogo = userData.photoURL || lenderLogo;
+                      // Try lenders collection
+                      const { data: lenderData } = await getDocument('lenders', offer.lender_id);
+                      if (lenderData) {
+                        lenderName = lenderData.company_name || lenderData.lender_name || lenderData.name || lenderName;
+                        lenderLogo = lenderData.logo_url || lenderData.company_logo || lenderLogo;
+                      } else {
+                        // Fallback to users collection
+                        const { data: userData } = await getDocument('users', offer.lender_id);
+                        if (userData) {
+                          lenderName = userData.company_name || userData.displayName || userData.name || userData.email?.split('@')[0] || lenderName;
+                          lenderLogo = userData.photoURL || userData.logo_url || lenderLogo;
+                        }
                       }
                     }
                   } catch (error) {

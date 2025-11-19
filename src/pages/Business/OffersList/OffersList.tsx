@@ -279,7 +279,7 @@ const OffersList = () => {
   const getDescription = () => {
     return isLender 
       ? "Manage financing offers you've extended to businesses" 
-      : "Compare and manage loan offers from lenders";
+      : "Compare and manage funding offers from lenders";
   };
 
   // Main render return for OffersList component

@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useState } from 'react';
 import DeclineApplicationDialog from './DeclineApplicationDialog';
 import { RequestDocumentsDialog } from '@/components/RequestDocumentsDialog';
-import { createDocument, updateDocument } from '@/firebase';
+import { createDocument, updateDocument, getDocument } from '@/firebase';
 import { toast } from 'sonner';
 
 interface BusinessHeaderProps {
@@ -41,11 +41,42 @@ export const BusinessHeader: React.FC<BusinessHeaderProps> = ({
 
       const application = applicationData.application;
       
+      // Get lender profile data to get proper lender name
+      const { data: lenderProfile, error: lenderError } = await getDocument('lender_profiles', user.uid);
+      
+      if (lenderError) {
+        console.warn('Unable to fetch lender profile:', lenderError);
+      }
+      
+      // If no lender profile or incomplete data, try to get from users collection
+      let lenderName = lenderProfile?.company_name || lenderProfile?.lender_name || '';
+      let companyLogo = lenderProfile?.logo_url || '';
+      
+      if (!lenderName || lenderName.trim() === '') {
+        try {
+          const { data: userData } = await getDocument('users', user.uid);
+          if (userData) {
+            lenderName = userData.company_name || userData.name || userData.displayName || 'Unnamed Lender';
+            if (!companyLogo) {
+              companyLogo = userData.logo_url || userData.logo || '';
+            }
+          }
+        } catch (error) {
+          console.warn('Could not fetch user data for lender name:', error);
+        }
+      }
+      
+      // Final fallback
+      if (!lenderName || lenderName.trim() === '') {
+        lenderName = 'Unnamed Lender';
+      }
+      
       // Create a standard offer based on the application details
       const standardOffer = {
         application_id: applicationId,
         lender_id: user.uid,
-        lender_name: user.displayName || 'Unknown Lender', 
+        lender_name: lenderName,
+        company_logo: companyLogo,
         offered_amount: application.loan_amount || 0,
         interest_rate: 8.5, // Standard rate - could be calculated based on business criteria
         term_months: application.loan_term_months || 12,

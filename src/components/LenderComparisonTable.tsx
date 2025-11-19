@@ -609,7 +609,7 @@ export const LenderComparisonTable: React.FC<LenderComparisonTableProps> = ({
                           <Button
                             variant="outline"
                             onClick={() => onDeclineLender(lender)}
-                            className="border-gray-300 text-gray-700 hover:bg-gray-50 px-6 py-2 rounded-lg font-medium transition-colors"
+                            className="border-gray-300 text-white hover:bg-gray-50 hover:text-gray-700 px-6 py-2 rounded-lg font-medium transition-colors"
                           >
                             Not Interested
                           </Button>

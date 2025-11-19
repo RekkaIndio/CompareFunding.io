@@ -3,6 +3,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Building2, User, MapPin, Globe } from 'lucide-react';
+import { displayLenderName } from '../utils';
 
 interface BusinessInfoCardProps {
   offer: any;
@@ -43,18 +44,18 @@ export const BusinessInfoCard: React.FC<BusinessInfoCardProps> = ({
           <Avatar className="w-16 h-16 border-2 border-gray-200">
             <AvatarImage 
               src={isLender ? offer.business?.logo_url : offer.company_logo} 
-              alt={`${isLender ? businessName : offer.lender_name} logo`}
+              alt={`${isLender ? businessName : displayLenderName(offer.lender_name)} logo`}
             />
             <AvatarFallback className="bg-[#212936] text-white text-lg font-semibold">
               {isLender 
                 ? businessName.charAt(0).toUpperCase()
-                : offer.lender_name?.charAt(0).toUpperCase() || 'L'
+                : displayLenderName(offer.lender_name)?.charAt(0).toUpperCase() || 'L'
               }
             </AvatarFallback>
           </Avatar>
           <div className="flex-1">
             <h3 className="text-lg font-semibold text-[#212936]">
-              {isLender ? businessName : offer.lender_name}
+              {isLender ? businessName : displayLenderName(offer.lender_name)}
             </h3>
             {isLender ? (
               <p className="text-sm text-gray-600">
@@ -105,7 +106,7 @@ export const BusinessInfoCard: React.FC<BusinessInfoCardProps> = ({
         ) : (
           <div className="space-y-4">
             <p className="text-sm text-gray-600">
-              {offer.lender_name} is offering you financing terms for your business funding application.
+              {displayLenderName(offer.lender_name)} is offering you financing terms for your business funding application.
             </p>
             
             <Button 

@@ -76,13 +76,8 @@ const FundingMatches = () => {
             {/* Disclaimer Text */}
             <div className="max-w-3xl mx-auto text-center text-sm text-[#2a3441]/70">
               <p className="mb-4">
-                Compare Funding is a credit broker and does not provide capital. We work with a range of companies to offer clear 
+                Compare Funding is a not a credit broker and does not provide capital. We work with a range of companies to offer clear 
                 comparisons that allow customers to make choices on financial products & services.
-              </p>
-              <p>
-                Compare Funding may receive a commission, which may vary by product but typically in the form of a fixed percentage of the 
-                loan amount. For certain lenders, we do have influence over the interest rate, and this can impact the 
-                amount you pay under the agreement.
               </p>
             </div>
           </div>
